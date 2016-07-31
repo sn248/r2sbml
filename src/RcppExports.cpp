@@ -5,6 +5,17 @@
 
 using namespace Rcpp;
 
+// printSBML
+int printSBML(SEXP filename);
+RcppExport SEXP Rcppsbml_printSBML(SEXP filenameSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< SEXP >::type filename(filenameSEXP);
+    __result = Rcpp::wrap(printSBML(filename));
+    return __result;
+END_RCPP
+}
 // rcpp_hello
 Rcpp::List rcpp_hello();
 RcppExport SEXP Rcppsbml_rcpp_hello() {
