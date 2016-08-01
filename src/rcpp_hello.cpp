@@ -29,8 +29,8 @@ Rcpp::List rcpp_hello() {
 int echoSBML (SEXP filename) {
 
   std::string fname = Rcpp::as<std::string>(filename);
-  SBMLReader reader;
-  SBMLDocument* document = reader.readSBMLFromFile(fname);
+  libsbml::SBMLReader reader;
+  libsbml::SBMLDocument* document = reader.readSBMLFromFile(fname);
 
   unsigned int errors = document->getNumErrors();
   std::cout << std::endl;

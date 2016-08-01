@@ -1,13 +1,13 @@
 Package: Rcppsbml
 Type: Package
-Title: What the Package Does (Title Case)
+Title: An R interface to the SBML
 Version: 0.1.0
 Author: Who wrote it
 Maintainer: Who to complain to <yourfault@somewhere.net>
 Description: More about what it does (maybe more than one line)
 License: What license is it under?
 LazyData: TRUE
-Imports: 
+Imports:
     Rcpp (>= 0.12.6)
-LinkingTo: 
+LinkingTo:
     Rcpp

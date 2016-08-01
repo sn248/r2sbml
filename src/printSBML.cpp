@@ -9,8 +9,8 @@ using namespace Rcpp;
 int printSBML (SEXP filename) {
 
   std::string fname = Rcpp::as<std::string>(filename);
-  SBMLReader reader;
-  SBMLDocument* document = reader.readSBMLFromFile(fname);
+  libsbml::SBMLReader reader;
+  libsbml::SBMLDocument* document = reader.readSBMLFromFile(fname);
 
   unsigned int errors = document->getNumErrors();
   std::cout << std::endl;
@@ -30,7 +30,7 @@ int printSBML (SEXP filename) {
   cout << endl
        << "File: " << fname
        << " (Level " << level << ", version " << version << ")" << endl;
-  Model* model = document->getModel();
+  libsbml::Model* model = document->getModel();
   if (model == 0)
   {
     cout << "No model present." << endl;
