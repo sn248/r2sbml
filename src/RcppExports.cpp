@@ -5,6 +5,18 @@
 
 using namespace Rcpp;
 
+// convertReactions
+int convertReactions(SEXP infile, SEXP outfile);
+RcppExport SEXP Rcppsbml_convertReactions(SEXP infileSEXP, SEXP outfileSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< SEXP >::type infile(infileSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type outfile(outfileSEXP);
+    __result = Rcpp::wrap(convertReactions(infile, outfile));
+    return __result;
+END_RCPP
+}
 // printSBML
 int printSBML(SEXP filename);
 RcppExport SEXP Rcppsbml_printSBML(SEXP filenameSEXP) {

@@ -30,6 +30,7 @@ int printSBML (SEXP filename) {
   cout << endl
        << "File: " << fname
        << " (Level " << level << ", version " << version << ")" << endl;
+
   libsbml::Model* model = document->getModel();
   if (model == 0)
   {
