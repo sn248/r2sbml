@@ -9,10 +9,6 @@ printSBML <- function(filename) {
     .Call('Rcppsbml_printSBML', PACKAGE = 'Rcppsbml', filename)
 }
 
-rcpp_hello <- function() {
-    .Call('Rcppsbml_rcpp_hello', PACKAGE = 'Rcppsbml')
-}
-
 echoSBML <- function(filename) {
     .Call('Rcppsbml_echoSBML', PACKAGE = 'Rcppsbml', filename)
 }

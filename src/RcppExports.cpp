@@ -28,16 +28,6 @@ BEGIN_RCPP
     return __result;
 END_RCPP
 }
-// rcpp_hello
-Rcpp::List rcpp_hello();
-RcppExport SEXP Rcppsbml_rcpp_hello() {
-BEGIN_RCPP
-    Rcpp::RObject __result;
-    Rcpp::RNGScope __rngScope;
-    __result = Rcpp::wrap(rcpp_hello());
-    return __result;
-END_RCPP
-}
 // echoSBML
 int echoSBML(SEXP filename);
 RcppExport SEXP Rcppsbml_echoSBML(SEXP filenameSEXP) {
