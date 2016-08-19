@@ -31,20 +31,7 @@
 #include <sbml/extension/SBasePlugin.h>
 
 
-// [[Rcpp::export]]
-SEXP getModel (SEXP filename) {
 
-  std::string fname = Rcpp::as<std::string>(filename);
-  libsbml::SBMLReader reader;
-  libsbml::SBMLDocument* document = reader.readSBMLFromFile(fname);
-
-  libsbml::Model* model = document->getModel();
-
-  Rcpp::XPtr<libsbml::Model> modelPtr(model);
-
-  return Rcpp::wrap(modelPtr);
-
-}
 
 RCPP_MODULE(sbModel){
 
