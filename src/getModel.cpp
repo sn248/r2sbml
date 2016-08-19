@@ -44,7 +44,7 @@ RCPP_MODULE(sbModel){
   .constructor<unsigned int, unsigned int>("Creates a new Model using the given SBML level and version values.")
 
   // exposing member functions -- taken directly from libsbml::Model
-  .method( "getSBOTerm", &libsbml::Model::getSBOTerm(),"Get the list of Parameters of the model")
+  .method( "getListOfParameters", &libsbml::Model::getListOfParameters(),"Get the list of Parameters of the model")
 
 
 
