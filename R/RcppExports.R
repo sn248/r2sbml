@@ -5,6 +5,10 @@ convertReactions <- function(infile, outfile) {
     .Call('Rcppsbml_convertReactions', PACKAGE = 'Rcppsbml', infile, outfile)
 }
 
+getModel <- function(filename) {
+    .Call('Rcppsbml_getModel', PACKAGE = 'Rcppsbml', filename)
+}
+
 printSBML <- function(filename) {
     .Call('Rcppsbml_printSBML', PACKAGE = 'Rcppsbml', filename)
 }

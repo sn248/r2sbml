@@ -17,6 +17,17 @@ BEGIN_RCPP
     return __result;
 END_RCPP
 }
+// getModel
+SEXP getModel(SEXP filename);
+RcppExport SEXP Rcppsbml_getModel(SEXP filenameSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< SEXP >::type filename(filenameSEXP);
+    __result = Rcpp::wrap(getModel(filename));
+    return __result;
+END_RCPP
+}
 // printSBML
 int printSBML(SEXP filename);
 RcppExport SEXP Rcppsbml_printSBML(SEXP filenameSEXP) {
