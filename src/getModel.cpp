@@ -30,6 +30,15 @@
 #include <sbml/extension/SBMLExtensionRegistry.h>
 #include <sbml/extension/SBasePlugin.h>
 
+void printSBML (SEXP filename) {
+
+  std::string fname = Rcpp::as<std::string>(filename);
+  libsbml::SBMLReader reader;
+  libsbml::SBMLDocument* document = reader.readSBMLFromFile(fname);
+
+  libsbml::Model* model = document->getModel();
+
+}
 
 RCPP_MODULE(sbModel){
 
@@ -45,4 +54,3 @@ RCPP_MODULE(sbModel){
     .method( "getListofParameters", &libsbml::Model::getListOfParameters(),"Get the list of Parameters of the model")
 
 }
-
