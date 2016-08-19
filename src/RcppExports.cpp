@@ -18,24 +18,24 @@ BEGIN_RCPP
 END_RCPP
 }
 // getModel
-SEXP getModel(SEXP filename);
-RcppExport SEXP Rcppsbml_getModel(SEXP filenameSEXP) {
+SEXP getModel(std::string fname);
+RcppExport SEXP Rcppsbml_getModel(SEXP fnameSEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
-    Rcpp::traits::input_parameter< SEXP >::type filename(filenameSEXP);
-    __result = Rcpp::wrap(getModel(filename));
+    Rcpp::traits::input_parameter< std::string >::type fname(fnameSEXP);
+    __result = Rcpp::wrap(getModel(fname));
     return __result;
 END_RCPP
 }
 // printSBML
-int printSBML(SEXP filename);
-RcppExport SEXP Rcppsbml_printSBML(SEXP filenameSEXP) {
+int printSBML(std::string fname);
+RcppExport SEXP Rcppsbml_printSBML(SEXP fnameSEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
-    Rcpp::traits::input_parameter< SEXP >::type filename(filenameSEXP);
-    __result = Rcpp::wrap(printSBML(filename));
+    Rcpp::traits::input_parameter< std::string >::type fname(fnameSEXP);
+    __result = Rcpp::wrap(printSBML(fname));
     return __result;
 END_RCPP
 }

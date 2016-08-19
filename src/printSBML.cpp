@@ -48,9 +48,9 @@ using namespace std;
 using namespace Rcpp;
 
 // [[Rcpp::export]]
-int printSBML (SEXP filename) {
+int printSBML (std::string fname) {
 
-  std::string fname = Rcpp::as<std::string>(filename);
+  // std::string fname = Rcpp::as<std::string>(filename);
   libsbml::SBMLReader reader;
   libsbml::SBMLDocument* document = reader.readSBMLFromFile(fname);
 
