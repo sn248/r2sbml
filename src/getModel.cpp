@@ -16,7 +16,6 @@
 #include <sbml/KineticLaw.h>
 
 #include <sbml/Model.h>
-#include "./sbml/Model.cpp"
 
 #include <sbml/ModifierSpeciesReference.h>
 #include <sbml/SimpleSpeciesReference.h>
