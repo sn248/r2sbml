@@ -72,7 +72,7 @@ int convertReactions(SEXP infile, SEXP outfile){
     std::string inputFile = Rcpp::as<std::string>(infile);
     std::string outputFile = Rcpp::as<std::string>(outfile);
 
-    libsbml::SBMLReader reader;
+    SBMLReader reader;
     SBMLDocument* document  = reader.readSBMLFromFile(inputFile);
 
     unsigned int  errors    = document->getNumErrors(LIBSBML_SEV_ERROR);
@@ -104,7 +104,7 @@ int convertReactions(SEXP infile, SEXP outfile){
     else
     {
       cout << "Conversion completed." << endl;
-      libsbml::SBMLWriter writer;
+      SBMLWriter writer;
       writer.writeSBMLToFile(document, outputFile);
       // libsbml::writeSBMLToFile(document, outputFile);
     }

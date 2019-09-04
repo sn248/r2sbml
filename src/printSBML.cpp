@@ -4,13 +4,14 @@
 
 using namespace std;
 using namespace Rcpp;
+LIBSBML_CPP_NAMESPACE_USE
 
 // [[Rcpp::export]]
 int printSBML (SEXP filename) {
 
   std::string fname = Rcpp::as<std::string>(filename);
-  libsbml::SBMLReader reader;
-  libsbml::SBMLDocument* document = reader.readSBMLFromFile(fname);
+  SBMLReader reader;
+  SBMLDocument* document = reader.readSBMLFromFile(fname);
 
   unsigned int errors = document->getNumErrors();
   std::cout << std::endl;
@@ -31,7 +32,7 @@ int printSBML (SEXP filename) {
        << "File: " << fname
        << " (Level " << level << ", version " << version << ")" << endl;
 
-  libsbml::Model* model = document->getModel();
+  Model* model = document->getModel();
   if (model == 0)
   {
     cout << "No model present." << endl;

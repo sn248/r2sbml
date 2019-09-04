@@ -3,6 +3,7 @@
 #include <sbml/SBMLTypes.h>
 
 using namespace Rcpp;
+LIBSBML_CPP_NAMESPACE_USE
 
 // This is a simple function using Rcpp that creates an R list
 // containing a character vector and a numeric vector.
@@ -29,8 +30,8 @@ Rcpp::List rcpp_hello() {
 int echoSBML (SEXP filename) {
 
   std::string fname = Rcpp::as<std::string>(filename);
-  libsbml::SBMLReader reader;
-  libsbml::SBMLDocument* document = reader.readSBMLFromFile(fname);
+  SBMLReader reader;
+  SBMLDocument* document = reader.readSBMLFromFile(fname);
 
   unsigned int errors = document->getNumErrors();
   std::cout << std::endl;
