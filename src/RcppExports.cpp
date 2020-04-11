@@ -5,6 +5,28 @@
 
 using namespace Rcpp;
 
+// getCmtNames
+Rcpp::StringVector getCmtNames(SEXP input_model);
+RcppExport SEXP _Rcppsbml_getCmtNames(SEXP input_modelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(getCmtNames(input_model));
+    return rcpp_result_gen;
+END_RCPP
+}
+// getCmtSizes
+Rcpp::NumericVector getCmtSizes(SEXP input_model);
+RcppExport SEXP _Rcppsbml_getCmtSizes(SEXP input_modelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(getCmtSizes(input_model));
+    return rcpp_result_gen;
+END_RCPP
+}
 // convertReactions
 int convertReactions(SEXP infile, SEXP outfile);
 RcppExport SEXP _Rcppsbml_convertReactions(SEXP infileSEXP, SEXP outfileSEXP) {
@@ -14,27 +36,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< SEXP >::type infile(infileSEXP);
     Rcpp::traits::input_parameter< SEXP >::type outfile(outfileSEXP);
     rcpp_result_gen = Rcpp::wrap(convertReactions(infile, outfile));
-    return rcpp_result_gen;
-END_RCPP
-}
-// printSBML
-int printSBML(SEXP filename);
-RcppExport SEXP _Rcppsbml_printSBML(SEXP filenameSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type filename(filenameSEXP);
-    rcpp_result_gen = Rcpp::wrap(printSBML(filename));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rcpp_hello
-Rcpp::List rcpp_hello();
-RcppExport SEXP _Rcppsbml_rcpp_hello() {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(rcpp_hello());
     return rcpp_result_gen;
 END_RCPP
 }
@@ -49,12 +50,84 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// getModel
+SEXP getModel(SEXP filename);
+RcppExport SEXP _Rcppsbml_getModel(SEXP filenameSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type filename(filenameSEXP);
+    rcpp_result_gen = Rcpp::wrap(getModel(filename));
+    return rcpp_result_gen;
+END_RCPP
+}
+// getNumSpecies
+int getNumSpecies(SEXP input_model);
+RcppExport SEXP _Rcppsbml_getNumSpecies(SEXP input_modelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(getNumSpecies(input_model));
+    return rcpp_result_gen;
+END_RCPP
+}
+// printSBML
+int printSBML(SEXP filename);
+RcppExport SEXP _Rcppsbml_printSBML(SEXP filenameSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type filename(filenameSEXP);
+    rcpp_result_gen = Rcpp::wrap(printSBML(filename));
+    return rcpp_result_gen;
+END_RCPP
+}
+// getSpeciesNames
+Rcpp::StringVector getSpeciesNames(SEXP input_model);
+RcppExport SEXP _Rcppsbml_getSpeciesNames(SEXP input_modelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(getSpeciesNames(input_model));
+    return rcpp_result_gen;
+END_RCPP
+}
+// getSpeciesIC
+Rcpp::NumericVector getSpeciesIC(SEXP input_model);
+RcppExport SEXP _Rcppsbml_getSpeciesIC(SEXP input_modelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(getSpeciesIC(input_model));
+    return rcpp_result_gen;
+END_RCPP
+}
+// getSpeciesTable
+Rcpp::DataFrame getSpeciesTable(SEXP input_model);
+RcppExport SEXP _Rcppsbml_getSpeciesTable(SEXP input_modelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(getSpeciesTable(input_model));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_Rcppsbml_getCmtNames", (DL_FUNC) &_Rcppsbml_getCmtNames, 1},
+    {"_Rcppsbml_getCmtSizes", (DL_FUNC) &_Rcppsbml_getCmtSizes, 1},
     {"_Rcppsbml_convertReactions", (DL_FUNC) &_Rcppsbml_convertReactions, 2},
-    {"_Rcppsbml_printSBML", (DL_FUNC) &_Rcppsbml_printSBML, 1},
-    {"_Rcppsbml_rcpp_hello", (DL_FUNC) &_Rcppsbml_rcpp_hello, 0},
     {"_Rcppsbml_echoSBML", (DL_FUNC) &_Rcppsbml_echoSBML, 1},
+    {"_Rcppsbml_getModel", (DL_FUNC) &_Rcppsbml_getModel, 1},
+    {"_Rcppsbml_getNumSpecies", (DL_FUNC) &_Rcppsbml_getNumSpecies, 1},
+    {"_Rcppsbml_printSBML", (DL_FUNC) &_Rcppsbml_printSBML, 1},
+    {"_Rcppsbml_getSpeciesNames", (DL_FUNC) &_Rcppsbml_getSpeciesNames, 1},
+    {"_Rcppsbml_getSpeciesIC", (DL_FUNC) &_Rcppsbml_getSpeciesIC, 1},
+    {"_Rcppsbml_getSpeciesTable", (DL_FUNC) &_Rcppsbml_getSpeciesTable, 1},
     {NULL, NULL, 0}
 };
 
