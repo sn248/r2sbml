@@ -15,9 +15,6 @@ getCmtSizes <- function(input_model) {
     .Call('_Rcppsbml_getCmtSizes', PACKAGE = 'Rcppsbml', input_model)
 }
 
-#'convertReactions
-#'@param infile input file name
-#'@param outfile output file name
 convertReactions <- function(infile, outfile) {
     .Call('_Rcppsbml_convertReactions', PACKAGE = 'Rcppsbml', infile, outfile)
 }
@@ -42,8 +39,6 @@ getNumSpecies <- function(input_model) {
     .Call('_Rcppsbml_getNumSpecies', PACKAGE = 'Rcppsbml', input_model)
 }
 
-#'printSBML
-#'@param filename input file name
 printSBML <- function(filename) {
     .Call('_Rcppsbml_printSBML', PACKAGE = 'Rcppsbml', filename)
 }
