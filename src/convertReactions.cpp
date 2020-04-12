@@ -49,67 +49,56 @@
 using namespace std;
 LIBSBML_CPP_NAMESPACE_USE
 
-// [[Rcpp::export]]
-int convertReactions(SEXP infile, SEXP outfile){
+  //'convertReactions
+  //'@param infile input file name
+  //'@param outfile output file name
+  // [[Rcpp::export]]
+ int convertReactions(SEXP infile, SEXP outfile){
 
-    // if (argc != 3)
-    // {
-    //   cout
-    //   << endl
-    //   << "Usage: convertReactions input-filename output-filename" << endl
-    //   << endl
-    //   << "This program will attempt to convert all reactions" << endl
-    //   << "contained in the source model, and write a new SBML file."
-    //   << endl
-    //   << endl;
-    //   return 1;
-    // }
+   // read document
+   std::string inputFile = Rcpp::as<std::string>(infile);
+   std::string outputFile = Rcpp::as<std::string>(outfile);
 
-    // const char* inputFile   = argv[1];
-    // const char* outputFile  = argv[2];
+   SBMLReader reader;
+   SBMLDocument* document  = reader.readSBMLFromFile(inputFile);
 
-    // read document
-    std::string inputFile = Rcpp::as<std::string>(infile);
-    std::string outputFile = Rcpp::as<std::string>(outfile);
+   unsigned int  errors    = document->getNumErrors(LIBSBML_SEV_ERROR);
 
-    SBMLReader reader;
-    SBMLDocument* document  = reader.readSBMLFromFile(inputFile);
+   // stop in case of errors
+   if (errors > 0)
+   {
+     Rcpp::Rcerr << "Encountered the following SBML errors:" << endl;
+     document->printErrors(Rcpp::Rcerr);
+     Rcpp::Rcerr << "Conversion skipped.  Please correct the problems above first."
+                 << endl;
+     return errors;
+   }
 
-    unsigned int  errors    = document->getNumErrors(LIBSBML_SEV_ERROR);
+   // create conversion object that identifies the function definition converter
+   ConversionProperties props;
+   props.addOption("replaceReactions", true,
+                   "Replace reactions with rateRules");
 
-    // stop in case of errors
-    if (errors > 0)
-    {
-      cerr << "Encountered the following SBML errors:" << endl;
-      document->printErrors(cerr);
-      cerr << "Conversion skipped.  Please correct the problems above first."
-           << endl;
-      return errors;
-    }
+   // convert
+   int success = document->convert(props);
 
-    // create conversion object that identifies the function definition converter
-    ConversionProperties props;
-    props.addOption("replaceReactions", true,
-                    "Replace reactions with rateRules");
+   if (success != LIBSBML_OPERATION_SUCCESS)
+   {
+     Rcpp::Rcerr << "Unable to perform conversion due to the following:" << endl;
+     document->printErrors(Rcpp::Rcerr);
+     return errors;
+   }
+   else
+   {
 
-    // convert
-    int success = document->convert(props);
+     Rcpp::Rcout << "Conversion completed." << endl;
 
-    if (success != LIBSBML_OPERATION_SUCCESS)
-    {
-      cerr << "Unable to perform conversion due to the following:" << endl;
-      document->printErrors(cerr);
-      return errors;
-    }
-    else
-    {
-      cout << "Conversion completed." << endl;
-      SBMLWriter writer;
-      writer.writeSBMLToFile(document, outputFile);
-      // libsbml::writeSBMLToFile(document, outputFile);
-    }
+     SBMLWriter writer;
+     writer.writeSBMLToFile(document, outputFile);
+     // libsbml::writeSBMLToFile(document, outputFile);
+   }
 
-    return 0;
-}
+   return 0;
+ }
 
 
