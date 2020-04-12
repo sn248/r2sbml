@@ -1,9 +1,9 @@
-Package: Rcppsbml
+Package: r2sbml
 Type: Package
-Title: An R interface to the SBML
+Title: A light-weight R interface to the SBML library
 Version: 0.1.0
-Author: Satya
-Maintainer: Satya <sn248@cornell.edu>
+Author: Satyaprakash Nayak
+Maintainer: Satyaprakash Nayak <sn248@cornell.edu>
 Description: This package helps explore an SBML model in R.
 License: GPL (>=2)
 LazyData: TRUE

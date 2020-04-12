@@ -7,7 +7,7 @@ using namespace Rcpp;
 
 // getCmtNames
 Rcpp::StringVector getCmtNames(SEXP input_model);
-RcppExport SEXP _Rcppsbml_getCmtNames(SEXP input_modelSEXP) {
+RcppExport SEXP _r2sbml_getCmtNames(SEXP input_modelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -18,7 +18,7 @@ END_RCPP
 }
 // getCmtSizes
 Rcpp::NumericVector getCmtSizes(SEXP input_model);
-RcppExport SEXP _Rcppsbml_getCmtSizes(SEXP input_modelSEXP) {
+RcppExport SEXP _r2sbml_getCmtSizes(SEXP input_modelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -29,7 +29,7 @@ END_RCPP
 }
 // convertReactions
 int convertReactions(SEXP infile, SEXP outfile);
-RcppExport SEXP _Rcppsbml_convertReactions(SEXP infileSEXP, SEXP outfileSEXP) {
+RcppExport SEXP _r2sbml_convertReactions(SEXP infileSEXP, SEXP outfileSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -41,7 +41,7 @@ END_RCPP
 }
 // echoSBML
 int echoSBML(SEXP filename);
-RcppExport SEXP _Rcppsbml_echoSBML(SEXP filenameSEXP) {
+RcppExport SEXP _r2sbml_echoSBML(SEXP filenameSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -52,7 +52,7 @@ END_RCPP
 }
 // getModel
 SEXP getModel(SEXP filename);
-RcppExport SEXP _Rcppsbml_getModel(SEXP filenameSEXP) {
+RcppExport SEXP _r2sbml_getModel(SEXP filenameSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -63,7 +63,7 @@ END_RCPP
 }
 // getNumSpecies
 int getNumSpecies(SEXP input_model);
-RcppExport SEXP _Rcppsbml_getNumSpecies(SEXP input_modelSEXP) {
+RcppExport SEXP _r2sbml_getNumSpecies(SEXP input_modelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -74,7 +74,7 @@ END_RCPP
 }
 // printSBML
 int printSBML(SEXP filename);
-RcppExport SEXP _Rcppsbml_printSBML(SEXP filenameSEXP) {
+RcppExport SEXP _r2sbml_printSBML(SEXP filenameSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -85,7 +85,7 @@ END_RCPP
 }
 // getSpeciesNames
 Rcpp::StringVector getSpeciesNames(SEXP input_model);
-RcppExport SEXP _Rcppsbml_getSpeciesNames(SEXP input_modelSEXP) {
+RcppExport SEXP _r2sbml_getSpeciesNames(SEXP input_modelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -96,7 +96,7 @@ END_RCPP
 }
 // getSpeciesIC
 Rcpp::NumericVector getSpeciesIC(SEXP input_model);
-RcppExport SEXP _Rcppsbml_getSpeciesIC(SEXP input_modelSEXP) {
+RcppExport SEXP _r2sbml_getSpeciesIC(SEXP input_modelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -107,7 +107,7 @@ END_RCPP
 }
 // getSpeciesTable
 Rcpp::DataFrame getSpeciesTable(SEXP input_model);
-RcppExport SEXP _Rcppsbml_getSpeciesTable(SEXP input_modelSEXP) {
+RcppExport SEXP _r2sbml_getSpeciesTable(SEXP input_modelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -118,20 +118,20 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_Rcppsbml_getCmtNames", (DL_FUNC) &_Rcppsbml_getCmtNames, 1},
-    {"_Rcppsbml_getCmtSizes", (DL_FUNC) &_Rcppsbml_getCmtSizes, 1},
-    {"_Rcppsbml_convertReactions", (DL_FUNC) &_Rcppsbml_convertReactions, 2},
-    {"_Rcppsbml_echoSBML", (DL_FUNC) &_Rcppsbml_echoSBML, 1},
-    {"_Rcppsbml_getModel", (DL_FUNC) &_Rcppsbml_getModel, 1},
-    {"_Rcppsbml_getNumSpecies", (DL_FUNC) &_Rcppsbml_getNumSpecies, 1},
-    {"_Rcppsbml_printSBML", (DL_FUNC) &_Rcppsbml_printSBML, 1},
-    {"_Rcppsbml_getSpeciesNames", (DL_FUNC) &_Rcppsbml_getSpeciesNames, 1},
-    {"_Rcppsbml_getSpeciesIC", (DL_FUNC) &_Rcppsbml_getSpeciesIC, 1},
-    {"_Rcppsbml_getSpeciesTable", (DL_FUNC) &_Rcppsbml_getSpeciesTable, 1},
+    {"_r2sbml_getCmtNames", (DL_FUNC) &_r2sbml_getCmtNames, 1},
+    {"_r2sbml_getCmtSizes", (DL_FUNC) &_r2sbml_getCmtSizes, 1},
+    {"_r2sbml_convertReactions", (DL_FUNC) &_r2sbml_convertReactions, 2},
+    {"_r2sbml_echoSBML", (DL_FUNC) &_r2sbml_echoSBML, 1},
+    {"_r2sbml_getModel", (DL_FUNC) &_r2sbml_getModel, 1},
+    {"_r2sbml_getNumSpecies", (DL_FUNC) &_r2sbml_getNumSpecies, 1},
+    {"_r2sbml_printSBML", (DL_FUNC) &_r2sbml_printSBML, 1},
+    {"_r2sbml_getSpeciesNames", (DL_FUNC) &_r2sbml_getSpeciesNames, 1},
+    {"_r2sbml_getSpeciesIC", (DL_FUNC) &_r2sbml_getSpeciesIC, 1},
+    {"_r2sbml_getSpeciesTable", (DL_FUNC) &_r2sbml_getSpeciesTable, 1},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_Rcppsbml(DllInfo *dll) {
+RcppExport void R_init_r2sbml(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }
