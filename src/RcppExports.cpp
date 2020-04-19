@@ -72,6 +72,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// getParameterTable
+Rcpp::DataFrame getParameterTable(SEXP input_model);
+RcppExport SEXP _r2sbml_getParameterTable(SEXP input_modelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(getParameterTable(input_model));
+    return rcpp_result_gen;
+END_RCPP
+}
 // printSBML
 int printSBML(SEXP filename);
 RcppExport SEXP _r2sbml_printSBML(SEXP filenameSEXP) {
@@ -80,6 +91,17 @@ BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type filename(filenameSEXP);
     rcpp_result_gen = Rcpp::wrap(printSBML(filename));
+    return rcpp_result_gen;
+END_RCPP
+}
+// getReactionTable
+Rcpp::DataFrame getReactionTable(SEXP input_model);
+RcppExport SEXP _r2sbml_getReactionTable(SEXP input_modelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(getReactionTable(input_model));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -124,7 +146,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_r2sbml_echoSBML", (DL_FUNC) &_r2sbml_echoSBML, 1},
     {"_r2sbml_getModel", (DL_FUNC) &_r2sbml_getModel, 1},
     {"_r2sbml_getNumSpecies", (DL_FUNC) &_r2sbml_getNumSpecies, 1},
+    {"_r2sbml_getParameterTable", (DL_FUNC) &_r2sbml_getParameterTable, 1},
     {"_r2sbml_printSBML", (DL_FUNC) &_r2sbml_printSBML, 1},
+    {"_r2sbml_getReactionTable", (DL_FUNC) &_r2sbml_getReactionTable, 1},
     {"_r2sbml_getSpeciesNames", (DL_FUNC) &_r2sbml_getSpeciesNames, 1},
     {"_r2sbml_getSpeciesIC", (DL_FUNC) &_r2sbml_getSpeciesIC, 1},
     {"_r2sbml_getSpeciesTable", (DL_FUNC) &_r2sbml_getSpeciesTable, 1},

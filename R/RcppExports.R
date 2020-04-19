@@ -39,8 +39,22 @@ getNumSpecies <- function(input_model) {
     .Call('_r2sbml_getNumSpecies', PACKAGE = 'r2sbml', input_model)
 }
 
+#'getParameterTable
+#'Outputs the Information Table for Paremeters
+#'@param SBMLmodel input should be an SBML Model
+getParameterTable <- function(input_model) {
+    .Call('_r2sbml_getParameterTable', PACKAGE = 'r2sbml', input_model)
+}
+
 printSBML <- function(filename) {
     .Call('_r2sbml_printSBML', PACKAGE = 'r2sbml', filename)
+}
+
+#'getReactionTable
+#'Outputs the Information Table for Reactions
+#'@param SBMLmodel input should be an SBML Model
+getReactionTable <- function(input_model) {
+    .Call('_r2sbml_getReactionTable', PACKAGE = 'r2sbml', input_model)
 }
 
 #'getSpeciesNames
