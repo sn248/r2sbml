@@ -17,7 +17,7 @@ LIBSBML_CPP_NAMESPACE_USE
 
 //'getReactionTable
 //'Outputs the Information Table for Reactions
-//'@param SBMLmodel input should be an SBML Model
+//'@param input_model input should be an SBML Model
 // [[Rcpp::export]]
 Rcpp::DataFrame getReactionTable (SEXP input_model) {
 

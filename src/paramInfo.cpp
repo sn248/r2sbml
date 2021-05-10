@@ -16,7 +16,7 @@ LIBSBML_CPP_NAMESPACE_USE
 
 //'getParameterTable
 //'Outputs the Information Table for Paremeters
-//'@param SBMLmodel input should be an SBML Model
+//'@param input_model input should be an SBML Model
 // [[Rcpp::export]]
 Rcpp::DataFrame getParameterTable (SEXP input_model) {
 

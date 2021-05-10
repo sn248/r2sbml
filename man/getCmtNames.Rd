@@ -8,7 +8,7 @@ Outputs the Names of Compartments}
 getCmtNames(input_model)
 }
 \arguments{
-\item{SBMLmodel}{input should be an SBML Model}
+\item{input_model}{input should be an SBML Model}
 }
 \description{
 getCmtNames

@@ -9,7 +9,7 @@ LIBSBML_CPP_NAMESPACE_USE
 
 //'getSpeciesNum
 //'Outputs the number of Species in the model
-//'@param filename input file name, should end with .xml
+//'@param input_model input should be an SBML model
 // [[Rcpp::export]]
 int getNumSpecies (SEXP input_model) {
 

@@ -49,10 +49,10 @@
 using namespace std;
 LIBSBML_CPP_NAMESPACE_USE
 
-  //'convertReactions
-  //'@param infile input file name
-  //'@param outfile output file name
-  // [[Rcpp::export]]
+//'convertReactions
+//'@param infile input file name
+//'@param outfile output file name
+// [[Rcpp::export]]
  int convertReactions(SEXP infile, SEXP outfile){
 
    // read document
