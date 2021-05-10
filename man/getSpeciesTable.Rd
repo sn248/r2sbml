@@ -8,7 +8,7 @@ Outputs the Information Table for Species}
 getSpeciesTable(input_model)
 }
 \arguments{
-\item{SBMLmodel}{input should be an SBML Model}
+\item{input_model}{input should be an SBML Model}
 }
 \description{
 getspeciesTable

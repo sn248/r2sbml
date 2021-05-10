@@ -6,6 +6,8 @@ using namespace std;
 using namespace Rcpp;
 LIBSBML_CPP_NAMESPACE_USE
 
+//'printSBML
+//'@param filename filename should be the name of the xml file
 // [[Rcpp::export]]
 int printSBML (SEXP filename) {
 
@@ -14,50 +16,50 @@ int printSBML (SEXP filename) {
   SBMLDocument* document = reader.readSBMLFromFile(fname);
 
   unsigned int errors = document->getNumErrors();
-  std::cout << std::endl;
-  std::cout << "  filename: " << fname << std::endl;
-  std::cout << "  error(s): " << errors  << std::endl;
-  std::cout << std::endl;
+  Rcout << std::endl;
+  Rcout << "  filename: " << fname << std::endl;
+  Rcout << "  error(s): " << errors  << std::endl;
+  Rcout << std::endl;
 
   if (document->getNumErrors() > 0)
   {
-    cerr << "Encountered the following SBML errors:" << endl;
-    document->printErrors(cerr);
+    Rcerr << "Encountered the following SBML errors:" << endl;
+    document->printErrors(Rcerr);
     return 1;
   }
 
   unsigned int level   = document->getLevel  ();
   unsigned int version = document->getVersion();
-  cout << endl
+  Rcout << endl
        << "File: " << fname
        << " (Level " << level << ", version " << version << ")" << endl;
 
   Model* model = document->getModel();
   if (model == 0)
   {
-    cout << "No model present." << endl;
+    Rcout << "No model present." << endl;
     return 1;
   }
 
-  cout << "               "
+  Rcout << "               "
        << (level == 1 ? "name: " : "  id: ")
        << (model->isSetId() ? model->getId() : std::string("(empty)")) << endl;
 
   if (model->isSetSBOTerm())
-    cout << "      model sboTerm: " << model->getSBOTerm() << endl;
-  cout << "functionDefinitions: " << model->getNumFunctionDefinitions() << endl;
-  cout << "    unitDefinitions: " << model->getNumUnitDefinitions    () << endl;
-  cout << "   compartmentTypes: " << model->getNumCompartmentTypes   () << endl;
-  cout << "        specieTypes: " << model->getNumSpeciesTypes       () << endl;
-  cout << "       compartments: " << model->getNumCompartments       () << endl;
-  cout << "            species: " << model->getNumSpecies            () << endl;
-  cout << "         parameters: " << model->getNumParameters         () << endl;
-  cout << " initialAssignments: " << model->getNumInitialAssignments () << endl;
-  cout << "              rules: " << model->getNumRules              () << endl;
-  cout << "        constraints: " << model->getNumConstraints        () << endl;
-  cout << "          reactions: " << model->getNumReactions          () << endl;
-  cout << "             events: " << model->getNumEvents             () << endl;
-  cout << endl;
+    Rcout << "      model sboTerm: " << model->getSBOTerm() << endl;
+  Rcout << "functionDefinitions: " << model->getNumFunctionDefinitions() << endl;
+  Rcout << "    unitDefinitions: " << model->getNumUnitDefinitions    () << endl;
+  Rcout << "   compartmentTypes: " << model->getNumCompartmentTypes   () << endl;
+  Rcout << "        specieTypes: " << model->getNumSpeciesTypes       () << endl;
+  Rcout << "       compartments: " << model->getNumCompartments       () << endl;
+  Rcout << "            species: " << model->getNumSpecies            () << endl;
+  Rcout << "         parameters: " << model->getNumParameters         () << endl;
+  Rcout << " initialAssignments: " << model->getNumInitialAssignments () << endl;
+  Rcout << "              rules: " << model->getNumRules              () << endl;
+  Rcout << "        constraints: " << model->getNumConstraints        () << endl;
+  Rcout << "          reactions: " << model->getNumReactions          () << endl;
+  Rcout << "             events: " << model->getNumEvents             () << endl;
+  Rcout << endl;
 
   delete document;
 

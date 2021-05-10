@@ -11,7 +11,7 @@ LIBSBML_CPP_NAMESPACE_USE
 
 //'getCmtNames
 //'Outputs the Names of Compartments
-//'@param SBMLmodel input should be an SBML Model
+//'@param input_model input should be an SBML Model
 // [[Rcpp::export]]
 Rcpp::StringVector getCmtNames (SEXP input_model) {
 
@@ -38,7 +38,7 @@ Rcpp::StringVector getCmtNames (SEXP input_model) {
 
 //'getCmtSizes
 //'Outputs the Sizes of Compartments
-//'@param SBMLmodel input should be an SBML Model
+//'@param input_model input should be an SBML Model
 // [[Rcpp::export]]
 Rcpp::NumericVector getCmtSizes (SEXP input_model) {
 

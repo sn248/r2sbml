@@ -8,7 +8,7 @@ Outputs the number of Species in the model}
 getNumSpecies(input_model)
 }
 \arguments{
-\item{filename}{input file name, should end with .xml}
+\item{input_model}{input should be an SBML model}
 }
 \description{
 getSpeciesNum

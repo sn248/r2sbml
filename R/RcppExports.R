@@ -3,18 +3,21 @@
 
 #'getCmtNames
 #'Outputs the Names of Compartments
-#'@param SBMLmodel input should be an SBML Model
+#'@param input_model input should be an SBML Model
 getCmtNames <- function(input_model) {
     .Call('_r2sbml_getCmtNames', PACKAGE = 'r2sbml', input_model)
 }
 
 #'getCmtSizes
 #'Outputs the Sizes of Compartments
-#'@param SBMLmodel input should be an SBML Model
+#'@param input_model input should be an SBML Model
 getCmtSizes <- function(input_model) {
     .Call('_r2sbml_getCmtSizes', PACKAGE = 'r2sbml', input_model)
 }
 
+#'convertReactions
+#'@param infile input file name
+#'@param outfile output file name
 convertReactions <- function(infile, outfile) {
     .Call('_r2sbml_convertReactions', PACKAGE = 'r2sbml', infile, outfile)
 }
@@ -34,46 +37,48 @@ getModel <- function(filename) {
 
 #'getSpeciesNum
 #'Outputs the number of Species in the model
-#'@param filename input file name, should end with .xml
+#'@param input_model input should be an SBML model
 getNumSpecies <- function(input_model) {
     .Call('_r2sbml_getNumSpecies', PACKAGE = 'r2sbml', input_model)
 }
 
 #'getParameterTable
 #'Outputs the Information Table for Paremeters
-#'@param SBMLmodel input should be an SBML Model
+#'@param input_model input should be an SBML Model
 getParameterTable <- function(input_model) {
     .Call('_r2sbml_getParameterTable', PACKAGE = 'r2sbml', input_model)
 }
 
+#'printSBML
+#'@param filename filename should be the name of the xml file
 printSBML <- function(filename) {
     .Call('_r2sbml_printSBML', PACKAGE = 'r2sbml', filename)
 }
 
 #'getReactionTable
 #'Outputs the Information Table for Reactions
-#'@param SBMLmodel input should be an SBML Model
+#'@param input_model input should be an SBML Model
 getReactionTable <- function(input_model) {
     .Call('_r2sbml_getReactionTable', PACKAGE = 'r2sbml', input_model)
 }
 
 #'getSpeciesNames
 #'Outputs the Names of Compartments
-#'@param SBMLmodel input should be an SBML Model
+#'@param input_model input should be an SBML Model
 getSpeciesNames <- function(input_model) {
     .Call('_r2sbml_getSpeciesNames', PACKAGE = 'r2sbml', input_model)
 }
 
 #'getspeciesIC
 #'Outputs the Initial Concentrations of Species
-#'@param SBMLmodel input should be an SBML Model
+#'@param input_model input should be an SBML Model
 getSpeciesIC <- function(input_model) {
     .Call('_r2sbml_getSpeciesIC', PACKAGE = 'r2sbml', input_model)
 }
 
 #'getspeciesTable
 #'Outputs the Information Table for Species
-#'@param SBMLmodel input should be an SBML Model
+#'@param input_model input should be an SBML Model
 getSpeciesTable <- function(input_model) {
     .Call('_r2sbml_getSpeciesTable', PACKAGE = 'r2sbml', input_model)
 }
