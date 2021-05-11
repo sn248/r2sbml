@@ -1,2 +1,8 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^.DS_St*
+^.git/obj*
+^.git
+^.gitignore
+^.Rhistory
+^inst/.DS_S*
