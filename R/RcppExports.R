@@ -28,6 +28,38 @@ echoSBML <- function(filename) {
     .Call('_r2sbml_echoSBML', PACKAGE = 'r2sbml', filename)
 }
 
+#'printEventAssignmentMath
+#'Outputs Event Assignment Math
+NULL
+
+#'getRuleMath
+#'Outputs Model which can be simulated
+#'@param input_model input should be an SBML Model
+getRuleMath <- function(input_model) {
+    .Call('_r2sbml_getRuleMath', PACKAGE = 'r2sbml', input_model)
+}
+
+#'getReactionMath
+#'Outputs Model which can be simulated
+#'@param input_model input should be an SBML Model
+getReactionMath <- function(input_model) {
+    .Call('_r2sbml_getReactionMath', PACKAGE = 'r2sbml', input_model)
+}
+
+#'getReactionMath
+#'Outputs Model which can be simulated
+#'@param input_model input should be an SBML Model
+getFunctionDefinition <- function(input_model) {
+    .Call('_r2sbml_getFunctionDefinition', PACKAGE = 'r2sbml', input_model)
+}
+
+#'getEventMath
+#'Outputs Model which can be simulated
+#'@param input_model input should be an SBML Model
+getEventMath <- function(input_model) {
+    .Call('_r2sbml_getEventMath', PACKAGE = 'r2sbml', input_model)
+}
+
 #'getModel
 #'Outputs an external pointer to the Model from SBML file
 #'@param filename input file name, should end with .xml

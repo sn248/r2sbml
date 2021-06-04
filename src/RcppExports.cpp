@@ -50,6 +50,50 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// getRuleMath
+int getRuleMath(SEXP input_model);
+RcppExport SEXP _r2sbml_getRuleMath(SEXP input_modelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(getRuleMath(input_model));
+    return rcpp_result_gen;
+END_RCPP
+}
+// getReactionMath
+int getReactionMath(SEXP input_model);
+RcppExport SEXP _r2sbml_getReactionMath(SEXP input_modelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(getReactionMath(input_model));
+    return rcpp_result_gen;
+END_RCPP
+}
+// getFunctionDefinition
+int getFunctionDefinition(SEXP input_model);
+RcppExport SEXP _r2sbml_getFunctionDefinition(SEXP input_modelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(getFunctionDefinition(input_model));
+    return rcpp_result_gen;
+END_RCPP
+}
+// getEventMath
+int getEventMath(SEXP input_model);
+RcppExport SEXP _r2sbml_getEventMath(SEXP input_modelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(getEventMath(input_model));
+    return rcpp_result_gen;
+END_RCPP
+}
 // getModel
 SEXP getModel(SEXP filename);
 RcppExport SEXP _r2sbml_getModel(SEXP filenameSEXP) {
@@ -144,6 +188,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_r2sbml_getCmtSizes", (DL_FUNC) &_r2sbml_getCmtSizes, 1},
     {"_r2sbml_convertReactions", (DL_FUNC) &_r2sbml_convertReactions, 2},
     {"_r2sbml_echoSBML", (DL_FUNC) &_r2sbml_echoSBML, 1},
+    {"_r2sbml_getRuleMath", (DL_FUNC) &_r2sbml_getRuleMath, 1},
+    {"_r2sbml_getReactionMath", (DL_FUNC) &_r2sbml_getReactionMath, 1},
+    {"_r2sbml_getFunctionDefinition", (DL_FUNC) &_r2sbml_getFunctionDefinition, 1},
+    {"_r2sbml_getEventMath", (DL_FUNC) &_r2sbml_getEventMath, 1},
     {"_r2sbml_getModel", (DL_FUNC) &_r2sbml_getModel, 1},
     {"_r2sbml_getNumSpecies", (DL_FUNC) &_r2sbml_getNumSpecies, 1},
     {"_r2sbml_getParameterTable", (DL_FUNC) &_r2sbml_getParameterTable, 1},

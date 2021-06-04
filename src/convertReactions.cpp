@@ -100,5 +100,3 @@ LIBSBML_CPP_NAMESPACE_USE
 
    return 0;
  }
-
-

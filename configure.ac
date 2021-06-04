@@ -16,7 +16,7 @@
 ##  GNU General Public License for more details.
 ##
 ##  You should have received a copy of the GNU General Public License
-##  along with RcppRedis.  If not, see <http://www.gnu.org/licenses/>.
+##  along with r2sbml.  If not, see <http://www.gnu.org/licenses/>.
 
 ##  using the configure.ac file for RcppRedis at template
 # require at least autoconf 2.61
