@@ -46,7 +46,7 @@ getReactionMath <- function(input_model) {
     .Call('_r2sbml_getReactionMath', PACKAGE = 'r2sbml', input_model)
 }
 
-#'getReactionMath
+#'getFunctionDefinition
 #'Outputs Model which can be simulated
 #'@param input_model input should be an SBML Model
 getFunctionDefinition <- function(input_model) {

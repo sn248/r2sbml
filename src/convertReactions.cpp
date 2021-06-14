@@ -5,6 +5,7 @@
  * @brief   Loads an SBML File and converts reactions to ODEs
  * @author  Sarah Keating
  * @author  Frank T. Bergmann
+ * @author  Satyaprakash Nayak
  *
  * <!--------------------------------------------------------------------------
  * This sample program is distributed under a different license than the rest
@@ -40,7 +41,6 @@
  * written permission.
  * ------------------------------------------------------------------------ -->
  */
-
 
 #include <iostream>
 #include <sbml/SBMLTypes.h>
@@ -92,6 +92,15 @@ LIBSBML_CPP_NAMESPACE_USE
    {
 
      Rcpp::Rcout << "Conversion completed." << endl;
+     Rcpp::Rcout << "Rules in converted doc - " << document->getModel()->getNumRules() << endl;
+     int numRules = document->getModel()->getNumRules();
+     for(int i = 0; i < numRules; i++)
+     {
+       // mathML to infix
+       Rcpp::Rcout << "ODE for " << document->getModel()->getRule(i)->getVariable()
+        << " is " << document->getModel()->getRule(i)->getFormula() << endl;
+
+     }
 
      SBMLWriter writer;
      writer.writeSBMLToFile(document, outputFile);

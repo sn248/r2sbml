@@ -31,8 +31,8 @@ int printSBML (SEXP filename) {
   unsigned int level   = document->getLevel  ();
   unsigned int version = document->getVersion();
   Rcout << endl
-       << "File: " << fname
-       << " (Level " << level << ", version " << version << ")" << endl;
+        << "File: " << fname
+        << " (Level " << level << ", version " << version << ")" << endl;
 
   Model* model = document->getModel();
   if (model == 0)
@@ -42,11 +42,14 @@ int printSBML (SEXP filename) {
   }
 
   Rcout << "               "
-       << (level == 1 ? "name: " : "  id: ")
-       << (model->isSetId() ? model->getId() : std::string("(empty)")) << endl;
+        << (level == 1 ? "name: " : "  id: ")
+        << (model->isSetId() ? model->getId() : std::string("(empty)")) << endl;
 
   if (model->isSetSBOTerm())
+  {
     Rcout << "      model sboTerm: " << model->getSBOTerm() << endl;
+  }
+
   Rcout << "functionDefinitions: " << model->getNumFunctionDefinitions() << endl;
   Rcout << "    unitDefinitions: " << model->getNumUnitDefinitions    () << endl;
   Rcout << "   compartmentTypes: " << model->getNumCompartmentTypes   () << endl;

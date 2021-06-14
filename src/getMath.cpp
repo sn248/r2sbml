@@ -144,9 +144,11 @@ int getFunctionDefinition (SEXP input_model) {
       Rcout <<") := ";
 
       /* Print function body. */
-      if (math->getNumChildren() == 0)
+      int numChildren = 0;
+      numChildren = math->getNumChildren();
+      if (NumChildren == 0)
       {
-        Rcout << "(no body defined)";
+        Rcout << "No Function Body Defined)" << endl;
       }
       else
       {
