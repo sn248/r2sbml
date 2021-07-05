@@ -1,5 +1,3 @@
-#include <Rcpp.h>
-
 /**
  * @file    convertReactions.cpp
  * @brief   Loads an SBML File and converts reactions to ODEs
@@ -42,18 +40,25 @@
  * ------------------------------------------------------------------------ -->
  */
 
+#include <Rcpp.h>
+#include <fstream>
 #include <iostream>
+#include <chrono>
+#include <ctime>
 #include <sbml/SBMLTypes.h>
 #include <sbml/conversion/ConversionProperties.h>
 
 using namespace std;
 LIBSBML_CPP_NAMESPACE_USE
 
+int writeFileR(SBMLDocument*, std::string);
+
 //'convertReactions
 //'@param infile input file name
 //'@param outfile output file name
+//'@param format output code format, should be 'MATLAB','mrgsolve',rxode' or 'R' (default)
 // [[Rcpp::export]]
- int convertReactions(SEXP infile, SEXP outfile){
+ int convertReactions(SEXP infile, SEXP outfile, std::string format = "R"){
 
    // read document
    std::string inputFile = Rcpp::as<std::string>(infile);
@@ -92,20 +97,98 @@ LIBSBML_CPP_NAMESPACE_USE
    {
 
      Rcpp::Rcout << "Conversion completed." << endl;
-     Rcpp::Rcout << "Rules in converted doc - " << document->getModel()->getNumRules() << endl;
+     Rcpp::Rcout << "Number of ODEs - " << document->getModel()->getNumRules() << endl;
      int numRules = document->getModel()->getNumRules();
+
+     std::ofstream out(outputFile);
+     out << "// Model equations generated from .xml file \n" << endl;
+
+     // std::string outFormat = format;
+     if (format.compare("R") == 0)  { writeFileR(document, outputFile); }
+
      for(int i = 0; i < numRules; i++)
      {
        // mathML to infix
-       Rcpp::Rcout << "ODE for " << document->getModel()->getRule(i)->getVariable()
-        << " is " << document->getModel()->getRule(i)->getFormula() << endl;
+       // out << "ODE for " << document->getModel()->getRule(i)->getVariable()
+       // << " is " << document->getModel()->getRule(i)->getFormula() << endl;
 
      }
 
-     SBMLWriter writer;
-     writer.writeSBMLToFile(document, outputFile);
+     out.close();
+
+     // SBMLWriter writer;
+     // writer.writeSBMLToFile(document, outputFile);
      // libsbml::writeSBMLToFile(document, outputFile);
    }
 
    return 0;
  }
+
+// write output ODEs for R
+int writeFileR(SBMLDocument* document, std::string outfilename)
+{
+   std::ofstream out(outfilename);
+   Model* model = document->getModel();
+
+   // auto now = std::chrono::system_clock::now();
+   out << "## Automatically generated model file by r2sbml at " << endl;
+
+   out << "## Writing the model ODEs for solving in R" << endl;
+   out << "## Solving the model requires desolve package \n" << endl;
+   out << "## Model Summary " << endl;
+   out << "## functionDefinitions: " << model->getNumFunctionDefinitions() << endl;
+   out << "##     unitDefinitions: " << model->getNumUnitDefinitions    () << endl;
+   out << "##    compartmentTypes: " << model->getNumCompartmentTypes   () << endl;
+   out << "##         specieTypes: " << model->getNumSpeciesTypes       () << endl;
+   out << "##        compartments: " << model->getNumCompartments       () << endl;
+   out << "##             species: " << model->getNumSpecies            () << endl;
+   out << "##          parameters: " << model->getNumParameters         () << endl;
+   out << "##  initialAssignments: " << model->getNumInitialAssignments () << endl;
+   out << "##               rules: " << model->getNumRules              () << endl;
+   out << "##         constraints: " << model->getNumConstraints        () << endl;
+   out << "##           reactions: " << model->getNumReactions          () << endl;
+   out << "##              events: " << model->getNumEvents             () << endl;
+   out << endl;
+
+   out << "## Load required packages" << endl;
+   out << "library(deSolve)" << endl << endl;
+   out << "## Parameter list" << endl;
+   // out << "parameters <- function(){" << endl << endl;
+   out << "params <- c(" << endl;
+   int numParams = model->getNumParameters();
+   for (int i = 0; i < numParams ; i++ ){
+      if (i != numParams-1 ){
+        out << "            " << model->getParameter(i)->getName() << " = " << model->getParameter(i)->getValue() << "," << endl;
+      } else {
+        out << "            " << model->getParameter(i)->getName() << " = " << model->getParameter(i)->getValue() << endl;
+      }
+   }
+   out << "           )" << endl;
+   // out << "}" << endl;
+   out << endl;
+   out <<"## Initial Conditions list" << endl;
+   out << "ICs <- c(" << endl;
+   int numICs = model->getNumSpecies();
+   for (int i = 0; i < numICs ; i++ ){
+      if (i != numICs-1 ){
+        out << "         " << model->getSpecies(i)->getName() << " = " << model->getSpecies(i)->getInitialConcentration() << "," << endl;
+      } else {
+        out << "         " << model->getSpecies(i)->getName() << " = " << model->getSpecies(i)->getInitialConcentration() << endl;
+      }
+   }
+   out << "        )" << endl;
+
+   out << endl;
+   out << "## Compartment list " << endl;
+   int numCmt = model->getNumCompartments();
+   for(int i = 0; i < numCmt; i++){
+        out <<  model->getCompartment(i)->getId() << " = " << model->getCompartment(i)->getVolume() << endl;
+   }
+   out << endl;
+
+   out << "## Mass-Balances (ODEs)" << endl;
+
+   out.close();
+   return 0;
+
+}

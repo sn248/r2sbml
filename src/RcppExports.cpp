@@ -28,14 +28,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // convertReactions
-int convertReactions(SEXP infile, SEXP outfile);
-RcppExport SEXP _r2sbml_convertReactions(SEXP infileSEXP, SEXP outfileSEXP) {
+int convertReactions(SEXP infile, SEXP outfile, std::string format);
+RcppExport SEXP _r2sbml_convertReactions(SEXP infileSEXP, SEXP outfileSEXP, SEXP formatSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type infile(infileSEXP);
     Rcpp::traits::input_parameter< SEXP >::type outfile(outfileSEXP);
-    rcpp_result_gen = Rcpp::wrap(convertReactions(infile, outfile));
+    Rcpp::traits::input_parameter< std::string >::type format(formatSEXP);
+    rcpp_result_gen = Rcpp::wrap(convertReactions(infile, outfile, format));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -186,7 +187,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_r2sbml_getCmtNames", (DL_FUNC) &_r2sbml_getCmtNames, 1},
     {"_r2sbml_getCmtSizes", (DL_FUNC) &_r2sbml_getCmtSizes, 1},
-    {"_r2sbml_convertReactions", (DL_FUNC) &_r2sbml_convertReactions, 2},
+    {"_r2sbml_convertReactions", (DL_FUNC) &_r2sbml_convertReactions, 3},
     {"_r2sbml_echoSBML", (DL_FUNC) &_r2sbml_echoSBML, 1},
     {"_r2sbml_getRuleMath", (DL_FUNC) &_r2sbml_getRuleMath, 1},
     {"_r2sbml_getReactionMath", (DL_FUNC) &_r2sbml_getReactionMath, 1},

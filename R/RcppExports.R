@@ -18,8 +18,9 @@ getCmtSizes <- function(input_model) {
 #'convertReactions
 #'@param infile input file name
 #'@param outfile output file name
-convertReactions <- function(infile, outfile) {
-    .Call('_r2sbml_convertReactions', PACKAGE = 'r2sbml', infile, outfile)
+#'@param format output code format, should be 'MATLAB','mrgsolve',rxode' or 'R' (default)
+convertReactions <- function(infile, outfile, format = "R") {
+    .Call('_r2sbml_convertReactions', PACKAGE = 'r2sbml', infile, outfile, format)
 }
 
 #'echoSBML
