@@ -4,12 +4,14 @@
 \alias{convertReactions}
 \title{convertReactions}
 \usage{
-convertReactions(infile, outfile)
+convertReactions(infile, outfile, format = "R")
 }
 \arguments{
 \item{infile}{input file name}
 
 \item{outfile}{output file name}
+
+\item{format}{output code format, should be 'MATLAB','mrgsolve',rxode' or 'R' (default)}
 }
 \description{
 convertReactions
