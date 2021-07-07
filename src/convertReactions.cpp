@@ -83,9 +83,34 @@ int writeFileR(SBMLDocument*, std::string);
    ConversionProperties props;
    props.addOption("replaceReactions", true,
                    "Replace reactions with rateRules");
-
    // convert
    int success = document->convert(props);
+
+   if (success != LIBSBML_OPERATION_SUCCESS)
+   {
+     Rcpp::Rcerr << "Unable to perform conversion due to the following:" << endl;
+     document->printErrors(Rcpp::Rcerr);
+     return errors;
+   }
+
+   // promote local parameters to global parameters
+   props.addOption("promoteLocalParameters", true,
+                   "Promote Local Parameters to Global");
+   // convert
+   success = document->convert(props);
+
+   if (success != LIBSBML_OPERATION_SUCCESS)
+   {
+     Rcpp::Rcerr << "Unable to perform conversion due to the following:" << endl;
+     document->printErrors(Rcpp::Rcerr);
+     return errors;
+   }
+
+   // expand Initial Assignments
+   props.addOption("expandInitialAssignments", true,
+                   "Expanding Initial Assignments");
+   // convert
+   success = document->convert(props);
 
    if (success != LIBSBML_OPERATION_SUCCESS)
    {
@@ -187,6 +212,18 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    out << endl;
 
    out << "## Mass-Balances (ODEs)" << endl;
+   out << "massBalances <- c(" << endl;
+   int numODEs = model->getNumRules();
+   for (int i = 0; i < numODEs ; i++){
+      if(i != numODEs - 1){
+      out << "                 " << model->getRule(i)->getFormula() << "," << endl;
+      } else {
+      out << "                 " << model->getRule(i)->getFormula() << endl;
+      }
+   }
+   out << "                 )" << endl;
+
+
 
    out.close();
    return 0;
