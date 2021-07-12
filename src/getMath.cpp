@@ -170,13 +170,15 @@ int getFunctionDefinition (SEXP input_model) {
       Rcout << "FunctionDefinition " << n << ", " << fd->getId();
 
       math = fd->getMath();
+      int numChildren = 0;
+      numChildren = math->getNumChildren();
 
       /* Print function arguments. */
       if (math->getNumChildren() > 1)
       {
         Rcout << "(" << ( math->getLeftChild() )->getName();
 
-        for (n = 1; n < math->getNumChildren() - 1; ++n)
+        for (n = 1; n < numChildren; ++n)
         {
           Rcout <<", " << ( math->getChild(n) )->getName();
         }
@@ -185,8 +187,6 @@ int getFunctionDefinition (SEXP input_model) {
       Rcout <<") := ";
 
       /* Print function body. */
-      int numChildren = 0;
-      numChildren = math->getNumChildren();
       if (numChildren == 0)
       {
         Rcout << "No Function Body Defined)" << endl;

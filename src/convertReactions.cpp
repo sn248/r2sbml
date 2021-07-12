@@ -120,6 +120,7 @@ int writeFileR(SBMLDocument*, std::string);
    }
    else
    {
+     // make names equal to ID if name doesn't exist
 
      Rcpp::Rcout << "Conversion completed." << endl;
      Rcpp::Rcout << "Number of ODEs - " << document->getModel()->getNumRules() << endl;
@@ -222,8 +223,6 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
       }
    }
    out << "                 )" << endl;
-
-
 
    out.close();
    return 0;

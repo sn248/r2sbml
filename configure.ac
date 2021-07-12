@@ -18,9 +18,8 @@
 ##  You should have received a copy of the GNU General Public License
 ##  along with r2sbml.  If not, see <http://www.gnu.org/licenses/>.
 
-##  using the configure.ac file for RcppRedis at template
-# require at least autoconf 2.61
-AC_PREREQ([2.71])
+# require at least autoconf 2.69
+AC_PREREQ([2.69])
 
 # Process this file with autoconf to produce a configure script
 AC_INIT([r2sbml],[0.1.0])
@@ -49,11 +48,10 @@ if test x"${PKGCONFIG}" == x"yes"; then
         SBML_INCLUDE=`pkg-config --cflags libsbml`
         ## should give -I/usr/local/include
 
-        ## sbml_libs=`pkg-config --libs libsbml` gives -L/usr/local/lib -lsbml
+        ## SBML_LIBS=`pkg-config --libs libsbml` gives -L/usr/local/lib -lsbml
         ## but I need -L/usr/local/lib -lsbml-static so manually input this
         SBML_LIBS="-L/usr/local/lib -lsbml-static -lxml2"
-        ## no need to build libsbml-static.a
-        libsbml_tgt=""
+        ## SBML_LIBS=`pkg-config --libs libsbml`
     else
         AC_MSG_WARN([pkg-config exists but libsbml is not available.])
     fi
