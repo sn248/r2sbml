@@ -1,0 +1,27 @@
+convertReactions        convertReactions
+echoSBML                echoSBML
+getCmtNames             getCmtNames Outputs the Names of Compartments
+getCmtSizes             getCmtSizes Outputs the Sizes of Compartments
+getEventMath            getEventMath Outputs Model which can be
+                        simulated
+getFunctionDefinition   getFunctionDefinition Outputs Model which can
+                        be simulated
+getModel                getModel Outputs an external pointer to the
+                        Model from SBML file
+getNumSpecies           getSpeciesNum Outputs the number of Species in
+                        the model
+getParameterTable       getParameterTable Outputs the Information Table
+                        for Paremeters
+getReactionMath         getReactionMath Outputs Model which can be
+                        simulated
+getReactionTable        getReactionTable Outputs the Information Table
+                        for Reactions
+getRuleMath             getRuleMath Outputs Model which can be
+                        simulated
+getSpeciesIC            getspeciesIC Outputs the Initial Concentrations
+                        of Species
+getSpeciesNames         getSpeciesNames Outputs the Names of
+                        Compartments
+getSpeciesTable         getspeciesTable Outputs the Information Table
+                        for Species
+printSBML               printSBML

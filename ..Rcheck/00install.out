@@ -1,0 +1,832 @@
+* installing *source* package ‘r2sbml’ ...
+** using staged installation
+checking whether the C++ compiler works... yes
+checking for C++ compiler default output file name... a.out
+checking for suffix of executables... 
+checking whether we are cross compiling... no
+checking for suffix of object files... o
+checking whether the compiler supports GNU C++... yes
+checking whether clang++ -mmacosx-version-min=10.13 -std=gnu++14 accepts -g... yes
+checking for clang++ -mmacosx-version-min=10.13 -std=gnu++14 option to enable C++11 features... none needed
+checking how to run the C++ preprocessor... clang++ -mmacosx-version-min=10.13 -std=gnu++14 -E
+checking whether the compiler supports GNU C++... (cached) yes
+checking whether clang++ -mmacosx-version-min=10.13 -std=gnu++14 accepts -g... (cached) yes
+checking for clang++ -mmacosx-version-min=10.13 -std=gnu++14 option to enable C++11 features... (cached) none needed
+checking for cmake... /usr/local/bin/cmake
+using ceres via local cmake build on x86_64 
+set CMAKE_BIN=/usr/local/bin/cmake
+######### Compiling libsbml from source #####################
+set CC=clang -mmacosx-version-min=10.13
+set CFLAGS=-I/usr/local/include -fPIC -Wall -g -O2
+set CXX=clang++ -mmacosx-version-min=10.13 -std=gnu++14
+set CXXFLAGS=
+set LDFLAGS=-L/usr/local/lib
+mkdir: libsbml: File exists
+CMake Deprecation Warning at CMakeLists.txt:34 (cmake_minimum_required):
+  Compatibility with CMake < 2.8.12 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value or use a ...<max> suffix to tell
+  CMake that the project does not need compatibility with older versions.
+
+
+-- The C compiler identification is AppleClang 12.0.0.12000032
+-- The CXX compiler identification is AppleClang 12.0.0.12000032
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+CMake Deprecation Warning at CMakeLists.txt:42 (cmake_policy):
+  The OLD behavior for policy CMP0058 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+
+
+-- Check for working C compiler: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Looking for BZ2_bzCompressInit in /usr/lib/libbz2.dylib
+-- Looking for BZ2_bzCompressInit in /usr/lib/libbz2.dylib - found
+-- Looking for gzopen in /usr/lib/libz.dylib
+-- Looking for gzopen in /usr/lib/libz.dylib - found
+-- Looking for include file check.h
+-- Looking for include file check.h - not found
+-- Looking for include file expat.h
+-- Looking for include file expat.h - found
+-- Looking for include file errno.h
+-- Looking for include file errno.h - found
+-- Looking for include file ieeefp.h
+-- Looking for include file ieeefp.h - not found
+-- Looking for include file math.h
+-- Looking for include file math.h - found
+-- Looking for include file sys/types.h
+-- Looking for include file sys/types.h - found
+-- Looking for include file float.h
+-- Looking for include file float.h - found
+-- Looking for sqrt in m
+-- Looking for sqrt in m - found
+-- 
+----------------------------------------------------------------------
+libSBML version 5.19.0
+----------------------------------------------------------------------
+
+   More information and the latest version are available online at
+   http://sbml.org/Software/libSBML
+
+   Please report problems using the issue tracker at
+   http://sbml.org/Software/libsbml/issue-tracker
+
+   To contact the developers directly, email libsbml-team@googlegroups.com
+
+   Configured on host 'arcadmins-MacBook-Pro.local'
+     host type                       = Darwin
+     host operating system           = Darwin 19.6.0
+     host CPU architecture           = x86_64
+
+   General build flags:
+     CC                              = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang
+     CXX                             = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++
+     CPPFLAGS                        =  -DMACOSX
+     CFLAGS                          = -I/usr/local/include -fPIC -Wall -g -O2
+     CXXFLAGS                        = 
+     LDFLAGS                         = -L/usr/local/lib
+
+   XML parser library configuration:
+     XML library                     = libxml2
+     CPPFLAGS for XML                = -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.1.sdk/usr/include
+     LIBS for XML                    = /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.1.sdk/usr/lib/libxml2.tbd
+
+   Other libSBML configuration settings:
+     Installation $prefix            = /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml
+--      Value of $DYLD_LIBRARY_PATH     = 
+--      Using C++ namespace ('libsbml') = no
+--      Building 'universal' binaries   = no (using native arch)
+-- 
+--      Build examples                  = no
+-- 
+-- 
+--    Support for SBML Level 3 Packages: 
+--      SBML 'comp' package    = OFF
+--      SBML 'distrib' package  = OFF
+--      SBML 'fbc' package     = OFF
+--      SBML 'groups' package  = OFF
+--      SBML 'l3v2extendedmath' package  = ON
+--      SBML 'layout' package  = OFF
+--      SBML 'multi' package   = OFF
+--      SBML 'qual' package    = OFF
+--      SBML 'render' package  = OFF
+-- 
+
+-- Other potentially important settings:
+--   Compression support is enabled for .zip and .gz files
+--   Compression support is enabled for .bz2 files
+-- 
+----------------------------------------------------------------------
+-- Configuring done
+CMake Warning (dev):
+  Policy CMP0042 is not set: MACOSX_RPATH is enabled by default.  Run "cmake
+  --help-policy CMP0042" for policy details.  Use the cmake_policy command to
+  set the policy and suppress this warning.
+
+  MACOSX_RPATH is not specified for the following targets:
+
+   sbml
+
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- Generating done
+-- Build files have been written to: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml-build
+[  0%] Building CXX object src/CMakeFiles/sbml.dir/sbml/packages/l3v2extendedmath/extension/L3v2extendedmathASTPlugin.cpp.o
+[  0%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/packages/l3v2extendedmath/extension/L3v2extendedmathASTPlugin.cpp.o
+[  0%] Building CXX object src/CMakeFiles/sbml.dir/sbml/packages/l3v2extendedmath/extension/L3v2extendedmathExtension.cpp.o
+[  0%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/packages/l3v2extendedmath/extension/L3v2extendedmathExtension.cpp.o
+[  0%] Building CXX object src/CMakeFiles/sbml.dir/sbml/packages/l3v2extendedmath/extension/L3v2extendedmathSBMLDocumentPlugin.cpp.o
+[  0%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/packages/l3v2extendedmath/extension/L3v2extendedmathSBMLDocumentPlugin.cpp.o
+[  0%] Building CXX object src/CMakeFiles/sbml.dir/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathMathMLConsistencyValidator.cpp.o
+[  0%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathMathMLConsistencyValidator.cpp.o
+[  1%] Building CXX object src/CMakeFiles/sbml.dir/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathUnitConsistencyValidator.cpp.o
+[  2%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathUnitConsistencyValidator.cpp.o
+[  2%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathValidator.cpp.o
+[  2%] Building CXX object src/CMakeFiles/sbml.dir/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathValidator.cpp.o
+[  2%] Building CXX object src/CMakeFiles/sbml.dir/sbml/packages/l3v2extendedmath/validator/constraints/L3v2EMArgumentsUnitsCheck.cpp.o
+[  2%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/packages/l3v2extendedmath/validator/constraints/L3v2EMArgumentsUnitsCheck.cpp.o
+[  2%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/packages/l3v2extendedmath/validator/constraints/L3v2EMNumberArgsMathCheck.cpp.o
+[  2%] Building CXX object src/CMakeFiles/sbml.dir/sbml/packages/l3v2extendedmath/validator/constraints/L3v2EMNumberArgsMathCheck.cpp.o
+[  4%] Building CXX object src/CMakeFiles/sbml.dir/sbml/packages/l3v2extendedmath/validator/constraints/L3v2extendedmathMathMLConsistencyConstraints.cpp.o
+[  4%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/packages/l3v2extendedmath/validator/constraints/L3v2extendedmathMathMLConsistencyConstraints.cpp.o
+[  4%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/packages/l3v2extendedmath/validator/constraints/L3v2extendedmathUnitConsistencyConstraints.cpp.o
+[  4%] Building CXX object src/CMakeFiles/sbml.dir/sbml/packages/l3v2extendedmath/validator/constraints/L3v2extendedmathUnitConsistencyConstraints.cpp.o
+[  4%] Building CXX object src/CMakeFiles/sbml.dir/sbml/annotation/CVTerm.cpp.o
+[  4%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/annotation/CVTerm.cpp.o
+[  4%] Building CXX object src/CMakeFiles/sbml.dir/sbml/annotation/Date.cpp.o
+[  4%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/annotation/Date.cpp.o
+[  4%] Building CXX object src/CMakeFiles/sbml.dir/sbml/annotation/ModelCreator.cpp.o
+[  4%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/annotation/ModelCreator.cpp.o
+[  6%] Building CXX object src/CMakeFiles/sbml.dir/sbml/annotation/ModelHistory.cpp.o
+[  6%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/annotation/ModelHistory.cpp.o
+[  6%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/annotation/RDFAnnotationParser.cpp.o
+[  6%] Building CXX object src/CMakeFiles/sbml.dir/sbml/annotation/RDFAnnotationParser.cpp.o
+[  6%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/common/libsbml-version.cpp.o
+[  6%] Building CXX object src/CMakeFiles/sbml.dir/sbml/common/libsbml-version.cpp.o
+[  6%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/common/operationReturnValues.cpp.o
+[  6%] Building CXX object src/CMakeFiles/sbml.dir/sbml/common/operationReturnValues.cpp.o
+[  7%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/ConversionOption.cpp.o
+[  8%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/ConversionOption.cpp.o
+[  8%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/ConversionProperties.cpp.o
+[  8%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/ConversionProperties.cpp.o
+[  8%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/RegisterConverters.cpp.o
+[  8%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/RegisterConverters.cpp.o
+[  8%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLConverter.cpp.o
+[  8%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLConverter.cpp.o
+[ 10%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLConverterRegistry.cpp.o
+[ 10%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLConverterRegistry.cpp.o
+[ 10%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLFunctionDefinitionConverter.cpp.o
+[ 10%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLFunctionDefinitionConverter.cpp.o
+[ 10%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLIdConverter.cpp.o
+[ 10%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLIdConverter.cpp.o
+[ 10%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLInferUnitsConverter.cpp.o
+[ 10%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLInferUnitsConverter.cpp.o
+[ 10%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLInitialAssignmentConverter.cpp.o
+[ 10%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLInitialAssignmentConverter.cpp.o
+[ 12%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLLevel1Version1Converter.cpp.o
+[ 12%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLLevel1Version1Converter.cpp.o
+[ 12%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLLevelVersionConverter.cpp.o
+[ 12%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLLevelVersionConverter.cpp.o
+[ 12%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLLocalParameterConverter.cpp.o
+[ 12%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLLocalParameterConverter.cpp.o
+[ 12%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLRateOfConverter.cpp.o
+[ 12%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLRateOfConverter.cpp.o
+[ 13%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLReactionConverter.cpp.o
+[ 14%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLReactionConverter.cpp.o
+[ 14%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLRuleConverter.cpp.o
+[ 14%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLRuleConverter.cpp.o
+[ 14%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLStripPackageConverter.cpp.o
+[ 14%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLStripPackageConverter.cpp.o
+[ 14%] Building CXX object src/CMakeFiles/sbml.dir/sbml/conversion/SBMLUnitsConverter.cpp.o
+[ 14%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/conversion/SBMLUnitsConverter.cpp.o
+[ 14%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/extension/ASTBasePlugin.cpp.o
+[ 14%] Building CXX object src/CMakeFiles/sbml.dir/sbml/extension/ASTBasePlugin.cpp.o
+[ 16%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/extension/ISBMLExtensionNamespaces.cpp.o
+[ 16%] Building CXX object src/CMakeFiles/sbml.dir/sbml/extension/ISBMLExtensionNamespaces.cpp.o
+[ 16%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/extension/SBMLDocumentPlugin.cpp.o
+[ 16%] Building CXX object src/CMakeFiles/sbml.dir/sbml/extension/SBMLDocumentPlugin.cpp.o
+[ 16%] Building CXX object src/CMakeFiles/sbml.dir/sbml/extension/SBMLDocumentPluginNotRequired.cpp.o
+[ 16%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/extension/SBMLDocumentPluginNotRequired.cpp.o
+[ 16%] Building CXX object src/CMakeFiles/sbml.dir/sbml/extension/SBMLExtension.cpp.o
+[ 16%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/extension/SBMLExtension.cpp.o
+[ 18%] Building CXX object src/CMakeFiles/sbml.dir/sbml/extension/SBMLExtensionException.cpp.o
+[ 18%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/extension/SBMLExtensionException.cpp.o
+[ 18%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/extension/SBMLExtensionNamespaces.cpp.o
+[ 18%] Building CXX object src/CMakeFiles/sbml.dir/sbml/extension/SBMLExtensionNamespaces.cpp.o
+[ 18%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/extension/SBMLExtensionRegistry.cpp.o
+[ 18%] Building CXX object src/CMakeFiles/sbml.dir/sbml/extension/SBMLExtensionRegistry.cpp.o
+[ 18%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/extension/SBaseExtensionPoint.cpp.o
+[ 18%] Building CXX object src/CMakeFiles/sbml.dir/sbml/extension/SBaseExtensionPoint.cpp.o
+[ 19%] Building CXX object src/CMakeFiles/sbml.dir/sbml/extension/SBasePlugin.cpp.o
+[ 20%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/extension/SBasePlugin.cpp.o
+[ 20%] Building CXX object src/CMakeFiles/sbml.dir/sbml/extension/SBasePluginCreatorBase.cpp.o
+[ 20%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/extension/SBasePluginCreatorBase.cpp.o
+[ 20%] Building CXX object src/CMakeFiles/sbml.dir/sbml/AlgebraicRule.cpp.o
+[ 20%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/AlgebraicRule.cpp.o
+[ 20%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/AssignmentRule.cpp.o
+[ 20%] Building CXX object src/CMakeFiles/sbml.dir/sbml/AssignmentRule.cpp.o
+[ 20%] Building CXX object src/CMakeFiles/sbml.dir/sbml/Compartment.cpp.o
+[ 20%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/Compartment.cpp.o
+[ 22%] Building CXX object src/CMakeFiles/sbml.dir/sbml/CompartmentType.cpp.o
+[ 22%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/CompartmentType.cpp.o
+[ 22%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/Constraint.cpp.o
+[ 22%] Building CXX object src/CMakeFiles/sbml.dir/sbml/Constraint.cpp.o
+[ 22%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/Delay.cpp.o
+[ 22%] Building CXX object src/CMakeFiles/sbml.dir/sbml/Delay.cpp.o
+[ 22%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/Event.cpp.o
+[ 22%] Building CXX object src/CMakeFiles/sbml.dir/sbml/Event.cpp.o
+[ 24%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/EventAssignment.cpp.o
+[ 24%] Building CXX object src/CMakeFiles/sbml.dir/sbml/EventAssignment.cpp.o
+[ 24%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/ExpectedAttributes.cpp.o
+[ 24%] Building CXX object src/CMakeFiles/sbml.dir/sbml/ExpectedAttributes.cpp.o
+[ 24%] Building CXX object src/CMakeFiles/sbml.dir/sbml/FunctionDefinition.cpp.o
+[ 24%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/FunctionDefinition.cpp.o
+[ 24%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/InitialAssignment.cpp.o
+[ 24%] Building CXX object src/CMakeFiles/sbml.dir/sbml/InitialAssignment.cpp.o
+[ 24%] Building CXX object src/CMakeFiles/sbml.dir/sbml/KineticLaw.cpp.o
+[ 24%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/KineticLaw.cpp.o
+[ 25%] Building CXX object src/CMakeFiles/sbml.dir/sbml/ListOf.cpp.o
+[ 26%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/ListOf.cpp.o
+[ 26%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/LocalParameter.cpp.o
+[ 26%] Building CXX object src/CMakeFiles/sbml.dir/sbml/LocalParameter.cpp.o
+[ 26%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/Model.cpp.o
+[ 26%] Building CXX object src/CMakeFiles/sbml.dir/sbml/Model.cpp.o
+[ 26%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/ModifierSpeciesReference.cpp.o
+[ 26%] Building CXX object src/CMakeFiles/sbml.dir/sbml/ModifierSpeciesReference.cpp.o
+[ 28%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/Parameter.cpp.o
+[ 28%] Building CXX object src/CMakeFiles/sbml.dir/sbml/Parameter.cpp.o
+[ 28%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/Priority.cpp.o
+[ 28%] Building CXX object src/CMakeFiles/sbml.dir/sbml/Priority.cpp.o
+[ 28%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/RateRule.cpp.o
+[ 28%] Building CXX object src/CMakeFiles/sbml.dir/sbml/RateRule.cpp.o
+[ 28%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/Reaction.cpp.o
+[ 28%] Building CXX object src/CMakeFiles/sbml.dir/sbml/Reaction.cpp.o
+[ 29%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/Rule.cpp.o
+[ 30%] Building CXX object src/CMakeFiles/sbml.dir/sbml/Rule.cpp.o
+[ 30%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SBMLConstructorException.cpp.o
+[ 30%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SBMLConstructorException.cpp.o
+[ 30%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SBMLConvert.cpp.o
+[ 30%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SBMLConvert.cpp.o
+[ 30%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SBMLDocument.cpp.o
+[ 30%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SBMLDocument.cpp.o
+[ 30%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SBMLError.cpp.o
+[ 30%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SBMLError.cpp.o
+[ 32%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SBMLErrorLog.cpp.o
+[ 32%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SBMLErrorLog.cpp.o
+[ 32%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SBMLNamespaces.cpp.o
+[ 32%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SBMLNamespaces.cpp.o
+[ 32%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SBMLReader.cpp.o
+[ 32%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SBMLReader.cpp.o
+[ 32%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SBMLTransforms.cpp.o
+[ 32%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SBMLTransforms.cpp.o
+[ 34%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SBMLTypeCodes.cpp.o
+[ 34%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SBMLTypeCodes.cpp.o
+[ 34%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SBMLVisitor.cpp.o
+[ 34%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SBMLVisitor.cpp.o
+[ 34%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SBMLWriter.cpp.o
+[ 34%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SBMLWriter.cpp.o
+[ 34%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SBO.cpp.o
+[ 34%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SBO.cpp.o
+[ 34%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SBase.cpp.o
+[ 34%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SBase.cpp.o
+[ 35%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SimpleSpeciesReference.cpp.o
+[ 36%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SimpleSpeciesReference.cpp.o
+[ 36%] Building CXX object src/CMakeFiles/sbml.dir/sbml/Species.cpp.o
+[ 36%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/Species.cpp.o
+[ 36%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SpeciesReference.cpp.o
+[ 36%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SpeciesReference.cpp.o
+[ 36%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SpeciesType.cpp.o
+[ 36%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SpeciesType.cpp.o
+[ 38%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/StoichiometryMath.cpp.o
+[ 38%] Building CXX object src/CMakeFiles/sbml.dir/sbml/StoichiometryMath.cpp.o
+[ 38%] Building CXX object src/CMakeFiles/sbml.dir/sbml/SyntaxChecker.cpp.o
+[ 38%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/SyntaxChecker.cpp.o
+[ 38%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/Trigger.cpp.o
+[ 38%] Building CXX object src/CMakeFiles/sbml.dir/sbml/Trigger.cpp.o
+[ 38%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/Unit.cpp.o
+[ 38%] Building CXX object src/CMakeFiles/sbml.dir/sbml/Unit.cpp.o
+[ 39%] Building CXX object src/CMakeFiles/sbml.dir/sbml/UnitDefinition.cpp.o
+[ 40%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/UnitDefinition.cpp.o
+[ 40%] Building C object src/CMakeFiles/sbml-static.dir/sbml/UnitKind.c.o
+[ 40%] Building C object src/CMakeFiles/sbml.dir/sbml/UnitKind.c.o
+[ 40%] Building CXX object src/CMakeFiles/sbml.dir/sbml/math/ASTNode.cpp.o
+[ 40%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/math/ASTNode.cpp.o
+[ 40%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/math/DefinitionURLRegistry.cpp.o
+[ 40%] Building CXX object src/CMakeFiles/sbml.dir/sbml/math/DefinitionURLRegistry.cpp.o
+[ 40%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/math/FormulaFormatter.cpp.o
+[ 40%] Building CXX object src/CMakeFiles/sbml.dir/sbml/math/FormulaFormatter.cpp.o
+[ 41%] Building CXX object src/CMakeFiles/sbml.dir/sbml/math/FormulaParser.cpp.o
+[ 42%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/math/FormulaParser.cpp.o
+[ 42%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/math/FormulaTokenizer.cpp.o
+[ 42%] Building CXX object src/CMakeFiles/sbml.dir/sbml/math/FormulaTokenizer.cpp.o
+[ 42%] Building CXX object src/CMakeFiles/sbml.dir/sbml/math/L3FormulaFormatter.cpp.o
+[ 42%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/math/L3FormulaFormatter.cpp.o
+[ 42%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/math/L3Parser.cpp.o
+[ 42%] Building CXX object src/CMakeFiles/sbml.dir/sbml/math/L3Parser.cpp.o
+[ 44%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/math/L3ParserSettings.cpp.o
+[ 44%] Building CXX object src/CMakeFiles/sbml.dir/sbml/math/L3ParserSettings.cpp.o
+[ 44%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/math/MathML.cpp.o
+[ 44%] Building CXX object src/CMakeFiles/sbml.dir/sbml/math/MathML.cpp.o
+[ 44%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/units/FormulaUnitsData.cpp.o
+[ 44%] Building CXX object src/CMakeFiles/sbml.dir/sbml/units/FormulaUnitsData.cpp.o
+[ 44%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/units/UnitFormulaFormatter.cpp.o
+[ 44%] Building CXX object src/CMakeFiles/sbml.dir/sbml/units/UnitFormulaFormatter.cpp.o
+[ 44%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/units/UnitKindList.cpp.o
+[ 44%] Building CXX object src/CMakeFiles/sbml.dir/sbml/units/UnitKindList.cpp.o
+[ 45%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/util/CallbackRegistry.cpp.o
+[ 46%] Building CXX object src/CMakeFiles/sbml.dir/sbml/util/CallbackRegistry.cpp.o
+[ 46%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/util/ElementFilter.cpp.o
+[ 46%] Building CXX object src/CMakeFiles/sbml.dir/sbml/util/ElementFilter.cpp.o
+[ 46%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/util/IdFilter.cpp.o
+[ 46%] Building CXX object src/CMakeFiles/sbml.dir/sbml/util/IdFilter.cpp.o
+[ 46%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/util/IdList.cpp.o
+[ 46%] Building CXX object src/CMakeFiles/sbml.dir/sbml/util/IdList.cpp.o
+[ 47%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/util/IdentifierTransformer.cpp.o
+[ 48%] Building CXX object src/CMakeFiles/sbml.dir/sbml/util/IdentifierTransformer.cpp.o
+[ 48%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/util/List.cpp.o
+[ 48%] Building CXX object src/CMakeFiles/sbml.dir/sbml/util/List.cpp.o
+[ 48%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/util/MathFilter.cpp.o
+[ 48%] Building CXX object src/CMakeFiles/sbml.dir/sbml/util/MathFilter.cpp.o
+[ 48%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/util/MetaIdFilter.cpp.o
+[ 48%] Building CXX object src/CMakeFiles/sbml.dir/sbml/util/MetaIdFilter.cpp.o
+[ 49%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/util/PrefixTransformer.cpp.o
+[ 50%] Building CXX object src/CMakeFiles/sbml.dir/sbml/util/PrefixTransformer.cpp.o
+[ 50%] Building C object src/CMakeFiles/sbml-static.dir/sbml/util/Stack.c.o
+[ 50%] Building C object src/CMakeFiles/sbml.dir/sbml/util/Stack.c.o
+[ 50%] Building C object src/CMakeFiles/sbml-static.dir/sbml/util/StringBuffer.c.o
+[ 50%] Building C object src/CMakeFiles/sbml.dir/sbml/util/StringBuffer.c.o
+[ 50%] Building C object src/CMakeFiles/sbml-static.dir/sbml/util/memory.c.o
+[ 50%] Building C object src/CMakeFiles/sbml.dir/sbml/util/memory.c.o
+[ 50%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/util/util.cpp.o
+[ 50%] Building CXX object src/CMakeFiles/sbml.dir/sbml/util/util.cpp.o
+[ 51%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/ConsistencyValidator.cpp.o
+[ 52%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/ConsistencyValidator.cpp.o
+[ 52%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/IdentifierConsistencyValidator.cpp.o
+[ 52%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/IdentifierConsistencyValidator.cpp.o
+[ 52%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/InternalConsistencyValidator.cpp.o
+[ 52%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/InternalConsistencyValidator.cpp.o
+[ 52%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/L1CompatibilityValidator.cpp.o
+[ 52%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/L1CompatibilityValidator.cpp.o
+[ 54%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/L2v1CompatibilityValidator.cpp.o
+[ 54%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/L2v1CompatibilityValidator.cpp.o
+[ 54%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/L2v2CompatibilityValidator.cpp.o
+[ 54%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/L2v2CompatibilityValidator.cpp.o
+[ 54%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/L2v3CompatibilityValidator.cpp.o
+[ 54%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/L2v3CompatibilityValidator.cpp.o
+[ 54%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/L2v4CompatibilityValidator.cpp.o
+[ 54%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/L2v4CompatibilityValidator.cpp.o
+[ 54%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/L3v1CompatibilityValidator.cpp.o
+[ 54%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/L3v1CompatibilityValidator.cpp.o
+[ 56%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/L3v2CompatibilityValidator.cpp.o
+[ 56%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/L3v2CompatibilityValidator.cpp.o
+[ 56%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/MathMLConsistencyValidator.cpp.o
+[ 56%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/MathMLConsistencyValidator.cpp.o
+[ 56%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/ModelingPracticeValidator.cpp.o
+[ 56%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/ModelingPracticeValidator.cpp.o
+[ 56%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/OverdeterminedValidator.cpp.o
+[ 56%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/OverdeterminedValidator.cpp.o
+[ 58%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/SBMLExternalValidator.cpp.o
+[ 58%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/SBMLExternalValidator.cpp.o
+[ 58%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/SBMLInternalValidator.cpp.o
+[ 58%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/SBMLInternalValidator.cpp.o
+[ 58%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/SBMLValidator.cpp.o
+[ 58%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/SBMLValidator.cpp.o
+[ 58%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/SBOConsistencyValidator.cpp.o
+[ 58%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/SBOConsistencyValidator.cpp.o
+[ 60%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/StrictUnitConsistencyValidator.cpp.o
+[ 60%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/StrictUnitConsistencyValidator.cpp.o
+[ 60%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/UnitConsistencyValidator.cpp.o
+[ 60%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/UnitConsistencyValidator.cpp.o
+[ 60%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/VConstraint.cpp.o
+[ 60%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/VConstraint.cpp.o
+[ 60%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/Validator.cpp.o
+[ 60%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/Validator.cpp.o
+[ 60%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/ArgumentsUnitsCheck.cpp.o
+[ 60%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/ArgumentsUnitsCheck.cpp.o
+[ 61%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/ArgumentsUnitsCheckWarnings.cpp.o
+[ 62%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/ArgumentsUnitsCheckWarnings.cpp.o
+[ 62%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/AssignmentCycles.cpp.o
+[ 62%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/AssignmentCycles.cpp.o
+[ 62%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/AssignmentRuleOrdering.cpp.o
+[ 62%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/AssignmentRuleOrdering.cpp.o
+[ 62%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/CiElementMathCheck.cpp.o
+[ 62%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/CiElementMathCheck.cpp.o
+[ 63%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/CiElementNot0DComp.cpp.o
+[ 64%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/CiElementNot0DComp.cpp.o
+[ 64%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/CompartmentOutsideCycles.cpp.o
+[ 64%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/CompartmentOutsideCycles.cpp.o
+[ 64%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/DuplicateTopLevelAnnotation.cpp.o
+[ 64%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/DuplicateTopLevelAnnotation.cpp.o
+[ 64%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/EqualityArgsMathCheck.cpp.o
+[ 64%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/EqualityArgsMathCheck.cpp.o
+[ 64%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/ExponentUnitsCheck.cpp.o
+[ 64%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/ExponentUnitsCheck.cpp.o
+[ 66%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/FunctionApplyMathCheck.cpp.o
+[ 66%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/FunctionApplyMathCheck.cpp.o
+[ 66%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/FunctionDefinitionRecursion.cpp.o
+[ 66%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/FunctionDefinitionRecursion.cpp.o
+[ 66%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/FunctionDefinitionVars.cpp.o
+[ 66%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/FunctionDefinitionVars.cpp.o
+[ 66%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/FunctionNoArgsMathCheck.cpp.o
+[ 66%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/FunctionNoArgsMathCheck.cpp.o
+[ 68%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/FunctionReferredToExists.cpp.o
+[ 68%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/FunctionReferredToExists.cpp.o
+[ 68%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/IdBase.cpp.o
+[ 68%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/IdBase.cpp.o
+[ 68%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/IdNameNewOnSBase.cpp.o
+[ 68%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/IdNameNewOnSBase.cpp.o
+[ 68%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/KineticLawUnitsCheck.cpp.o
+[ 68%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/KineticLawUnitsCheck.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/KineticLawVars.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/KineticLawVars.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/LambdaMathCheck.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/LambdaMathCheck.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/LocalParameterMathCheck.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/LocalParameterMathCheck.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/LocalParameterShadowsIdInModel.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/LocalParameterShadowsIdInModel.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/LogicalArgsMathCheck.cpp.o
+[ 70%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/LogicalArgsMathCheck.cpp.o
+[ 71%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/MathMLBase.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/MathMLBase.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/ModelUnitsDangling.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/ModelUnitsDangling.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/NumberArgsMathCheck.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/NumberArgsMathCheck.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/NumericArgsMathCheck.cpp.o
+[ 72%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/NumericArgsMathCheck.cpp.o
+[ 74%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/NumericReturnMathCheck.cpp.o
+[ 74%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/NumericReturnMathCheck.cpp.o
+[ 74%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/OverDeterminedCheck.cpp.o
+[ 74%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/OverDeterminedCheck.cpp.o
+[ 74%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/PieceBooleanMathCheck.cpp.o
+[ 74%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/PieceBooleanMathCheck.cpp.o
+[ 74%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/PiecewiseValueMathCheck.cpp.o
+[ 74%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/PiecewiseValueMathCheck.cpp.o
+[ 74%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/PowerUnitsCheck.cpp.o
+[ 74%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/PowerUnitsCheck.cpp.o
+[ 75%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/RateOfAssignmentMathCheck.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/RateOfAssignmentMathCheck.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/RateOfCiTargetMathCheck.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/RateOfCiTargetMathCheck.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/RateOfCompartmentMathCheck.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/RateOfCompartmentMathCheck.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/RateOfCycles.cpp.o
+[ 76%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/RateOfCycles.cpp.o
+[ 77%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/ReportEmptyListOf.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/ReportEmptyListOf.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/SpeciesReactionOrRule.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/SpeciesReactionOrRule.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/StoichiometryMathVars.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/StoichiometryMathVars.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/UniqueIdBase.cpp.o
+[ 78%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/UniqueIdBase.cpp.o
+[ 79%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/UniqueIdsForUnitDefinitions.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/UniqueIdsForUnitDefinitions.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/UniqueIdsInKineticLaw.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/UniqueIdsInKineticLaw.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/UniqueIdsInModel.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/UniqueIdsInModel.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/UniqueMetaId.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/UniqueMetaId.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/UniqueSpeciesTypesInCompartment.cpp.o
+[ 80%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/UniqueSpeciesTypesInCompartment.cpp.o
+[ 81%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/UniqueSymbolsInInitialAssignments.cpp.o
+[ 82%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/UniqueSymbolsInInitialAssignments.cpp.o
+[ 82%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/UniqueVarsInEventAssignments.cpp.o
+[ 82%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/UniqueVarsInEventAssignments.cpp.o
+[ 82%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/UniqueVarsInEventsAndRules.cpp.o
+[ 82%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/UniqueVarsInEventsAndRules.cpp.o
+[ 82%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/UniqueVarsInInitialAssignmentsAndRules.cpp.o
+[ 82%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/UniqueVarsInInitialAssignmentsAndRules.cpp.o
+[ 83%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/UniqueVarsInRules.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/UniqueVarsInRules.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/UnitsBase.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/UnitsBase.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/sbml.dir/sbml/validator/constraints/ValidCnUnitsValue.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/validator/constraints/ValidCnUnitsValue.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/sbml.dir/sbml/compress/CompressCommon.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/compress/CompressCommon.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/sbml.dir/sbml/compress/InputDecompressor.cpp.o
+[ 84%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/compress/InputDecompressor.cpp.o
+[ 85%] Building CXX object src/CMakeFiles/sbml.dir/sbml/compress/OutputCompressor.cpp.o
+[ 86%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/compress/OutputCompressor.cpp.o
+[ 86%] Building CXX object src/CMakeFiles/sbml.dir/sbml/compress/bzfstream.cpp.o
+[ 86%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/compress/bzfstream.cpp.o
+[ 86%] Building C object src/CMakeFiles/sbml-static.dir/sbml/compress/zip.c.o
+[ 86%] Building C object src/CMakeFiles/sbml.dir/sbml/compress/zip.c.o
+[ 86%] Building C object src/CMakeFiles/sbml-static.dir/sbml/compress/unzip.c.o
+[ 86%] Building C object src/CMakeFiles/sbml.dir/sbml/compress/unzip.c.o
+[ 88%] Building C object src/CMakeFiles/sbml-static.dir/sbml/compress/ioapi.c.o
+[ 88%] Building C object src/CMakeFiles/sbml.dir/sbml/compress/ioapi.c.o
+[ 88%] Building C object src/CMakeFiles/sbml-static.dir/sbml/compress/ioapi_mem.c.o
+[ 88%] Building C object src/CMakeFiles/sbml.dir/sbml/compress/ioapi_mem.c.o
+[ 88%] Building CXX object src/CMakeFiles/sbml.dir/sbml/compress/zfstream.cpp.o
+[ 88%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/compress/zfstream.cpp.o
+[ 88%] Building CXX object src/CMakeFiles/sbml.dir/sbml/compress/zipfstream.cpp.o
+[ 88%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/compress/zipfstream.cpp.o
+[ 89%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLAttributes.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLAttributes.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLBuffer.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLBuffer.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLConstructorException.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLConstructorException.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLError.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLError.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLErrorLog.cpp.o
+[ 90%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLErrorLog.cpp.o
+[ 91%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLLogOverride.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLLogOverride.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLFileBuffer.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLFileBuffer.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLHandler.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLHandler.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLInputStream.cpp.o
+[ 92%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLInputStream.cpp.o
+[ 94%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLMemoryBuffer.cpp.o
+[ 94%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLMemoryBuffer.cpp.o
+[ 94%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLNamespaces.cpp.o
+[ 94%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLNamespaces.cpp.o
+[ 94%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLNode.cpp.o
+[ 94%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLNode.cpp.o
+[ 94%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLOutputStream.cpp.o
+[ 94%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLOutputStream.cpp.o
+[ 94%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLParser.cpp.o
+[ 94%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLParser.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLToken.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLToken.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLTokenizer.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLTokenizer.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/XMLTriple.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/XMLTriple.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/LibXMLAttributes.cpp.o
+[ 96%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/LibXMLAttributes.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/LibXMLHandler.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/LibXMLHandler.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/LibXMLNamespaces.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/LibXMLNamespaces.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/LibXMLParser.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/LibXMLParser.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/sbml.dir/sbml/xml/LibXMLTranscode.cpp.o
+[ 98%] Building CXX object src/CMakeFiles/sbml-static.dir/sbml/xml/LibXMLTranscode.cpp.o
+[100%] Linking CXX shared library libsbml.dylib
+[100%] Linking CXX static library libsbml-static.a
+[100%] Built target sbml
+[100%] Built target sbml-static
+Consolidate compiler generated dependencies of target sbml
+[ 50%] Built target sbml
+Consolidate compiler generated dependencies of target sbml-static
+[100%] Built target sbml-static
+Install the project...
+-- Install configuration: "Release"
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/share/libsbml/COPYING.txt
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/share/libsbml/FUNDING.txt
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/share/libsbml/LICENSE.txt
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/share/libsbml/NEWS.txt
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/share/libsbml/README.md
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/share/libsbml/VERSION.txt
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/lib/pkgconfig/libsbml.pc
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/common/L3v2extendedmathExtensionTypes.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/common/l3v2extendedmathfwd.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/extension/L3v2extendedmathASTPlugin.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/extension/L3v2extendedmathExtension.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/extension/L3v2extendedmathSBMLDocumentPlugin.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathMathMLConsistencyValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathSBMLError.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathSBMLErrorTable.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathUnitConsistencyValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/validator/constraints/L3v2EMArgumentsUnitsCheck.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/validator/constraints/L3v2EMNumberArgsMathCheck.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/annotation/CVTerm.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/annotation/Date.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/annotation/ModelCreator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/annotation/ModelHistory.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/annotation/RDFAnnotation.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/annotation/RDFAnnotationParser.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/common-documentation.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/common-sbmlerror-codes.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/common.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/extern.h
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/libsbml-config-common.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/libsbml-config.h
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/libsbml-namespace.h
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/libsbml-package.h
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/libsbml-version.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/operationReturnValues.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/sbmlfwd.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/compress/CompressCommon.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/compress/InputDecompressor.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/compress/OutputCompressor.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/compress/bzfstream.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/compress/crypt.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/compress/ioapi.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/compress/ioapi_mem.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/compress/iowin32.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/compress/unzip.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/compress/zfstream.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/compress/zip.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/compress/zipfstream.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/ConversionOption.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/ConversionProperties.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLConverter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLConverterRegister.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLConverterRegistry.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLConverterTypes.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLFunctionDefinitionConverter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLIdConverter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLInferUnitsConverter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLInitialAssignmentConverter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLLevel1Version1Converter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLLevelVersionConverter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLLocalParameterConverter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLRateOfConverter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLReactionConverter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLRuleConverter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLStripPackageConverter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/conversion/SBMLUnitsConverter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/ASTBasePlugin.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/ISBMLExtensionNamespaces.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/SBMLDocumentPlugin.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/SBMLDocumentPluginNotRequired.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/SBMLExtension.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/SBMLExtensionException.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/SBMLExtensionNamespaces.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/SBMLExtensionRegister.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/SBMLExtensionRegistry.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/SBaseExtensionPoint.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/SBasePlugin.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/SBasePluginCreator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/SBasePluginCreatorBase.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/math/ASTNode.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/math/ASTNodeType.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/math/DefinitionURLRegistry.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/math/FormulaFormatter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/math/FormulaParser.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/math/FormulaTokenizer.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/math/L3FormulaFormatter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/math/L3Parser.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/math/L3ParserSettings.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/math/MathML.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/units/FormulaUnitsData.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/units/UnitFormulaFormatter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/units/UnitKindList.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/util/CallbackRegistry.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/util/ElementFilter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/util/IdFilter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/util/IdList.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/util/IdentifierTransformer.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/util/List.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/util/MathFilter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/util/MetaIdFilter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/util/PrefixTransformer.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/util/Stack.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/util/StringBuffer.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/util/memory.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/util/util.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/ConsistencyValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/ConstraintMacros.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/IdentifierConsistencyValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/InternalConsistencyValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/L1CompatibilityValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/L2v1CompatibilityValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/L2v2CompatibilityValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/L2v3CompatibilityValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/L2v4CompatibilityValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/L3v1CompatibilityValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/L3v2CompatibilityValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/MathMLConsistencyValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/ModelingPracticeValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/OverdeterminedValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/SBMLExternalValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/SBMLInternalValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/SBMLValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/SBOConsistencyValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/StrictUnitConsistencyValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/UnitConsistencyValidator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/VConstraint.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/validator/Validator.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/ExpatAttributes.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/ExpatHandler.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/ExpatParser.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/LibXMLAttributes.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/LibXMLHandler.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/LibXMLNamespaces.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/LibXMLParser.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/LibXMLTranscode.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLAttributes.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLBuffer.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLConstructorException.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLError.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLErrorLog.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLExtern.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLFileBuffer.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLHandler.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLInputStream.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLLogOverride.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLMemoryBuffer.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLNamespaces.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLNode.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLOutputStream.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLParser.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLToken.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLTokenizer.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XMLTriple.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XercesAttributes.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XercesHandler.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XercesNamespaces.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XercesParser.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/xml/XercesTranscode.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/AlgebraicRule.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/AssignmentRule.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/Compartment.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/CompartmentType.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/Constraint.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/Delay.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/Event.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/EventAssignment.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/ExpectedAttributes.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/FunctionDefinition.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/InitialAssignment.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/KineticLaw.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/ListOf.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/LocalParameter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/Model.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/ModifierSpeciesReference.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/Parameter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/Priority.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/RateRule.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/Reaction.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/Rule.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBMLConstructorException.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBMLDocument.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBMLError.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBMLErrorLog.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBMLErrorTable.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBMLNamespaces.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBMLReader.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBMLTransforms.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBMLTypeCodes.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBMLTypes.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBMLVisitor.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBMLWriter.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBO.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SBase.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SimpleSpeciesReference.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/Species.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SpeciesReference.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SpeciesType.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/StoichiometryMath.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/SyntaxChecker.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/Trigger.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/Unit.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/UnitDefinition.h
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/UnitKind.h
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/libsbml-config-common.h
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/libsbml-config-packages.h
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/libsbml-namespace.h
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/libsbml-package.h
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/common/libsbml-version.h
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/include/sbml/extension/RegisterExtensions.h
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/lib/libsbml.5.19.0.dylib
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/lib/libsbml.5.dylib
+-- Up-to-date: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/lib/libsbml.dylib
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/lib/cmake/sbml-config.cmake
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/lib/cmake/sbml-config-release.cmake
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/lib/cmake/sbml-config-version.cmake
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/lib/libsbml-static.a
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/lib/cmake/sbml-static-config.cmake
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/lib/cmake/sbml-static-config-release.cmake
+-- Installing: /Users/nayaks16/Documents/Git_repos/r2sbml/src/libsbml/lib/cmake/sbml-static-config-version.cmake
+mv: rename libsbml/lib to libsbml/lib/lib: Invalid argument
+configure: creating ./config.status
+config.status: creating src/Makevars
+** libs
+make: Nothing to be done for `all'.
+installing to /Users/nayaks16/Documents/Git_repos/r2sbml/..Rcheck/00LOCK-r2sbml/00new/r2sbml/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (r2sbml)

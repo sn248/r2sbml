@@ -1,0 +1,14 @@
+Package: r2sbml
+Type: Package
+Title: A Lightweight R Interface to the `libsbml` Library
+Version: 0.1.0
+Author: Satyaprakash Nayak
+Maintainer: Satyaprakash Nayak <sn248@cornell.edu>
+Description: Helps explore a model in `SBML` format in R. Allows querying the imported model for information regarding components such species, parameters, reactions, rules, events and function definitions. Also allows exporting model components along with mass-balances in different formats for simulation. Modifications to the exported model in R is not supported.
+License: GPL (>=2)
+Imports: Rcpp (>= 0.12.6)
+LinkingTo: Rcpp
+Biarch: TRUE
+RoxygenNote: 7.2.0
+SystemRequirements: libsbml, libxml2
+Built: R 4.2.0; x86_64-apple-darwin17.0; 2022-07-15 17:40:56 UTC; unix

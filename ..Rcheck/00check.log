@@ -1,0 +1,119 @@
+* using log directory ‘/Users/nayaks16/Documents/Git_repos/r2sbml/..Rcheck’
+* using R version 4.2.0 (2022-04-22)
+* using platform: x86_64-apple-darwin17.0 (64-bit)
+* using session charset: UTF-8
+* checking for file ‘./DESCRIPTION’ ... OK
+* checking extension type ... Package
+* this is package ‘r2sbml’ version ‘0.1.0’
+* checking package namespace information ... OK
+* checking package dependencies ... OK
+* checking if this is a source package ... WARNING
+Subdirectory ‘r2sbml/src’ contains apparent object files/libraries
+  RcppExports.o compartmentInfo.o convertReactions.o echoSBML.o
+  getMath.o getModel.o getSpeciesNum.o paramInfo.o printSBML.o
+  r2sbml.so reactionInfo.o speciesInfo.o
+Object files/libraries should not be included in a source package.
+
+In addition to the above warning(s), found the following notes:
+
+Found the following apparent object files/libraries:
+  inst/libsbml-static.a src/libsbml/lib/libsbml-static.a
+Object files/libraries should not be included in a source package.
+* checking if there is a namespace ... OK
+* checking for executable files ... WARNING
+Found the following executable files:
+  .git/objects/01/9f0e4cf949cb7f7d71064163f430dc49fcdb24
+  .git/objects/33/a23a4075eba5949063bf3d5b971453a496b58f
+  .git/objects/4d/c9486959d983358c6de348fd2c5d103f2383f0
+  .git/objects/61/8cf62c0579cceb8932a8b5e8a5146c66600e86
+  .git/objects/b4/db2d5cdd107a2f55a665b1aa746efc55bfdf27
+  .git/objects/c8/ec0cd408f0349f538aba696436308104e8de66
+  .git/objects/cc/2162e295b59dcf92f7e6e28d8b42eea95f22ef
+  .git/objects/e7/9615d1ea915e1397333d04e9ed925421ff0cca
+  .git/objects/f0/000f8d6dc64ca8aac614b51d4e2e50175f0f1f
+Source packages should not contain undeclared executable files.
+See section ‘Package structure’ in the ‘Writing R Extensions’ manual.
+* checking for hidden files and directories ... NOTE
+Found the following hidden files and directories:
+  .DS_Store
+  .Rhistory
+  .gitignore
+  inst/.DS_Store
+  src/.DS_Store
+  ..Rcheck
+  .Rproj.user
+  .git
+These were most likely included in error. See section ‘Package
+structure’ in the ‘Writing R Extensions’ manual.
+* checking for portable file names ... WARNING
+Found the following file with a non-portable file name:
+  configure~
+These are not fully portable file names.
+See section ‘Package structure’ in the ‘Writing R Extensions’ manual.
+Found the following non-portable file paths:
+  r2sbml/inst/include/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathMathMLConsistencyValidator.h
+  r2sbml/inst/include/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathUnitConsistencyValidator.h
+  r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/extension/L3v2extendedmathSBMLDocumentPlugin.h
+  r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathMathMLConsistencyValidator.h
+  r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/validator/L3v2extendedmathUnitConsistencyValidator.h
+  r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/validator/constraints/L3v2EMArgumentsUnitsCheck.h
+  r2sbml/src/libsbml/include/sbml/packages/l3v2extendedmath/validator/constraints/L3v2EMNumberArgsMathCheck.h
+
+Tarballs are only required to store paths of up to 100 bytes and cannot
+store those of more than 256 bytes, with restrictions including to 100
+bytes for the final component.
+See section ‘Package structure’ in the ‘Writing R Extensions’ manual.
+* checking for sufficient/correct file permissions ... OK
+* checking whether package ‘r2sbml’ can be installed ... OK
+* checking installed package size ... NOTE
+  installed size is 20.7Mb
+  sub-directories of 1Mb or more:
+    include   9.6Mb
+    libs      3.6Mb
+* checking package directory ... OK
+* checking DESCRIPTION meta-information ... NOTE
+Checking should be performed on sources prepared by ‘R CMD build’.
+* checking top-level files ... OK
+* checking for left-over files ... OK
+* checking index information ... OK
+* checking package subdirectories ... WARNING
+Found the following directory with the name of a check directory:
+  ./..Rcheck
+Most likely, these were included erroneously.
+* checking R files for non-ASCII characters ... OK
+* checking R files for syntax errors ... OK
+* checking whether the package can be loaded ... OK
+* checking whether the package can be loaded with stated dependencies ... OK
+* checking whether the package can be unloaded cleanly ... OK
+* checking whether the namespace can be loaded with stated dependencies ... OK
+* checking whether the namespace can be unloaded cleanly ... OK
+* checking dependencies in R code ... OK
+* checking S3 generic/method consistency ... OK
+* checking replacement functions ... OK
+* checking foreign function calls ... OK
+* checking R code for possible problems ... OK
+* checking Rd files ... OK
+* checking Rd metadata ... OK
+* checking Rd cross-references ... OK
+* checking for missing documentation entries ... OK
+* checking for code/documentation mismatches ... OK
+* checking Rd \usage sections ... OK
+* checking Rd contents ... OK
+* checking for unstated dependencies in examples ... OK
+* checking line endings in shell scripts ... OK
+* checking line endings in C/C++/Fortran sources/headers ... OK
+* checking line endings in Makefiles ... OK
+* checking compilation flags in Makevars ... NOTE
+Package has both ‘src/Makevars.in’ and ‘src/Makevars’.
+Installation with --no-configure' is unlikely to work.  If you intended
+‘src/Makevars’ to be used on Windows, rename it to ‘src/Makevars.win’
+otherwise remove it.  If ‘configure’ created ‘src/Makevars’, you need a
+‘cleanup’ script.
+* checking for GNU extensions in Makefiles ... OK
+* checking for portable use of $(BLAS_LIBS) and $(LAPACK_LIBS) ... OK
+* checking use of PKG_*FLAGS in Makefiles ... OK
+* checking compiled code ... OK
+* checking examples ... NONE
+* checking PDF version of manual ... OK
+* DONE
+Status: 4 WARNINGs, 4 NOTEs

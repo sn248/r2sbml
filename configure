@@ -616,7 +616,7 @@ ac_subst_vars='LTLIBOBJS
 LIBOBJS
 SBML_LIBS
 SBML_INCLUDE
-PKGCONFIG
+have_cmake
 CXXCPP
 OBJEXT
 EXEEXT
@@ -2040,13 +2040,19 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-# Ensure C++ is set up as R expects
-: ${R_HOME=`R RHOME`}
+## Set R_HOME, respecting an environment variable if set
+: ${R_HOME=$(R RHOME)}
 if test -z "${R_HOME}"; then
-    as_fn_error $? "Could not determine R_HOME." "$LINENO" 5
+   as_fn_error $? "Could not determine R_HOME." "$LINENO" 5
 fi
+
 CXX=`"${R_HOME}/bin/R" CMD config CXX`
+if test -z "${CXX}"; then
+    as_fn_error $? "No C++ compiler available" "$LINENO" 5
+fi
 CXXFLAGS=`"${R_HOME}/bin/R" CMD config CXXFLAGS`
+CPPFLAGS=`"${R_HOME}/bin/R" CMD config CPPFLAGS`
+##CXX17FLAGS=`"${R_HOME}/bin/R" CMD config CXX17FLAGS`
 ac_ext=cpp
 ac_cpp='$CXXCPP $CPPFLAGS'
 ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
@@ -3184,20 +3190,24 @@ ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ex
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
 
-## check for pkg-config
+## Default to build from source
+need_to_build="yes"
 
-# Extract the first word of "pkg-config", so it can be a program name with args.
-set dummy pkg-config; ac_word=$2
+if test x"${need_to_build}" != x"no"; then
+    # Extract the first word of "cmake", so it can be a program name with args.
+set dummy cmake; ac_word=$2
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 printf %s "checking for $ac_word... " >&6; }
-if test ${ac_cv_prog_PKGCONFIG+y}
+if test ${ac_cv_path_have_cmake+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
-  if test -n "$PKGCONFIG"; then
-  ac_cv_prog_PKGCONFIG="$PKGCONFIG" # Let the user override the test.
-else
-as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+  case $have_cmake in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_have_cmake="$have_cmake" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
 for as_dir in $PATH
 do
   IFS=$as_save_IFS
@@ -3208,7 +3218,7 @@ do
   esac
     for ac_exec_ext in '' $ac_executable_extensions; do
   if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
-    ac_cv_prog_PKGCONFIG="yes"
+    ac_cv_path_have_cmake="$as_dir$ac_word$ac_exec_ext"
     printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
     break 2
   fi
@@ -3216,42 +3226,42 @@ done
   done
 IFS=$as_save_IFS
 
+  test -z "$ac_cv_path_have_cmake" && ac_cv_path_have_cmake="no"
+  ;;
+esac
 fi
-fi
-PKGCONFIG=$ac_cv_prog_PKGCONFIG
-if test -n "$PKGCONFIG"; then
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $PKGCONFIG" >&5
-printf "%s\n" "$PKGCONFIG" >&6; }
+have_cmake=$ac_cv_path_have_cmake
+if test -n "$have_cmake"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $have_cmake" >&5
+printf "%s\n" "$have_cmake" >&6; }
 else
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 fi
 
 
-
-## use pkg-config for libsbml since it ships with libsbml.pc
-##
-if test x"${PKGCONFIG}" == x"yes"; then
-    ## check via pkg-config for libsbml
-    if pkg-config --exists libsbml; then
-        ## obtain cflags and obtain libs
-        SBML_INCLUDE=`pkg-config --cflags libsbml`
-        ## should give -I/usr/local/include
-
-        ## SBML_LIBS=`pkg-config --libs libsbml` gives -L/usr/local/lib -lsbml
-        ## but I need -L/usr/local/lib -lsbml-static so manually input this
-        SBML_LIBS="-L/usr/local/lib -lsbml-static -lxml2"
-    else
-        SBML_INCLUDE="-I. -I/usr/local/include"
-        SBML_LIBS="-L/usr/local/lib -lsbml-static -lxml2"
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: pkg-config exists but libsbml is not available." >&5
-printf "%s\n" "$as_me: WARNING: pkg-config exists but libsbml is not available." >&2;}
+    if test x"${have_cmake}" == x"no"; then
+       . src/scripts/cmake_config.sh
+       if test -z "${CMAKE_BIN}"; then
+          ## also error to end configure here
+          as_fn_error $? "Could not find 'cmake'." "$LINENO" 5
+       fi
     fi
+    ## 'uname -m' on M1 give x86_64 which is ... not helping
+    machine=`"${R_HOME}/bin/Rscript" -e 'cat(Sys.info()["machine"])'`
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: using ceres via local cmake build on ${machine} " >&5
+printf "%s\n" "using ceres via local cmake build on ${machine} " >&6; }
+    tools/cmake_call.sh
+    ## cmake_call.sh installs into libsbml/lib, headers are copied
+    libsbml_include="-I../inst/include"
+    libsbml_libs="../inst/libsbml-static.a"
+
 fi
 
-# Now substitute these variables in src/Makevars.in to create src/Makevars
+## Now use all the values
+SBML_INCLUDE="$libsbml_include"
 
-
+SBML_LIBS="$libsbml_libs"
 
 ac_config_files="$ac_config_files src/Makevars"
 
@@ -4405,7 +4415,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
-echo
-echo "Final src/Makevars"
-cat src/Makevars
 
