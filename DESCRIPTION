@@ -11,5 +11,5 @@ Imports:
 LinkingTo:
     Rcpp
 Biarch: TRUE
-RoxygenNote: 7.1.1
+RoxygenNote: 7.2.0
 SystemRequirements: libsbml, libxml2

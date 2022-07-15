@@ -4,7 +4,8 @@
  * @author  Sarah Keating
  * @author  Frank T. Bergmann
  * @author  Satyaprakash Nayak
- *
+ * https://stackoverflow.com/questions/41938120/how-can-i-translate-an-sbml-formula-to-program-code
+ * https://groups.google.com/g/sbml-discuss/c/inS4Lzp3Ri8/m/XEL-aeiAAgAJ
  * <!--------------------------------------------------------------------------
  * This sample program is distributed under a different license than the rest
  * of libSBML.  This program uses the open-source MIT license, as follows:
@@ -165,7 +166,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    out << "## functionDefinitions: " << model->getNumFunctionDefinitions() << endl;
    out << "##     unitDefinitions: " << model->getNumUnitDefinitions    () << endl;
    out << "##    compartmentTypes: " << model->getNumCompartmentTypes   () << endl;
-   out << "##         specieTypes: " << model->getNumSpeciesTypes       () << endl;
+   // out << "##         specieTypes: " << model->getNumSpeciesTypes       () << endl;
    out << "##        compartments: " << model->getNumCompartments       () << endl;
    out << "##             species: " << model->getNumSpecies            () << endl;
    out << "##          parameters: " << model->getNumParameters         () << endl;
@@ -223,6 +224,13 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
       }
    }
    out << "                 )" << endl;
+
+
+   out << "## Algebraic Rules" << endl;
+   out << "algebraicRules <- c(" << endl;
+   out << "                  )" << endl;
+   out << endl;
+
 
    out.close();
    return 0;

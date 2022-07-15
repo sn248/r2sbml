@@ -51,8 +51,9 @@ if test x"${PKGCONFIG}" == x"yes"; then
         ## SBML_LIBS=`pkg-config --libs libsbml` gives -L/usr/local/lib -lsbml
         ## but I need -L/usr/local/lib -lsbml-static so manually input this
         SBML_LIBS="-L/usr/local/lib -lsbml-static -lxml2"
-        ## SBML_LIBS=`pkg-config --libs libsbml`
     else
+        SBML_INCLUDE="-I. -I/usr/local/include"
+        SBML_LIBS="-L/usr/local/lib -lsbml-static -lxml2"
         AC_MSG_WARN([pkg-config exists but libsbml is not available.])
     fi
 fi
