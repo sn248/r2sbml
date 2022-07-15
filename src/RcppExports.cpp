@@ -5,6 +5,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // getCmtNames
 Rcpp::StringVector getCmtNames(SEXP input_model);
 RcppExport SEXP _r2sbml_getCmtNames(SEXP input_modelSEXP) {

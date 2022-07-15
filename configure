@@ -3238,12 +3238,12 @@ if test x"${PKGCONFIG}" == x"yes"; then
         SBML_INCLUDE=`pkg-config --cflags libsbml`
         ## should give -I/usr/local/include
 
-        ## sbml_libs=`pkg-config --libs libsbml` gives -L/usr/local/lib -lsbml
+        ## SBML_LIBS=`pkg-config --libs libsbml` gives -L/usr/local/lib -lsbml
         ## but I need -L/usr/local/lib -lsbml-static so manually input this
         SBML_LIBS="-L/usr/local/lib -lsbml-static -lxml2"
-        ## no need to build libsbml-static.a
-        libsbml_tgt=""
     else
+        SBML_INCLUDE="-I. -I/usr/local/include"
+        SBML_LIBS="-L/usr/local/lib -lsbml-static -lxml2"
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: pkg-config exists but libsbml is not available." >&5
 printf "%s\n" "$as_me: WARNING: pkg-config exists but libsbml is not available." >&2;}
     fi
