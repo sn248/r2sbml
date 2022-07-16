@@ -1,3 +1,7 @@
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/sn248/r2sbml/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/sn248/r2sbml/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
+
 # r2sbml
 R interface to the SBML library
 

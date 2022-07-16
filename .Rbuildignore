@@ -7,3 +7,4 @@
 ^.Rhistory
 ^inst/.DS_S*
 ^windows$
+^\.github$
