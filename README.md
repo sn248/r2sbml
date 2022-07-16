@@ -31,7 +31,7 @@ gives the following result
 -L/Library/Developer/CommandLineTools/SDKs/MacOSX10.15.sdk/usr/lib -lxml2 -lz -lpthread -licucore -lm
 ```
 
-On Ubuntu, you can use `pkg-config` to check the availability of the package, i.e., the entering the following command
+On Ubuntu, you can use `pkg-config` to check the availability of the package, i.e., entering the following command
 ```
 pkg-config --cflags libxml-2.0
 ```
