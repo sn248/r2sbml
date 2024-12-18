@@ -12,7 +12,8 @@ int echoSBML (SEXP filename) {
 
   std::string fname = Rcpp::as<std::string>(filename);
   SBMLReader reader;
-  SBMLDocument* document = reader.readSBMLFromFile(fname);
+  // SBMLDocument* document = reader.readSBMLFromFile(fname);
+  SBMLDocument* document = reader.readSBML(fname);
 
   unsigned int errors = document->getNumErrors();
   Rcpp::Rcout << std::endl;
