@@ -68,7 +68,7 @@ Rcpp::NumericVector getSpeciesIC (SEXP input_model) {
   for(int i = 0; i < numSpecies; i++){
 
     speciesIC.push_back(model->getSpecies(i)->getInitialConcentration());
-    Rcpp::Rcout << speciesIC[i] << std::endl;
+    // Rcpp::Rcout << speciesIC[i] << std::endl;
   }
 
   return speciesIC;
