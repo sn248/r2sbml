@@ -61,7 +61,10 @@ int writeFileR(SBMLDocument*, std::string);
 // [[Rcpp::export]]
  int convertReactions(SEXP infile, SEXP outfile, std::string format = "R"){
 
-   // read document
+   if(!infile) Rcpp::stop("Input file is not present.\n");
+   if(!outfile) Rcpp::stop("Output file is not present.\n");
+
+   // read document and assign file for writing
    std::string inputFile = Rcpp::as<std::string>(infile);
    std::string outputFile = Rcpp::as<std::string>(outfile);
 
@@ -82,6 +85,7 @@ int writeFileR(SBMLDocument*, std::string);
 
    // create conversion object that identifies the function definition converter
    ConversionProperties props;
+
    props.addOption("replaceReactions", true,
                    "Replace reactions with rateRules");
    // convert
@@ -119,6 +123,21 @@ int writeFileR(SBMLDocument*, std::string);
      document->printErrors(Rcpp::Rcerr);
      return errors;
    }
+
+
+   // create conversion object that identifies the function definition expansion converter
+   props.addOption("expandFunctionDefinitions", true,
+                   "Replace reactions with rateRules");
+   // convert
+   success = document->convert(props);
+
+   if (success != LIBSBML_OPERATION_SUCCESS)
+   {
+     Rcpp::Rcerr << "Unable to perform conversion due to the following:" << endl;
+     document->printErrors(Rcpp::Rcerr);
+     return errors;
+   }
+
    else
    {
      // make names equal to ID if name doesn't exist
@@ -166,7 +185,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    out << "## functionDefinitions: " << model->getNumFunctionDefinitions() << endl;
    out << "##     unitDefinitions: " << model->getNumUnitDefinitions    () << endl;
    out << "##    compartmentTypes: " << model->getNumCompartmentTypes   () << endl;
-   // out << "##         specieTypes: " << model->getNumSpeciesTypes       () << endl;
+   out << "##        speciesTypes: " << model->getNumSpeciesTypes       () << endl;
    out << "##        compartments: " << model->getNumCompartments       () << endl;
    out << "##             species: " << model->getNumSpecies            () << endl;
    out << "##          parameters: " << model->getNumParameters         () << endl;
@@ -179,56 +198,125 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
 
    out << "## Load required packages" << endl;
    out << "library(deSolve)" << endl << endl;
-   out << "## Parameter list" << endl;
-   // out << "parameters <- function(){" << endl << endl;
-   out << "params <- c(" << endl;
-   int numParams = model->getNumParameters();
-   for (int i = 0; i < numParams ; i++ ){
-      if (i != numParams-1 ){
-        out << "            " << model->getParameter(i)->getName() << " = " << model->getParameter(i)->getValue() << "," << endl;
-      } else {
-        out << "            " << model->getParameter(i)->getName() << " = " << model->getParameter(i)->getValue() << endl;
-      }
+
+   out << "## Units Definitions" << endl;
+   int nUnitsDef = model->getNumUnitDefinitions();
+   for (int i = 0; i<nUnitsDef; i++){
+     int nListofUnits = model->getUnitDefinition(i)->getNumUnits();
+     for (int j = 0; j<nListofUnits; j++){
+       out << "## " << model->getUnitDefinition(i)->getId() << ": Kind=" << model->getUnitDefinition(i)->getUnit(j)->getName() << ", : Exponent=" << model->getUnitDefinition(i)->getUnit(j)->getExponent()  << endl;
+     }
    }
-   out << "           )" << endl;
-   // out << "}" << endl;
-   out << endl;
-   out <<"## Initial Conditions list" << endl;
-   out << "ICs <- c(" << endl;
-   int numICs = model->getNumSpecies();
-   for (int i = 0; i < numICs ; i++ ){
-      if (i != numICs-1 ){
-        out << "         " << model->getSpecies(i)->getName() << " = " << model->getSpecies(i)->getInitialConcentration() << "," << endl;
-      } else {
-        out << "         " << model->getSpecies(i)->getName() << " = " << model->getSpecies(i)->getInitialConcentration() << endl;
-      }
-   }
-   out << "        )" << endl;
 
    out << endl;
-   out << "## Compartment list " << endl;
+   out << "## Compartments " << endl;
+   // out << "Comaparmtments <- c(" << endl;
    int numCmt = model->getNumCompartments();
-   for(int i = 0; i < numCmt; i++){
-        out <<  model->getCompartment(i)->getId() << " = " << model->getCompartment(i)->getVolume() << endl;
+   for (int i = 0; i < numCmt; i++){
+        out <<  model->getCompartment(i)->getId() << " = " << model->getCompartment(i)->getVolume() << endl; //" # (" << model->getCompartment(i)->getUnits() << ")" << endl;
    }
+
+   out << endl;
+
+   out <<"## Initial Amounts" << endl;
+   out << "InitialAmounts <- c(" << endl;
+   int numIAs = model->getNumSpecies();
+   for (int i = 0; i < numIAs; i++){
+      if (i != numIAs-1){
+        out << "         " << model->getSpecies(i)->getName() << " = " << model->getSpecies(i)->getInitialAmount() << "," << endl;
+      }
+      if (i == numIAs-1) {
+        out << "         " << model->getSpecies(i)->getName() << " = " << model->getSpecies(i)->getInitialAmount() << endl;
+      }
+   }
+
+  out << "                    )" << endl;
+
+   out << endl;
+
+   out << "## Parameters" << endl;
+   out << "parameters <- c(" << endl;
+   int numParams = model->getNumParameters();
+   for (int i = 0; i < numParams; i++){
+      if (i != numParams-1 ){
+        out << "         " << model->getParameter(i)->getName() << " = " << model->getParameter(i)->getValue() << "," << endl;
+      }
+      if (i == numParams-1) {
+        out << "         " << model->getParameter(i)->getName() << " = " << model->getParameter(i)->getValue() << endl;
+      }
+   }
+
+   // for (int i = 0; i < numParams; i++) {
+   //      out << model->getParameter(i)->getName() << " = " << model->getParameter(i)->getValue() << endl; // "# (" << model->getParameter(i)->getUnits() << ")" << endl;
+   // }
+
+   out << "               )" << endl;
+   out << endl;
+
+   // for (int i = 0; i < numIAs-1; i++) {
+   //      out << model->getSpecies(i)->getName() << " = " << model->getSpecies(i)->getInitialAmount() << endl; // " # (" <<  model->getSpecies(i)->getUnits() << ")" << endl;
+   // }
+
+
+   // Reactions (only comments)
+   out << "## Reactions " << endl;
+   int numReactions = model->getNumReactions();
+   for (int i = 0; i < numReactions; i++){
+        out <<  "## Reaction " << i << ": " << model->getReaction(i)->getKineticLaw() << endl; //" # (" << model->getCompartment(i)->getUnits() << ")" << endl;
+   }
+
    out << endl;
 
    out << "## Mass-Balances (ODEs)" << endl;
-   out << "massBalances <- c(" << endl;
-   int numODEs = model->getNumRules();
-   for (int i = 0; i < numODEs ; i++){
-      if(i != numODEs - 1){
-      out << "                 " << model->getRule(i)->getFormula() << "," << endl;
-      } else {
-      out << "                 " << model->getRule(i)->getFormula() << endl;
-      }
+   out << "massBalances <- function(time, states, params){" << endl << endl;
+
+   out << "   ## Get States Names " << endl;
+   for (int i = 0; i<numIAs; i++){
+        out << "   " << model->getSpecies(i)->getName() << " = states[[\"" << model->getSpecies(i)->getName() << "\"]]" << endl;
    }
-   out << "                 )" << endl;
+
+   out << endl;
+   out << "   ## Get Parameter Names " << endl;
+   for (int i = 0; i<numParams; i++){
+        out << "   " << model->getParameter(i)->getName() << " = params[[\"" << model->getParameter(i)->getName() << "\"]]" << endl;
+   }
+
+   int numODEs = model->getNumRules();
+   // for (int i = 0; i < numODEs ; i++){
+   //    if(i != numODEs - 1){
+   //    out << "                 " << model->getRule(i)->getFormula() << "," << endl;
+   //    } else {
+   //    out << "                 " << model->getRule(i)->getFormula() << endl;
+   //    }
+   // }
+   // out << "                 )" << endl;
+
+   out << endl;
+   out << "   ## Mass Balances" << endl;
+   for (int i = 0; i < numODEs; i++){
+     out << "   d" << model->getRule(i)->getId() << "_dt = "<< model->getRule(i)->getFormula() << endl;
+   }
+
+   out << endl;
+   out << "   ## Make a list of Mass Balances" << endl;
+   out << "   MassBalances <- c(" << endl;
+   for (int i = 0; i<numIAs; i++){
+     if (i != numIAs-1){
+        out << "     d" << model->getSpecies(i)->getName() << "_dt" << " ," <<endl;
+     }
+     if (i == numIAs-1){
+        out << "     d" << model->getSpecies(i)->getName() << "_dt" <<endl;
+     }
+   }
+   out << "   )" << endl;
+   out << "   return(list(MassBalances))" << endl;
+   out << endl;
 
 
-   out << "## Algebraic Rules" << endl;
-   out << "algebraicRules <- c(" << endl;
-   out << "                  )" << endl;
+   out << "}" << endl;
+   // out << "## Algebraic Rules" << endl;
+   // out << "algebraicRules <- c(" << endl;
+   // out << "                  )" << endl;
    out << endl;
 
 
