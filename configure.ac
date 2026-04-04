@@ -30,37 +30,49 @@ if test -z "${R_HOME}"; then
     AC_MSG_ERROR([Could not determine R_HOME.])
 fi
 CXX=`"${R_HOME}/bin/R" CMD config CXX`
+if test -z "${CXX}"; then
+    AC_MSG_ERROR([No C++ compiler available])
+fi
 CXXFLAGS=`"${R_HOME}/bin/R" CMD config CXXFLAGS`
+CPPFLAGS=`"${R_HOME}/bin/R" CMD config CPPFLAGS`
+CXX11FLAGS=`"${R_HOME}/bin/R" CMD config CXX11FLAGS`
 AC_LANG(C++)
 AC_REQUIRE_CPP
 AC_PROG_CXX
 
-## check for pkg-config
+## Detect libxml2 include path via pkg-config (needed to compile against
+## libsbml headers, which include libxml headers from the install tree)
 AC_DEFUN([AC_PROG_PKGCONFIG], [AC_CHECK_PROG(PKGCONFIG,pkg-config,yes)])
 AC_PROG_PKGCONFIG
 
-## use pkg-config for libsbml since it ships with libsbml.pc
-##
-if test x"${PKGCONFIG}" == x"yes"; then
-    ## check via pkg-config for libsbml
-    if pkg-config --exists libsbml; then
-        ## obtain cflags and obtain libs
-        SBML_INCLUDE=`pkg-config --cflags libsbml`
-        ## should give -I/usr/local/include
-
-        ## SBML_LIBS=`pkg-config --libs libsbml` gives -L/usr/local/lib -lsbml
-        ## but I need -L/usr/local/lib -lsbml-static so manually input this
-        SBML_LIBS="-L/usr/local/lib -lsbml-static -lxml2"
-    else
-        SBML_INCLUDE="-I. -I/usr/local/include"
-        SBML_LIBS="-L/usr/local/lib -lsbml-static -lxml2"
-        AC_MSG_WARN([pkg-config exists but libsbml is not available.])
+LIBXML2_CPPFLAGS=""
+if test x"${PKGCONFIG}" = x"yes"; then
+    if pkg-config --exists libxml2; then
+        LIBXML2_CPPFLAGS=`pkg-config --cflags libxml2`
+    fi
+fi
+if test -z "${LIBXML2_CPPFLAGS}"; then
+    if test -d "/usr/include/libxml2"; then
+        LIBXML2_CPPFLAGS="-I/usr/include/libxml2"
     fi
 fi
 
+## Always build libsbml from source using cmake
+need_to_build="yes"
+if test x"${need_to_build}" != x"no"; then
+    AC_PATH_PROG(have_cmake, cmake, no)
+    # CRAN fix: use POSIX-compliant single = in test; == is a bashism
+    if test x"${have_cmake}" = x"no"; then
+        . src/scripts/cmake_config.sh
+    fi
+    tools/cmake_call.sh
+    SBML_INCLUDE="-Ilibsbml-install/include/ ${LIBXML2_CPPFLAGS}"
+    SBML_LIBS="-Llibsbml-install/lib/ -lsbml-static -lxml2 -lbz2"
+fi
+
 # Now substitute these variables in src/Makevars.in to create src/Makevars
-AC_SUBST(SBML_INCLUDE)
-AC_SUBST(SBML_LIBS)
+AC_SUBST([SBML_INCLUDE],["$SBML_INCLUDE"])
+AC_SUBST([SBML_LIBS],["$SBML_LIBS"])
 
 AC_CONFIG_FILES([src/Makevars])
 AC_OUTPUT
