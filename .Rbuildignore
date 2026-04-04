@@ -7,3 +7,6 @@
 ^.Rhistory
 ^inst/.DS_S*
 ^windows$
+^src/libsbml-src$
+^src/libsbml-build$
+^src/libsbml-install$

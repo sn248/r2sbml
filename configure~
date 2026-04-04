@@ -616,6 +616,7 @@ ac_subst_vars='LTLIBOBJS
 LIBOBJS
 SBML_LIBS
 SBML_INCLUDE
+have_cmake
 PKGCONFIG
 CXXCPP
 OBJEXT
@@ -2046,7 +2047,12 @@ if test -z "${R_HOME}"; then
     as_fn_error $? "Could not determine R_HOME." "$LINENO" 5
 fi
 CXX=`"${R_HOME}/bin/R" CMD config CXX`
+if test -z "${CXX}"; then
+    as_fn_error $? "No C++ compiler available" "$LINENO" 5
+fi
 CXXFLAGS=`"${R_HOME}/bin/R" CMD config CXXFLAGS`
+CPPFLAGS=`"${R_HOME}/bin/R" CMD config CPPFLAGS`
+CXX11FLAGS=`"${R_HOME}/bin/R" CMD config CXX11FLAGS`
 ac_ext=cpp
 ac_cpp='$CXXCPP $CPPFLAGS'
 ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
@@ -2588,11 +2594,11 @@ if test x$ac_prog_cxx_stdcxx = xno
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CXX option to enable C++11 features" >&5
 printf %s "checking for $CXX option to enable C++11 features... " >&6; }
-if test ${ac_cv_prog_cxx_11+y}
+if test ${ac_cv_prog_cxx_cxx11+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
-  ac_cv_prog_cxx_11=no
+  ac_cv_prog_cxx_cxx11=no
 ac_save_CXX=$CXX
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -2634,11 +2640,11 @@ if test x$ac_prog_cxx_stdcxx = xno
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CXX option to enable C++98 features" >&5
 printf %s "checking for $CXX option to enable C++98 features... " >&6; }
-if test ${ac_cv_prog_cxx_98+y}
+if test ${ac_cv_prog_cxx_cxx98+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
-  ac_cv_prog_cxx_98=no
+  ac_cv_prog_cxx_cxx98=no
 ac_save_CXX=$CXX
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -3088,11 +3094,11 @@ if test x$ac_prog_cxx_stdcxx = xno
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CXX option to enable C++11 features" >&5
 printf %s "checking for $CXX option to enable C++11 features... " >&6; }
-if test ${ac_cv_prog_cxx_11+y}
+if test ${ac_cv_prog_cxx_cxx11+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
-  ac_cv_prog_cxx_11=no
+  ac_cv_prog_cxx_cxx11=no
 ac_save_CXX=$CXX
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -3134,11 +3140,11 @@ if test x$ac_prog_cxx_stdcxx = xno
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CXX option to enable C++98 features" >&5
 printf %s "checking for $CXX option to enable C++98 features... " >&6; }
-if test ${ac_cv_prog_cxx_98+y}
+if test ${ac_cv_prog_cxx_cxx98+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
-  ac_cv_prog_cxx_98=no
+  ac_cv_prog_cxx_cxx98=no
 ac_save_CXX=$CXX
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -3184,7 +3190,8 @@ ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ex
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
 
-## check for pkg-config
+## Detect libxml2 include path via pkg-config (needed to compile against
+## libsbml headers, which include libxml headers from the install tree)
 
 # Extract the first word of "pkg-config", so it can be a program name with args.
 set dummy pkg-config; ac_word=$2
@@ -3229,28 +3236,80 @@ fi
 
 
 
-## use pkg-config for libsbml since it ships with libsbml.pc
-##
-if test x"${PKGCONFIG}" == x"yes"; then
-    ## check via pkg-config for libsbml
-    if pkg-config --exists libsbml; then
-        ## obtain cflags and obtain libs
-        SBML_INCLUDE=`pkg-config --cflags libsbml`
-        ## should give -I/usr/local/include
-
-        ## SBML_LIBS=`pkg-config --libs libsbml` gives -L/usr/local/lib -lsbml
-        ## but I need -L/usr/local/lib -lsbml-static so manually input this
-        SBML_LIBS="-L/usr/local/lib -lsbml-static -lxml2"
-    else
-        SBML_INCLUDE="-I. -I/usr/local/include"
-        SBML_LIBS="-L/usr/local/lib -lsbml-static -lxml2"
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: pkg-config exists but libsbml is not available." >&5
-printf "%s\n" "$as_me: WARNING: pkg-config exists but libsbml is not available." >&2;}
+LIBXML2_CPPFLAGS=""
+if test x"${PKGCONFIG}" = x"yes"; then
+    if pkg-config --exists libxml2; then
+        LIBXML2_CPPFLAGS=`pkg-config --cflags libxml2`
+    fi
+fi
+if test -z "${LIBXML2_CPPFLAGS}"; then
+    if test -d "/usr/include/libxml2"; then
+        LIBXML2_CPPFLAGS="-I/usr/include/libxml2"
     fi
 fi
 
-# Now substitute these variables in src/Makevars.in to create src/Makevars
+## Always build libsbml from source using cmake
+need_to_build="yes"
+if test x"${need_to_build}" != x"no"; then
+    # Extract the first word of "cmake", so it can be a program name with args.
+set dummy cmake; ac_word=$2
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+printf %s "checking for $ac_word... " >&6; }
+if test ${ac_cv_path_have_cmake+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  case $have_cmake in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_have_cmake="$have_cmake" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
+    ac_cv_path_have_cmake="$as_dir$ac_word$ac_exec_ext"
+    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
 
+  test -z "$ac_cv_path_have_cmake" && ac_cv_path_have_cmake="no"
+  ;;
+esac
+fi
+have_cmake=$ac_cv_path_have_cmake
+if test -n "$have_cmake"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $have_cmake" >&5
+printf "%s\n" "$have_cmake" >&6; }
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+
+
+    # CRAN fix: use POSIX-compliant single = in test; == is a bashism
+    if test x"${have_cmake}" = x"no"; then
+        . src/scripts/cmake_config.sh
+    fi
+    tools/cmake_call.sh
+    SBML_INCLUDE="-Ilibsbml-install/include/ ${LIBXML2_CPPFLAGS}"
+    SBML_LIBS="-Llibsbml-install/lib/ -lsbml-static -lxml2"
+fi
+
+# Now substitute these variables in src/Makevars.in to create src/Makevars
+SBML_INCLUDE="$SBML_INCLUDE"
+
+SBML_LIBS="$SBML_LIBS"
 
 
 ac_config_files="$ac_config_files src/Makevars"
