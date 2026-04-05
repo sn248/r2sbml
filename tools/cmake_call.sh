@@ -128,7 +128,7 @@ else
 fi
 
 # On Windows/MSYS2, help cmake find libxml2 and bz2 in the Rtools tree.
-CMAKE_PREFIX_PATH_FLAG=""
+LIBSBML_DEPENDENCY_DIR_FLAG=""
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*)
     # Get Rtools include path from R config, e.g. -I"C:/rtools45/.../include"
@@ -155,7 +155,7 @@ case "$(uname -s)" in
     fi
     if test -n "$_RTOOLS_INC"; then
       _RTOOLS_PREFIX=$(echo "$_RTOOLS_INC" | sed 's|/include$||')
-      CMAKE_PREFIX_PATH_FLAG="-D CMAKE_PREFIX_PATH=${_RTOOLS_PREFIX}"
+      LIBSBML_DEPENDENCY_DIR_FLAG="-D LIBSBML_DEPENDENCY_DIR=${_RTOOLS_PREFIX}"
     fi
     ;;
 esac
@@ -176,7 +176,7 @@ ${CMAKE_BIN} \
     -D CMAKE_CXX_STANDARD_REQUIRED=OFF \
     -D CMAKE_C_FLAGS="${CFLAGS} ${EXTRA_C_WARN_FLAGS} -std=gnu17" \
     -D CMAKE_CXX_FLAGS="${CXXFLAGS} ${EXTRA_CXX_WARN_FLAGS}" \
-    ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ${CMAKE_PREFIX_PATH_FLAG} ../libsbml-src
+    ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ${LIBSBML_DEPENDENCY_DIR_FLAG} ../libsbml-src
 
 ${CMAKE_BIN} --build . -j${NCORES}
 ${CMAKE_BIN} --install .
