@@ -117,13 +117,17 @@ fi
 #   but unknown on clang → GCC shared flags.
 # -Wno-overloaded-virtual (clang/GCC): C++ only; libsbml's XMLErrorLog
 #   overloads trigger this warning.
+# -Wno-reorder (GCC): constructor member init order in ExpressionAnalyser /
+#   ASTBasePlugin; C++ only.
+# -Wno-parentheses (GCC): assignment-in-condition in SBMLExtensionRegistry.
+# -Wno-switch (GCC/clang): unhandled enum values in ASTNode switch.
 if echo "${CC}" | grep -qi clang || ${CC%% *} --version 2>&1 | grep -qi clang; then
     EXTRA_C_WARN_FLAGS="-Wno-tautological-constant-out-of-range-compare -Wno-tautological-undefined-compare -Wno-switch -Wno-deprecated-non-prototype"
     EXTRA_CXX_WARN_FLAGS="-Wno-tautological-constant-out-of-range-compare -Wno-tautological-undefined-compare -Wno-switch -Wno-overloaded-virtual"
     EXTRA_WARN_FLAGS=""
 else
     EXTRA_C_WARN_FLAGS="-Wno-format-truncation -Wno-format-overflow -Wno-stringop-overflow -Wno-old-style-definition"
-    EXTRA_CXX_WARN_FLAGS="-Wno-format-truncation -Wno-format-overflow -Wno-stringop-overflow -Wno-overloaded-virtual"
+    EXTRA_CXX_WARN_FLAGS="-Wno-format-truncation -Wno-format-overflow -Wno-stringop-overflow -Wno-overloaded-virtual -Wno-reorder -Wno-parentheses -Wno-switch"
     EXTRA_WARN_FLAGS=""
 fi
 
