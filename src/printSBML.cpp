@@ -8,6 +8,9 @@ LIBSBML_CPP_NAMESPACE_USE
 
 //'printSBML
 //'@param filename filename should be the name of the xml file
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+//'printSBML(sbml_file)
 // [[Rcpp::export]]
 int printSBML (SEXP filename) {
 

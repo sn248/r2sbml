@@ -14,3 +14,8 @@ getEventMath(input_model)
 getEventMath
 Outputs Model which can be simulated
 }
+\examples{
+sbml_file <- system.file("examples", "sbmlevent.xml", package = "r2sbml")
+model <- getModel(sbml_file)
+getEventMath(model)
+}

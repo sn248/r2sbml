@@ -14,3 +14,8 @@ getParameterTable(input_model)
 getParameterTable
 Outputs the Information Table for Paremeters
 }
+\examples{
+sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
+model <- getModel(sbml_file)
+getParameterTable(model)
+}

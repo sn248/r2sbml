@@ -12,3 +12,7 @@ echoSBML(filename)
 \description{
 echoSBML
 }
+\examples{
+sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+echoSBML(sbml_file)
+}

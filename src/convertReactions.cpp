@@ -58,6 +58,10 @@ int writeFileR(SBMLDocument*, std::string);
 //'@param infile input file name
 //'@param outfile output file name
 //'@param format output code format, should be 'MATLAB','mrgsolve',rxode' or 'R' (default)
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+//'out_file <- tempfile(fileext = ".R")
+//'convertReactions(sbml_file, out_file, format = "R")
 // [[Rcpp::export]]
  int convertReactions(SEXP infile, SEXP outfile, std::string format = "R"){
 

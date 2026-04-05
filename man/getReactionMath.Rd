@@ -14,3 +14,8 @@ getReactionMath(input_model)
 getReactionMath
 Outputs Model which can be simulated
 }
+\examples{
+sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+model <- getModel(sbml_file)
+getReactionMath(model)
+}

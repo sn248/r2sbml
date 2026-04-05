@@ -14,3 +14,8 @@ getRuleMath(input_model)
 getRuleMath
 Outputs Model which can be simulated
 }
+\examples{
+sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
+model <- getModel(sbml_file)
+getRuleMath(model)
+}

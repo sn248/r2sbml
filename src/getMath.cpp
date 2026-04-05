@@ -54,6 +54,10 @@ LIBSBML_CPP_NAMESPACE_USE
 //'getRuleMath
 //'Outputs Model which can be simulated
 //'@param input_model input should be an SBML Model
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
+//'model <- getModel(sbml_file)
+//'getRuleMath(model)
 // [[Rcpp::export]]
 int getRuleMath (SEXP input_model) {
 
@@ -104,6 +108,10 @@ int getRuleMath (SEXP input_model) {
 //'getReactionMath
 //'Outputs Model which can be simulated
 //'@param input_model input should be an SBML Model
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+//'model <- getModel(sbml_file)
+//'getReactionMath(model)
 // [[Rcpp::export]]
 int getReactionMath (SEXP input_model) {
 
@@ -148,6 +156,10 @@ int getReactionMath (SEXP input_model) {
 //'getFunctionDefinition
 //'Outputs Model which can be simulated
 //'@param input_model input should be an SBML Model
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlfunctiondefinition.xml", package = "r2sbml")
+//'model <- getModel(sbml_file)
+//'getFunctionDefinition(model)
 // [[Rcpp::export]]
 int getFunctionDefinition (SEXP input_model) {
 
@@ -203,8 +215,7 @@ int getFunctionDefinition (SEXP input_model) {
   return 0;
 }
 
-//'printEventAssignmentMath
-//'Outputs Event Assignment Math
+// printEventAssignmentMath - internal helper, not exported to R
 void printEventAssignmentMath (unsigned int n, const EventAssignment* ea)
 {
   std::string variable;
@@ -226,6 +237,10 @@ void printEventAssignmentMath (unsigned int n, const EventAssignment* ea)
 //'getEventMath
 //'Outputs Model which can be simulated
 //'@param input_model input should be an SBML Model
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlevent.xml", package = "r2sbml")
+//'model <- getModel(sbml_file)
+//'getEventMath(model)
 // [[Rcpp::export]]
 int getEventMath (SEXP input_model) {
 

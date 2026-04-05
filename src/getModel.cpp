@@ -10,6 +10,9 @@ LIBSBML_CPP_NAMESPACE_USE
 //'getModel
 //'Outputs an external pointer to the Model from SBML file
 //'@param filename input file name, should end with .xml
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+//'model <- getModel(sbml_file)
 // [[Rcpp::export]]
 SEXP getModel (SEXP filename) {
 
