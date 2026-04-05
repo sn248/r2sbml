@@ -139,6 +139,20 @@ case "$(uname -s)" in
     if test -z "$_RTOOLS_INC"; then
       _RTOOLS_INC=$(echo "$_R_CPPFLAGS" | grep -oE '\-I[^ ]+' | head -1 | sed 's/^-I//')
     fi
+    # Fall back to deriving prefix from cmake binary location (Rtools44+
+    # may return empty CPPFLAGS because the compiler's default search path
+    # already includes the Rtools headers).
+    if test -z "$_RTOOLS_INC" && test -n "$CMAKE_BIN"; then
+      _CMAKE_BIN_POSIX=$(dirname "$CMAKE_BIN")
+      _CMAKE_PREFIX_POSIX=$(dirname "$_CMAKE_BIN_POSIX")
+      if test -d "$_CMAKE_PREFIX_POSIX/include"; then
+        if command -v cygpath >/dev/null 2>&1; then
+          _RTOOLS_INC=$(cygpath -m "$_CMAKE_PREFIX_POSIX/include")
+        else
+          _RTOOLS_INC="$_CMAKE_PREFIX_POSIX/include"
+        fi
+      fi
+    fi
     if test -n "$_RTOOLS_INC"; then
       _RTOOLS_PREFIX=$(echo "$_RTOOLS_INC" | sed 's|/include$||')
       CMAKE_PREFIX_PATH_FLAG="-D CMAKE_PREFIX_PATH=${_RTOOLS_PREFIX}"
@@ -169,6 +183,18 @@ ${CMAKE_BIN} --install .
 if [ $? -ne 0 ]; then
     echo "Make install failed!"
     exit 1
+fi
+
+# cmake 4.x + libsbml 5.21.0: the static library DESTINATION in libsbml's
+# CMakeLists.txt uses an absolute path based on CMAKE_BINARY_DIR, so
+# cmake --install places libsbml-static.a in the build tree (lib/) rather
+# than the install prefix.  Copy it into the install tree if needed.
+if [ ! -f "${SRC_DIR}/libsbml-install/lib/libsbml-static.a" ]; then
+    if [ -f "lib/libsbml-static.a" ]; then
+        mkdir -p "${SRC_DIR}/libsbml-install/lib"
+        cp "lib/libsbml-static.a" "${SRC_DIR}/libsbml-install/lib/"
+        echo "Copied libsbml-static.a from build tree to install prefix."
+    fi
 fi
 cd ..
 
