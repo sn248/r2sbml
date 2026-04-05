@@ -210,6 +210,7 @@ find libsbml-install/include -name "*.h" | while read f; do
     perl -pi -e 's/\r\n/\n/g; s/\r/\n/g' "$f"
     last=$(tail -c1 "$f")
     [ -n "$last" ] && printf '\n' >> "$f"
+    true
 done
 
 # libsbml-src and libsbml-build are removed by the EXIT trap above.
