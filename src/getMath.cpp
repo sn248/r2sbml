@@ -190,9 +190,9 @@ int getFunctionDefinition (SEXP input_model) {
       {
         Rcout << "(" << ( math->getLeftChild() )->getName();
 
-        for (n = 1; n < numChildren; ++n)
+        for (int i = 1; i < numChildren - 1; ++i)
         {
-          Rcout <<", " << ( math->getChild(n) )->getName();
+          Rcout <<", " << ( math->getChild(i) )->getName();
         }
       }
 
