@@ -8,6 +8,8 @@ src/*.dll
 src/**/*.a
 windows
 src/Makevars
+src/Makevars.win
+src/Makevars.ucrt
 autom4te.cache
 config.log
 config.status

@@ -7,6 +7,16 @@ NCORES=`${RSCRIPT_BIN} -e "cat(min(2, parallel::detectCores(logical = FALSE)))"`
 cd src
 SRC_DIR=$(pwd)
 
+# On Windows/MSYS2, cmake needs Windows-style drive paths (C:/...) not MSYS2
+# paths (/c/...).  cygpath -m converts MSYS2 to mixed (forward-slash Windows).
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    if command -v cygpath >/dev/null 2>&1; then
+      SRC_DIR=$(cygpath -m "${SRC_DIR}")
+    fi
+    ;;
+esac
+
 # Always remove build artefacts on exit (even on error) so R CMD check does
 # not see cmake-generated Makefiles or downloaded libsbml sources.
 # Uses absolute path so the trap fires correctly even if CWD changed (e.g.
@@ -117,13 +127,32 @@ else
     EXTRA_WARN_FLAGS=""
 fi
 
+# On Windows/MSYS2, help cmake find libxml2 and bz2 in the Rtools tree.
+CMAKE_PREFIX_PATH_FLAG=""
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    # Get Rtools include path from R config, e.g. -I"C:/rtools45/.../include"
+    _R_CPPFLAGS=$("${R_HOME}/bin/R.exe" CMD config CPPFLAGS 2>/dev/null)
+    # Extract the first quoted -I path
+    _RTOOLS_INC=$(echo "$_R_CPPFLAGS" | sed -n 's/.*-I"\([^"]*\)".*/\1/p' | head -1)
+    # Fall back to unquoted -I path
+    if test -z "$_RTOOLS_INC"; then
+      _RTOOLS_INC=$(echo "$_R_CPPFLAGS" | grep -oE '\-I[^ ]+' | head -1 | sed 's/^-I//')
+    fi
+    if test -n "$_RTOOLS_INC"; then
+      _RTOOLS_PREFIX=$(echo "$_RTOOLS_INC" | sed 's|/include$||')
+      CMAKE_PREFIX_PATH_FLAG="-D CMAKE_PREFIX_PATH=${_RTOOLS_PREFIX}"
+    fi
+    ;;
+esac
+
 mkdir libsbml-build
 cd libsbml-build
 ${CMAKE_BIN} \
     -D CMAKE_BUILD_TYPE=Release \
     -D BUILD_SHARED_LIBS=OFF \
     -D CMAKE_INSTALL_LIBDIR=lib \
-    -D CMAKE_INSTALL_PREFIX=../libsbml-install \
+    -D CMAKE_INSTALL_PREFIX="${SRC_DIR}/libsbml-install" \
     -D BUILD_TESTING=OFF \
     -D WITH_LIBXML=ON \
     -D WITH_ZLIB=ON \
@@ -133,10 +162,10 @@ ${CMAKE_BIN} \
     -D CMAKE_CXX_STANDARD_REQUIRED=OFF \
     -D CMAKE_C_FLAGS="${CFLAGS} ${EXTRA_C_WARN_FLAGS} -std=gnu17" \
     -D CMAKE_CXX_FLAGS="${CXXFLAGS} ${EXTRA_CXX_WARN_FLAGS}" \
-    ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ../libsbml-src
+    ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ${CMAKE_PREFIX_PATH_FLAG} ../libsbml-src
 
-make -j${NCORES}
-make install
+${CMAKE_BIN} --build . -j${NCORES}
+${CMAKE_BIN} --install .
 if [ $? -ne 0 ]; then
     echo "Make install failed!"
     exit 1
