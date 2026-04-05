@@ -1,6 +1,7 @@
 VERSION=5.19.0
 RWINLIB=../windows/libsbml-$(VERSION)
 PKG_CPPFLAGS= -I$(RWINLIB)/include/
+PKG_CXXFLAGS= -Wno-deprecated-declarations
 PKG_LIBS= -L$(RWINLIB)/lib$(R_ARCH)$(CRT) -lsbml -lbz2 -lz -lxml2 -liconv -lws2_32
 
 all: clean winlibs

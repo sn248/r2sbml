@@ -5,6 +5,14 @@ RSCRIPT_BIN=${R_HOME}/bin/Rscript
 NCORES=`${RSCRIPT_BIN} -e "cat(min(2, parallel::detectCores(logical = FALSE)))"`
 
 cd src
+SRC_DIR=$(pwd)
+
+# Always remove build artefacts on exit (even on error) so R CMD check does
+# not see cmake-generated Makefiles or downloaded libsbml sources.
+# Uses absolute path so the trap fires correctly even if CWD changed (e.g.
+# when cmake_call.sh exits from inside libsbml-build/).
+cleanup() { rm -fr "${SRC_DIR}/libsbml-src" "${SRC_DIR}/libsbml-build"; }
+trap cleanup EXIT
 
 #### CMAKE CONFIGURATION ####
 . ./scripts/cmake_config.sh
@@ -44,13 +52,8 @@ perl -pi -e 's|        cout << "level:" << it->first << " " << SBML_formulaToL3S
 # SBMLRateRuleConverter.cpp:
 #   - Remove active debug cout << statements (all single-line).
 #   - Replace sprintf with snprintf to remove __sprintf_chk symbol.
-python3 -c "
-import re
-fname = 'libsbml-src/src/sbml/conversion/SBMLRateRuleConverter.cpp'
-with open(fname, 'r') as f: c = f.read()
-c = re.sub(r'[ \t]+cout <<[^\n]*\n', '', c)
-with open(fname, 'w') as f: f.write(c)
-"
+perl -ni -e 'print unless /^[ \t]+cout\s*<</' \
+    libsbml-src/src/sbml/conversion/SBMLRateRuleConverter.cpp
 perl -pi -e 's/sprintf\(number, /snprintf(number, sizeof(number), /g' \
     libsbml-src/src/sbml/conversion/SBMLRateRuleConverter.cpp
 
@@ -58,19 +61,12 @@ perl -pi -e 's/sprintf\(number, /snprintf(number, sizeof(number), /g' \
 #   - Factory functions XMLOutputStream_createAsStdout* write to std::cout.
 #     Return NULL (safe: callers already handle NULL from new(nothrow)).
 #   - Replace sprintf with snprintf for the date/time formatting.
-python3 -c "
-import re
-fname = 'libsbml-src/src/sbml/xml/XMLOutputStream.cpp'
-with open(fname, 'r') as f: c = f.read()
-c = re.sub(
-    r'return new\(nothrow\) XMLOutputStream\(std::cout,.*?\);',
-    'return NULL; /* CRAN: std::cout removed */',
-    c, flags=re.DOTALL
-)
-c = c.replace('sprintf(formattedDateAndTime,',
-              'snprintf(formattedDateAndTime, 17,')
-with open(fname, 'w') as f: f.write(c)
-"
+#   -0777 slurps the whole file so the multiline match works.
+perl -0777 -pi -e \
+    's/return new\(nothrow\) XMLOutputStream\(std::cout.*?;\n/return NULL; \/* CRAN: std::cout removed *\/\n/sg' \
+    libsbml-src/src/sbml/xml/XMLOutputStream.cpp
+perl -pi -e 's/sprintf\(formattedDateAndTime,/snprintf(formattedDateAndTime, 17,/g' \
+    libsbml-src/src/sbml/xml/XMLOutputStream.cpp
 
 # Model.cpp: three sprintf calls that generate internal IDs.
 # Replace with snprintf using sizeof(buffer).
@@ -99,6 +95,18 @@ else
   CMAKE_ADD_RANLIB=""
 fi
 
+# Detect compiler type and set appropriate warning suppression flags.
+# -Wno-format-truncation/-overflow/-stringop-overflow are GCC-only and cause
+# "unknown warning option" errors on clang (macOS). Use clang-specific
+# suppressions instead.
+# -Wno-deprecated-non-prototype suppresses K&R warnings on clang 15+ (C17).
+# -Wno-old-style-definition / -Wno-stringop-overflow are GCC equivalents.
+if echo "${CC}" | grep -qi clang || ${CC%% *} --version 2>&1 | grep -qi clang; then
+    EXTRA_WARN_FLAGS="-Wno-tautological-constant-out-of-range-compare -Wno-tautological-undefined-compare -Wno-switch -Wno-deprecated-non-prototype"
+else
+    EXTRA_WARN_FLAGS="-Wno-format-truncation -Wno-format-overflow -Wno-stringop-overflow -Wno-old-style-definition"
+fi
+
 mkdir libsbml-build
 cd libsbml-build
 ${CMAKE_BIN} \
@@ -111,8 +119,8 @@ ${CMAKE_BIN} \
     -D WITH_ZLIB=ON \
     -D WITH_BZIP2=ON \
     -D ENABLE_SPATIAL=OFF \
-    -D CMAKE_C_FLAGS="${CFLAGS} -Wno-format-truncation -Wno-format-overflow -Wno-stringop-overflow" \
-    -D CMAKE_CXX_FLAGS="${CXXFLAGS} -Wno-format-truncation -Wno-format-overflow -Wno-stringop-overflow" \
+    -D CMAKE_C_FLAGS="${CFLAGS} ${EXTRA_WARN_FLAGS} -std=gnu17" \
+    -D CMAKE_CXX_FLAGS="${CXXFLAGS} ${EXTRA_WARN_FLAGS}" \
     ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ../libsbml-src
 
 make -j${NCORES}
@@ -130,5 +138,4 @@ find libsbml-install/include -name "*.h" | while read f; do
     [ -n "$last" ] && printf '\n' >> "$f"
 done
 
-# Remove build directories; keep libsbml-install for the R compile step
-rm -fr libsbml-src libsbml-build
+# libsbml-src and libsbml-build are removed by the EXIT trap above.

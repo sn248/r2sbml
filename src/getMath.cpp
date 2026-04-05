@@ -164,7 +164,7 @@ int getFunctionDefinition (SEXP input_model) {
 
   for(int n = 0; n < numFunctionDefinitions; n++)
   {
-    const FunctionDefinition* fd;
+    const FunctionDefinition* fd = model->getFunctionDefinition(n);
     if ( fd->isSetMath() )
     {
       Rcout << "FunctionDefinition " << n << ", " << fd->getId();

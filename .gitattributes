@@ -1,0 +1,5 @@
+# Enforce LF line endings for shell scripts and autoconf files
+*.sh text eol=lf
+configure.ac text eol=lf
+configure text eol=lf
+Makevars* text eol=lf

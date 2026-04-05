@@ -3303,7 +3303,7 @@ fi
     fi
     tools/cmake_call.sh
     SBML_INCLUDE="-Ilibsbml-install/include/ ${LIBXML2_CPPFLAGS}"
-    SBML_LIBS="-Llibsbml-install/lib/ -lsbml-static -lxml2"
+    SBML_LIBS="-Llibsbml-install/lib/ -lsbml-static -lxml2 -lbz2"
 fi
 
 # Now substitute these variables in src/Makevars.in to create src/Makevars
