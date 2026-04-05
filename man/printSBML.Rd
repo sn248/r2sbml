@@ -12,3 +12,7 @@ printSBML(filename)
 \description{
 printSBML
 }
+\examples{
+sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+printSBML(sbml_file)
+}

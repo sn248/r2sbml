@@ -11,6 +11,7 @@ Description: Helps explore a model in 'SBML' format in R. Allows querying the
     reactions, rules, events and function definitions. Also allows exporting
     model components along with mass-balances in different formats for
     simulation. Modifications to the exported model in R is not supported.
+Encoding: UTF-8
 License: GPL (>=2)
 Imports:
     Rcpp (>= 0.12.6)

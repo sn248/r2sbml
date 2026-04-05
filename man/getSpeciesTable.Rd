@@ -14,3 +14,8 @@ getSpeciesTable(input_model)
 getspeciesTable
 Outputs the Information Table for Species
 }
+\examples{
+sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+model <- getModel(sbml_file)
+getSpeciesTable(model)
+}

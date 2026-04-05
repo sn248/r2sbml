@@ -96,15 +96,25 @@ else
 fi
 
 # Detect compiler type and set appropriate warning suppression flags.
-# -Wno-format-truncation/-overflow/-stringop-overflow are GCC-only and cause
-# "unknown warning option" errors on clang (macOS). Use clang-specific
-# suppressions instead.
-# -Wno-deprecated-non-prototype suppresses K&R warnings on clang 15+ (C17).
-# -Wno-old-style-definition / -Wno-stringop-overflow are GCC equivalents.
+# Split into:
+#   EXTRA_C_WARN_FLAGS   – flags valid for C only (not C++)
+#   EXTRA_CXX_WARN_FLAGS – flags valid for C++ only
+#   EXTRA_WARN_FLAGS     – flags valid for both C and C++
+#
+# -Wno-deprecated-non-prototype (clang): K&R-style prototypes; C-only concept.
+# -Wno-old-style-definition (GCC): K&R function definitions; C-only.
+# -Wno-format-truncation/-overflow/-stringop-overflow (GCC): C/C++ both fine,
+#   but unknown on clang → GCC shared flags.
+# -Wno-overloaded-virtual (clang/GCC): C++ only; libsbml's XMLErrorLog
+#   overloads trigger this warning.
 if echo "${CC}" | grep -qi clang || ${CC%% *} --version 2>&1 | grep -qi clang; then
-    EXTRA_WARN_FLAGS="-Wno-tautological-constant-out-of-range-compare -Wno-tautological-undefined-compare -Wno-switch -Wno-deprecated-non-prototype"
+    EXTRA_C_WARN_FLAGS="-Wno-tautological-constant-out-of-range-compare -Wno-tautological-undefined-compare -Wno-switch -Wno-deprecated-non-prototype"
+    EXTRA_CXX_WARN_FLAGS="-Wno-tautological-constant-out-of-range-compare -Wno-tautological-undefined-compare -Wno-switch -Wno-overloaded-virtual"
+    EXTRA_WARN_FLAGS=""
 else
-    EXTRA_WARN_FLAGS="-Wno-format-truncation -Wno-format-overflow -Wno-stringop-overflow -Wno-old-style-definition"
+    EXTRA_C_WARN_FLAGS="-Wno-format-truncation -Wno-format-overflow -Wno-stringop-overflow -Wno-old-style-definition"
+    EXTRA_CXX_WARN_FLAGS="-Wno-format-truncation -Wno-format-overflow -Wno-stringop-overflow -Wno-overloaded-virtual"
+    EXTRA_WARN_FLAGS=""
 fi
 
 mkdir libsbml-build
@@ -119,8 +129,10 @@ ${CMAKE_BIN} \
     -D WITH_ZLIB=ON \
     -D WITH_BZIP2=ON \
     -D ENABLE_SPATIAL=OFF \
-    -D CMAKE_C_FLAGS="${CFLAGS} ${EXTRA_WARN_FLAGS} -std=gnu17" \
-    -D CMAKE_CXX_FLAGS="${CXXFLAGS} ${EXTRA_WARN_FLAGS}" \
+    -D CMAKE_CXX_STANDARD=14 \
+    -D CMAKE_CXX_STANDARD_REQUIRED=OFF \
+    -D CMAKE_C_FLAGS="${CFLAGS} ${EXTRA_C_WARN_FLAGS} -std=gnu17" \
+    -D CMAKE_CXX_FLAGS="${CXXFLAGS} ${EXTRA_CXX_WARN_FLAGS}" \
     ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ../libsbml-src
 
 make -j${NCORES}

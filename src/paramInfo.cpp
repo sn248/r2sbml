@@ -17,6 +17,10 @@ LIBSBML_CPP_NAMESPACE_USE
 //'getParameterTable
 //'Outputs the Information Table for Paremeters
 //'@param input_model input should be an SBML Model
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
+//'model <- getModel(sbml_file)
+//'getParameterTable(model)
 // [[Rcpp::export]]
 Rcpp::DataFrame getParameterTable (SEXP input_model) {
 

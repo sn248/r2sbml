@@ -14,3 +14,8 @@ getCmtNames(input_model)
 getCmtNames
 Outputs the Names of Compartments
 }
+\examples{
+sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+model <- getModel(sbml_file)
+getCmtNames(model)
+}

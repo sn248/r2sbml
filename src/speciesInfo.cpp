@@ -12,6 +12,10 @@ LIBSBML_CPP_NAMESPACE_USE
 //'getSpeciesNames
 //'Outputs the Names of Compartments
 //'@param input_model input should be an SBML Model
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+//'model <- getModel(sbml_file)
+//'getSpeciesNames(model)
 // [[Rcpp::export]]
 Rcpp::StringVector getSpeciesNames (SEXP input_model) {
 
@@ -45,6 +49,10 @@ Rcpp::StringVector getSpeciesNames (SEXP input_model) {
 //'getspeciesIC
 //'Outputs the Initial Concentrations of Species
 //'@param input_model input should be an SBML Model
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+//'model <- getModel(sbml_file)
+//'getSpeciesIC(model)
 // [[Rcpp::export]]
 Rcpp::NumericVector getSpeciesIC (SEXP input_model) {
 
@@ -77,6 +85,10 @@ Rcpp::NumericVector getSpeciesIC (SEXP input_model) {
 //'getspeciesTable
 //'Outputs the Information Table for Species
 //'@param input_model input should be an SBML Model
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+//'model <- getModel(sbml_file)
+//'getSpeciesTable(model)
 // [[Rcpp::export]]
 Rcpp::DataFrame getSpeciesTable (SEXP input_model) {
 
