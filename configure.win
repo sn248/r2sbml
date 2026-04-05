@@ -1,0 +1,65 @@
+#!/bin/sh
+
+##
+##  r2sbml configure.win
+##
+##  Builds libsbml from source using cmake (Windows/Rtools version).
+##  Generates src/Makevars.win with the correct absolute paths.
+##
+
+: ${R_HOME=$(R RHOME)}
+if test -z "${R_HOME}"; then
+    echo "ERROR: Could not determine R_HOME."
+    exit 1
+fi
+
+## Detect libxml2 include path from the Rtools tree via R's CPPFLAGS.
+## R CMD config CPPFLAGS returns something like:
+##   -I"C:/rtools45/x86_64-w64-mingw32.static.posix/include"
+LIBXML2_CPPFLAGS=""
+_R_CPPFLAGS=$("${R_HOME}/bin/R.exe" CMD config CPPFLAGS 2>/dev/null)
+
+## Extract the first quoted -I path (e.g. C:/rtools45/.../include)
+_RTOOLS_INC=$(echo "$_R_CPPFLAGS" | sed -n 's/.*-I"\([^"]*\)".*/\1/p' | head -1)
+## Fall back to unquoted -I path
+if test -z "$_RTOOLS_INC"; then
+    _RTOOLS_INC=$(echo "$_R_CPPFLAGS" | grep -oE '\-I[^ ]+' | head -1 | sed 's/^-I//')
+fi
+if test -n "$_RTOOLS_INC"; then
+    ## libxml2 headers live under include/libxml2 on Windows/Rtools
+    if test -d "${_RTOOLS_INC}/libxml2"; then
+        LIBXML2_CPPFLAGS="-I${_RTOOLS_INC}/libxml2"
+    fi
+fi
+
+## Build libsbml from source using cmake (same logic as the Unix configure).
+sh tools/cmake_call.sh
+if test $? -ne 0; then
+    echo "ERROR: cmake build of libsbml failed."
+    exit 1
+fi
+
+## Get the absolute path to src/ in forward-slash format for use in Makevars.
+## normalizePath with winslash='/' returns e.g. C:/path/to/pkg/src
+SRC_ABS_DIR=$("${R_HOME}/bin/Rscript.exe" --vanilla \
+    -e "cat(normalizePath('src', winslash='/', mustWork=FALSE))")
+
+## Detect Rtools lib path for linking libxml2, bz2, z, iconv.
+RTOOLS_LIBFLAG=""
+if test -n "$_RTOOLS_INC"; then
+    _RTOOLS_LIB=$(echo "$_RTOOLS_INC" | sed 's|/include$|/lib|')
+    if test -d "$_RTOOLS_LIB"; then
+        RTOOLS_LIBFLAG="-L${_RTOOLS_LIB}"
+    fi
+fi
+
+## Write src/Makevars.win with the cmake-built library paths.
+## Note: LAPACK_LIBS/BLAS_LIBS/FLIBS are omitted — not needed on Windows.
+cat > src/Makevars.win << EOF
+PKG_CPPFLAGS= -I${SRC_ABS_DIR}/libsbml-install/include/ ${LIBXML2_CPPFLAGS}
+PKG_LIBS= -L${SRC_ABS_DIR}/libsbml-install/lib/ -lsbml-static ${RTOOLS_LIBFLAG} -lxml2 -lbz2 -lz -liconv -lws2_32
+EOF
+
+echo ""
+echo "Final src/Makevars.win"
+cat src/Makevars.win
