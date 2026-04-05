@@ -66,8 +66,8 @@ if test x"${need_to_build}" != x"no"; then
         . src/scripts/cmake_config.sh
     fi
     tools/cmake_call.sh
-    SBML_INCLUDE="-Ilibsbml-install/include/ ${LIBXML2_CPPFLAGS}"
-    SBML_LIBS="-Llibsbml-install/lib/ -lsbml-static -lxml2 -lbz2"
+    SBML_INCLUDE="-I\$(srcdir)/libsbml-install/include/ ${LIBXML2_CPPFLAGS}"
+    SBML_LIBS="-L\$(srcdir)/libsbml-install/lib/ -lsbml-static -lxml2 -lbz2"
 fi
 
 # Now substitute these variables in src/Makevars.in to create src/Makevars
