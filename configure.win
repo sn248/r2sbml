@@ -57,7 +57,7 @@ fi
 ## Note: LAPACK_LIBS/BLAS_LIBS/FLIBS are omitted — not needed on Windows.
 cat > src/Makevars.win << EOF
 PKG_CPPFLAGS= -I${SRC_ABS_DIR}/libsbml-install/include/ ${LIBXML2_CPPFLAGS}
-PKG_LIBS= -L${SRC_ABS_DIR}/libsbml-install/lib/ -lsbml-static ${RTOOLS_LIBFLAG} -lxml2 -lbz2 -lz -liconv -lws2_32
+PKG_LIBS= -L${SRC_ABS_DIR}/libsbml-install/lib/ -lsbml-static ${RTOOLS_LIBFLAG} -lxml2 -lbz2 -lz -llzma -liconv -lws2_32
 EOF
 
 echo ""

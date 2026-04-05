@@ -129,6 +129,7 @@ fi
 
 # On Windows/MSYS2, help cmake find libxml2 and bz2 in the Rtools tree.
 LIBSBML_DEPENDENCY_DIR_FLAG=""
+LIBXML_WIN32_FLAG=""
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*)
     # Get Rtools include path from R config, e.g. -I"C:/rtools45/.../include"
@@ -157,6 +158,12 @@ case "$(uname -s)" in
       _RTOOLS_PREFIX=$(echo "$_RTOOLS_INC" | sed 's|/include$||')
       LIBSBML_DEPENDENCY_DIR_FLAG="-D LIBSBML_DEPENDENCY_DIR=${_RTOOLS_PREFIX}"
     fi
+    # Rtools45 builds libxml2 with lzma support; the static library test in
+    # libsbml's FindLIBXML.cmake does not add -llzma to its test link flags,
+    # so the test always fails on Windows.  Pre-set LIBXML_LIBXML_TEST2 in
+    # cmake's cache so the compile-test is skipped and libsbml configures
+    # with -DLIBXML_STATIC=1 (correct for a static libxml2).
+    LIBXML_WIN32_FLAG="-D LIBXML_LIBXML_TEST2:BOOL=TRUE"
     ;;
 esac
 
@@ -176,7 +183,7 @@ ${CMAKE_BIN} \
     -D CMAKE_CXX_STANDARD_REQUIRED=OFF \
     -D CMAKE_C_FLAGS="${CFLAGS} ${EXTRA_C_WARN_FLAGS} -std=gnu17" \
     -D CMAKE_CXX_FLAGS="${CXXFLAGS} ${EXTRA_CXX_WARN_FLAGS}" \
-    ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ${LIBSBML_DEPENDENCY_DIR_FLAG} ../libsbml-src
+    ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ${LIBSBML_DEPENDENCY_DIR_FLAG} ${LIBXML_WIN32_FLAG} ../libsbml-src
 
 ${CMAKE_BIN} --build . -j${NCORES}
 ${CMAKE_BIN} --install .
