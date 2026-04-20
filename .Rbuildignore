@@ -10,3 +10,10 @@
 ^src/libsbml-src$
 ^src/libsbml-build$
 ^src/libsbml-install$
+^GEMINI.md$
+^\.github$
+^inst/examples$
+^man$
+^README.md$
+^.gitattributes$
+^r2sbml.Rproj$
