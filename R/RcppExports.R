@@ -8,6 +8,7 @@
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
 #'getCmtNames(model)
+#'@return \code{StringVector} of compartment names
 getCmtNames <- function(input_model) {
     .Call(`_r2sbml_getCmtNames`, input_model)
 }
@@ -19,6 +20,7 @@ getCmtNames <- function(input_model) {
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
 #'getCmtSizes(model)
+#'@return \code{NumericVector} of compartment sizes
 getCmtSizes <- function(input_model) {
     .Call(`_r2sbml_getCmtSizes`, input_model)
 }
@@ -31,6 +33,11 @@ getCmtSizes <- function(input_model) {
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'out_file <- tempfile(fileext = ".R")
 #'convertReactions(sbml_file, out_file, format = "R")
+#'out_file_mrg <- tempfile(fileext = ".cpp")
+#'convertReactions(sbml_file, out_file_mrg, format = "mrgsolve")
+#'out_file_rx <- tempfile(fileext = ".R")
+#'convertReactions(sbml_file, out_file_rx, format = "nlmixr2")
+#'@return integer 0 if successful
 convertReactions <- function(infile, outfile, format = "R") {
     .Call(`_r2sbml_convertReactions`, infile, outfile, format)
 }
@@ -40,6 +47,7 @@ convertReactions <- function(infile, outfile, format = "R") {
 #'@examples
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'echoSBML(sbml_file)
+#'@return integer representing the number of errors
 echoSBML <- function(filename) {
     .Call(`_r2sbml_echoSBML`, filename)
 }
@@ -51,6 +59,7 @@ echoSBML <- function(filename) {
 #'sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
 #'getRuleMath(model)
+#'@return integer 0 if successful
 getRuleMath <- function(input_model) {
     .Call(`_r2sbml_getRuleMath`, input_model)
 }
@@ -62,6 +71,7 @@ getRuleMath <- function(input_model) {
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
 #'getReactionMath(model)
+#'@return integer 0 if successful
 getReactionMath <- function(input_model) {
     .Call(`_r2sbml_getReactionMath`, input_model)
 }
@@ -73,6 +83,7 @@ getReactionMath <- function(input_model) {
 #'sbml_file <- system.file("examples", "sbmlfunctiondefinition.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
 #'getFunctionDefinition(model)
+#'@return integer 0 if successful
 getFunctionDefinition <- function(input_model) {
     .Call(`_r2sbml_getFunctionDefinition`, input_model)
 }
@@ -84,6 +95,7 @@ getFunctionDefinition <- function(input_model) {
 #'sbml_file <- system.file("examples", "sbmlevent.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
 #'getEventMath(model)
+#'@return integer 0 if successful
 getEventMath <- function(input_model) {
     .Call(`_r2sbml_getEventMath`, input_model)
 }
@@ -94,6 +106,7 @@ getEventMath <- function(input_model) {
 #'@examples
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
+#'@return external pointer to the SBML Model
 getModel <- function(filename) {
     .Call(`_r2sbml_getModel`, filename)
 }
@@ -105,6 +118,7 @@ getModel <- function(filename) {
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
 #'getNumSpecies(model)
+#'@return integer representing the number of species
 getNumSpecies <- function(input_model) {
     .Call(`_r2sbml_getNumSpecies`, input_model)
 }
@@ -116,6 +130,7 @@ getNumSpecies <- function(input_model) {
 #'sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
 #'getParameterTable(model)
+#'@return \code{DataFrame} of parameter information
 getParameterTable <- function(input_model) {
     .Call(`_r2sbml_getParameterTable`, input_model)
 }
@@ -125,6 +140,7 @@ getParameterTable <- function(input_model) {
 #'@examples
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'printSBML(sbml_file)
+#'@return integer 0 if successful
 printSBML <- function(filename) {
     .Call(`_r2sbml_printSBML`, filename)
 }
@@ -136,6 +152,7 @@ printSBML <- function(filename) {
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
 #'getReactionTable(model)
+#'@return \code{DataFrame} of reaction information
 getReactionTable <- function(input_model) {
     .Call(`_r2sbml_getReactionTable`, input_model)
 }
@@ -147,28 +164,31 @@ getReactionTable <- function(input_model) {
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
 #'getSpeciesNames(model)
+#'@return \code{StringVector} of species names
 getSpeciesNames <- function(input_model) {
     .Call(`_r2sbml_getSpeciesNames`, input_model)
 }
 
-#'getspeciesIC
+#'getSpeciesIC
 #'Outputs the Initial Concentrations of Species
 #'@param input_model input should be an SBML Model
 #'@examples
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
 #'getSpeciesIC(model)
+#'@return \code{NumericVector} of species initial concentrations
 getSpeciesIC <- function(input_model) {
     .Call(`_r2sbml_getSpeciesIC`, input_model)
 }
 
-#'getspeciesTable
+#'getSpeciesTable
 #'Outputs the Information Table for Species
 #'@param input_model input should be an SBML Model
 #'@examples
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
 #'getSpeciesTable(model)
+#'@return \code{DataFrame} of species information
 getSpeciesTable <- function(input_model) {
     .Call(`_r2sbml_getSpeciesTable`, input_model)
 }

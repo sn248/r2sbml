@@ -14,6 +14,9 @@ getFunctionDefinition(input_model)
 getFunctionDefinition
 Outputs Model which can be simulated
 }
+\value{
+  integer 0 if successful
+}
 \examples{
 sbml_file <- system.file("examples", "sbmlfunctiondefinition.xml", package = "r2sbml")
 model <- getModel(sbml_file)

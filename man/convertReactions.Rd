@@ -11,13 +11,20 @@ convertReactions(infile, outfile, format = "R")
 
 \item{outfile}{output file name}
 
-\item{format}{output code format, should be 'MATLAB','mrgsolve',rxode' or 'R' (default)}
+\item{format}{output code format, should be 'mrgsolve', 'nlmixr2' (or 'rxode'), or 'R'/'deSolve' (default)}
 }
 \description{
 convertReactions
+}
+\value{
+  integer 0 if successful
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 out_file <- tempfile(fileext = ".R")
 convertReactions(sbml_file, out_file, format = "R")
+#'out_file_mrg <- tempfile(fileext = ".cpp")
+#'convertReactions(sbml_file, out_file_mrg, format = "mrgsolve")
+#'out_file_rx <- tempfile(fileext = ".R")
+#'convertReactions(sbml_file, out_file_rx, format = "nlmixr2")
 }
