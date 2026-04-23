@@ -53,15 +53,22 @@ using namespace std;
 LIBSBML_CPP_NAMESPACE_USE
 
 int writeFileR(SBMLDocument*, std::string);
+int writeFileMrgsolve(SBMLDocument*, std::string);
+int writeFileNlmixr2(SBMLDocument*, std::string);
 
 //'convertReactions
 //'@param infile input file name
 //'@param outfile output file name
-//'@param format output code format, should be 'MATLAB','mrgsolve',rxode' or 'R' (default)
+//'@param format output code format, should be 'mrgsolve', 'nlmixr2' (or 'rxode'), or 'R'/'deSolve' (default)
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'out_file <- tempfile(fileext = ".R")
 //'convertReactions(sbml_file, out_file, format = "R")
+//'out_file_mrg <- tempfile(fileext = ".cpp")
+//'convertReactions(sbml_file, out_file_mrg, format = "mrgsolve")
+//'out_file_rx <- tempfile(fileext = ".R")
+//'convertReactions(sbml_file, out_file_rx, format = "nlmixr2")
+//'@return integer 0 if successful
 // [[Rcpp::export]]
  int convertReactions(SEXP infile, SEXP outfile, std::string format = "R"){
 
@@ -154,17 +161,23 @@ int writeFileR(SBMLDocument*, std::string);
      out << "// Model equations generated from .xml file \n" << endl;
 
      // std::string outFormat = format;
-     if (format.compare("R") == 0)  { writeFileR(document, outputFile); }
+     if (format.compare("R") == 0 || format.compare("deSolve") == 0)  {
+        writeFileR(document, outputFile);
 
-     for(int i = 0; i < numRules; i++)
-     {
-       // mathML to infix
-       // out << "ODE for " << document->getModel()->getRule(i)->getVariable()
-       // << " is " << document->getModel()->getRule(i)->getFormula() << endl;
-
+        for(int i = 0; i < numRules; i++)
+        {
+          // mathML to infix
+          // out << "ODE for " << document->getModel()->getRule(i)->getVariable()
+          // << " is " << document->getModel()->getRule(i)->getFormula() << endl;
+        }
+        out.close();
      }
-
-     out.close();
+     else if (format.compare("mrgsolve") == 0)  {
+        writeFileMrgsolve(document, outputFile);
+     }
+     else if (format.compare("nlmixr2") == 0 || format.compare("rxode") == 0)  {
+        writeFileNlmixr2(document, outputFile);
+     }
 
      // SBMLWriter writer;
      // writer.writeSBMLToFile(document, outputFile);
@@ -227,10 +240,10 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    int numIAs = model->getNumSpecies();
    for (int i = 0; i < numIAs; i++){
       if (i != numIAs-1){
-        out << "         " << model->getSpecies(i)->getName() << " = " << model->getSpecies(i)->getInitialAmount() << "," << endl;
+        out << "         " << model->getSpecies(i)->getIdAttribute() << " = " << model->getSpecies(i)->getInitialAmount() << "," << endl;
       }
       if (i == numIAs-1) {
-        out << "         " << model->getSpecies(i)->getName() << " = " << model->getSpecies(i)->getInitialAmount() << endl;
+        out << "         " << model->getSpecies(i)->getIdAttribute() << " = " << model->getSpecies(i)->getInitialAmount() << endl;
       }
    }
 
@@ -243,22 +256,22 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    int numParams = model->getNumParameters();
    for (int i = 0; i < numParams; i++){
       if (i != numParams-1 ){
-        out << "         " << model->getParameter(i)->getName() << " = " << model->getParameter(i)->getValue() << "," << endl;
+        out << "         " << model->getParameter(i)->getIdAttribute() << " = " << model->getParameter(i)->getValue() << "," << endl;
       }
       if (i == numParams-1) {
-        out << "         " << model->getParameter(i)->getName() << " = " << model->getParameter(i)->getValue() << endl;
+        out << "         " << model->getParameter(i)->getIdAttribute() << " = " << model->getParameter(i)->getValue() << endl;
       }
    }
 
    // for (int i = 0; i < numParams; i++) {
-   //      out << model->getParameter(i)->getName() << " = " << model->getParameter(i)->getValue() << endl; // "# (" << model->getParameter(i)->getUnits() << ")" << endl;
+   //      out << model->getParameter(i)->getIdAttribute() << " = " << model->getParameter(i)->getValue() << endl; // "# (" << model->getParameter(i)->getUnits() << ")" << endl;
    // }
 
    out << "               )" << endl;
    out << endl;
 
    // for (int i = 0; i < numIAs-1; i++) {
-   //      out << model->getSpecies(i)->getName() << " = " << model->getSpecies(i)->getInitialAmount() << endl; // " # (" <<  model->getSpecies(i)->getUnits() << ")" << endl;
+   //      out << model->getSpecies(i)->getIdAttribute() << " = " << model->getSpecies(i)->getInitialAmount() << endl; // " # (" <<  model->getSpecies(i)->getUnits() << ")" << endl;
    // }
 
 
@@ -276,13 +289,13 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
 
    out << "   ## Get States Names " << endl;
    for (int i = 0; i<numIAs; i++){
-        out << "   " << model->getSpecies(i)->getName() << " = states[[\"" << model->getSpecies(i)->getName() << "\"]]" << endl;
+        out << "   " << model->getSpecies(i)->getIdAttribute() << " = states[[\"" << model->getSpecies(i)->getIdAttribute() << "\"]]" << endl;
    }
 
    out << endl;
    out << "   ## Get Parameter Names " << endl;
    for (int i = 0; i<numParams; i++){
-        out << "   " << model->getParameter(i)->getName() << " = params[[\"" << model->getParameter(i)->getName() << "\"]]" << endl;
+        out << "   " << model->getParameter(i)->getIdAttribute() << " = params[[\"" << model->getParameter(i)->getIdAttribute() << "\"]]" << endl;
    }
 
    int numODEs = model->getNumRules();
@@ -298,7 +311,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    out << endl;
    out << "   ## Mass Balances" << endl;
    for (int i = 0; i < numODEs; i++){
-     out << "   d" << model->getRule(i)->getId() << "_dt = "<< model->getRule(i)->getFormula() << endl;
+     out << "   d" << model->getRule(i)->getVariable() << "_dt = "<< model->getRule(i)->getFormula() << endl;
    }
 
    out << endl;
@@ -306,10 +319,10 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    out << "   MassBalances <- c(" << endl;
    for (int i = 0; i<numIAs; i++){
      if (i != numIAs-1){
-        out << "     d" << model->getSpecies(i)->getName() << "_dt" << " ," <<endl;
+        out << "     d" << model->getSpecies(i)->getIdAttribute() << "_dt" << " ," <<endl;
      }
      if (i == numIAs-1){
-        out << "     d" << model->getSpecies(i)->getName() << "_dt" <<endl;
+        out << "     d" << model->getSpecies(i)->getIdAttribute() << "_dt" <<endl;
      }
    }
    out << "   )" << endl;
@@ -327,4 +340,86 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    out.close();
    return 0;
 
+}
+
+// write output ODEs for mrgsolve
+int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
+{
+   std::ofstream out(outfilename);
+   Model* model = document->getModel();
+
+   out << "## Automatically generated mrgsolve model file by r2sbml\n" << endl;
+   out << "$PROB\n" << endl;
+   out << "$PARAM\n";
+
+   int numParams = model->getNumParameters();
+   for (int i = 0; i < numParams; i++){
+        out << model->getParameter(i)->getIdAttribute() << " = " << model->getParameter(i)->getValue() << "\n";
+   }
+
+   out << "\n$CMT\n";
+   int numIAs = model->getNumSpecies();
+   for (int i = 0; i < numIAs; i++){
+        out << model->getSpecies(i)->getIdAttribute() << "\n";
+   }
+
+   out << "\n$MAIN\n";
+   for (int i = 0; i < numIAs; i++){
+        out << model->getSpecies(i)->getIdAttribute() << "_0 = " << model->getSpecies(i)->getInitialAmount() << ";\n";
+   }
+
+   int numCmt = model->getNumCompartments();
+   for (int i = 0; i < numCmt; i++){
+        out <<  model->getCompartment(i)->getId() << " = " << model->getCompartment(i)->getVolume() << ";\n";
+   }
+
+   out << "\n$ODE\n";
+   int numODEs = model->getNumRules();
+   for (int i = 0; i < numODEs; i++){
+     out << "dxdt_" << model->getRule(i)->getVariable() << " = "<< model->getRule(i)->getFormula() << ";\n";
+   }
+
+   out.close();
+   return 0;
+}
+
+// write output ODEs for nlmixr2 / rxode
+int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
+{
+   std::ofstream out(outfilename);
+   Model* model = document->getModel();
+
+   out << "## Automatically generated nlmixr2/rxode model file by r2sbml\n" << endl;
+   out << "model <- function() {\n";
+   out << "  ini({\n";
+
+   int numParams = model->getNumParameters();
+   for (int i = 0; i < numParams; i++){
+        out << "    " << model->getParameter(i)->getIdAttribute() << " <- " << model->getParameter(i)->getValue() << "\n";
+   }
+
+   out << "  })\n";
+   out << "  model({\n";
+
+   int numCmt = model->getNumCompartments();
+   for (int i = 0; i < numCmt; i++){
+        out << "    " << model->getCompartment(i)->getId() << " <- " << model->getCompartment(i)->getVolume() << "\n";
+   }
+
+   int numIAs = model->getNumSpecies();
+   for (int i = 0; i < numIAs; i++){
+        out << "    " << model->getSpecies(i)->getIdAttribute() << "(0) <- " << model->getSpecies(i)->getInitialAmount() << "\n";
+   }
+
+   out << "\n";
+   int numODEs = model->getNumRules();
+   for (int i = 0; i < numODEs; i++){
+     out << "    d/dt(" << model->getRule(i)->getVariable() << ") <- "<< model->getRule(i)->getFormula() << "\n";
+   }
+
+   out << "  })\n";
+   out << "}\n";
+
+   out.close();
+   return 0;
 }

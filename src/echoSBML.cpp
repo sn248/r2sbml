@@ -10,6 +10,7 @@ LIBSBML_CPP_NAMESPACE_USE
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'echoSBML(sbml_file)
+//'@return integer representing the number of errors
 // [[Rcpp::export]]
 int echoSBML (SEXP filename) {
 

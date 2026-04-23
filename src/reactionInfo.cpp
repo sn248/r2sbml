@@ -22,6 +22,7 @@ LIBSBML_CPP_NAMESPACE_USE
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)
 //'getReactionTable(model)
+//'@return \code{DataFrame} of reaction information
 // [[Rcpp::export]]
 Rcpp::DataFrame getReactionTable (SEXP input_model) {
 

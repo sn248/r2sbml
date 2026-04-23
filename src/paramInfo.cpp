@@ -21,6 +21,7 @@ LIBSBML_CPP_NAMESPACE_USE
 //'sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)
 //'getParameterTable(model)
+//'@return \code{DataFrame} of parameter information
 // [[Rcpp::export]]
 Rcpp::DataFrame getParameterTable (SEXP input_model) {
 
