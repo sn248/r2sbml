@@ -11,15 +11,15 @@ test_that("Conversion works on SBML test suite cases", {
         out_rx <- tempfile(fileext = ".R")
 
         # Test R/deSolve
-        expect_silent(convertReactions(xml_file, out_r, format = "R"))
+        expect_invisible(convertReactions(xml_file, out_r, format = "R"))
         expect_true(file.exists(out_r))
 
         # Test mrgsolve
-        expect_silent(convertReactions(xml_file, out_mrg, format = "mrgsolve"))
+        expect_invisible(convertReactions(xml_file, out_mrg, format = "mrgsolve"))
         expect_true(file.exists(out_mrg))
 
         # Test nlmixr2/rxode
-        expect_silent(convertReactions(xml_file, out_rx, format = "nlmixr2"))
+        expect_invisible(convertReactions(xml_file, out_rx, format = "nlmixr2"))
         expect_true(file.exists(out_rx))
     }
   }
