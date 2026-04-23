@@ -1,5 +1,6 @@
 test_that("convertReactions formats work", {
     sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+    if (sbml_file == "") sbml_file <- "../../inst/examples/sbmlsimple.xml"
 
     # R (deSolve)
     out_file <- tempfile(fileext = ".R")

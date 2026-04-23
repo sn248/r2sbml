@@ -77,6 +77,7 @@ int writeFileNlmixr2(SBMLDocument*, std::string);
 
    // read document and assign file for writing
    std::string inputFile = Rcpp::as<std::string>(infile);
+   if (inputFile == "") return 1;
    std::string outputFile = Rcpp::as<std::string>(outfile);
 
    SBMLReader reader;

@@ -1,6 +1,7 @@
 test_that("Conversion works on SBML test suite cases", {
   # Get all the L3V2 XML files in the test suite
   test_suite_dir <- system.file("examples", package = "r2sbml")
+  if (test_suite_dir == "") test_suite_dir <- "../../inst/examples"
   if (dir.exists(test_suite_dir)) {
     xml_files <- list.files(test_suite_dir, pattern = "\\.xml$", full.names = TRUE)
 
