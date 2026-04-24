@@ -1,0 +1,13 @@
+Name: libSBML
+Description: A library for reading/writing/manipulating SBML
+URL: http://sbml.org/Software/libSBML
+Version: 5.21.0
+
+prefix=/home/quantilogy/Documents/GitHub/sn248/r2sbml/src/libsbml-install
+libdir=/home/quantilogy/Documents/GitHub/sn248/r2sbml/src/libsbml-install/lib
+includedir=/home/quantilogy/Documents/GitHub/sn248/r2sbml/src/libsbml-install/include
+
+Libs: -L${libdir} -lsbml
+Libs.private:        /usr/lib/x86_64-linux-gnu/libxml2.so /usr/lib/x86_64-linux-gnu/libbz2.so  -lstdc++ -lm
+Cflags: -I${includedir}
+Requires.private: libxml-2.0 >= 2.6.22
