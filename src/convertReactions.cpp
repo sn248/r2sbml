@@ -68,16 +68,16 @@ int writeFileNlmixr2(SBMLDocument*, std::string);
 //'convertReactions(sbml_file, out_file_mrg, format = "mrgsolve")
 //'out_file_rx <- tempfile(fileext = ".R")
 //'convertReactions(sbml_file, out_file_rx, format = "nlmixr2")
-//'@return integer 0 if successful
+//'@return NULL invisibly
 // [[Rcpp::export]]
- int convertReactions(SEXP infile, SEXP outfile, std::string format = "R"){
+ void convertReactions(SEXP infile, SEXP outfile, std::string format = "R"){
 
    if(!infile) Rcpp::stop("Input file is not present.\n");
    if(!outfile) Rcpp::stop("Output file is not present.\n");
 
    // read document and assign file for writing
    std::string inputFile = Rcpp::as<std::string>(infile);
-   if (inputFile == "") return 1;
+   if (inputFile == "") Rcpp::stop("Input file path is empty.\n");
    std::string outputFile = Rcpp::as<std::string>(outfile);
 
    SBMLReader reader;
@@ -90,9 +90,7 @@ int writeFileNlmixr2(SBMLDocument*, std::string);
    {
      Rcpp::Rcerr << "Encountered the following SBML errors:" << endl;
      document->printErrors(Rcpp::Rcerr);
-     Rcpp::Rcerr << "Conversion skipped.  Please correct the problems above first."
-                 << endl;
-     return errors;
+     Rcpp::stop("Conversion skipped.  Please correct the problems above first.");
    }
 
    // create conversion object that identifies the function definition converter
@@ -107,7 +105,7 @@ int writeFileNlmixr2(SBMLDocument*, std::string);
    {
      Rcpp::Rcerr << "Unable to perform conversion due to the following:" << endl;
      document->printErrors(Rcpp::Rcerr);
-     return errors;
+     Rcpp::stop("Conversion failed.");
    }
 
    // promote local parameters to global parameters
@@ -120,7 +118,7 @@ int writeFileNlmixr2(SBMLDocument*, std::string);
    {
      Rcpp::Rcerr << "Unable to perform conversion due to the following:" << endl;
      document->printErrors(Rcpp::Rcerr);
-     return errors;
+     Rcpp::stop("Conversion failed.");
    }
 
    // expand Initial Assignments
@@ -133,9 +131,8 @@ int writeFileNlmixr2(SBMLDocument*, std::string);
    {
      Rcpp::Rcerr << "Unable to perform conversion due to the following:" << endl;
      document->printErrors(Rcpp::Rcerr);
-     return errors;
+     Rcpp::stop("Conversion failed.");
    }
-
 
    // create conversion object that identifies the function definition expansion converter
    props.addOption("expandFunctionDefinitions", true,
@@ -147,45 +144,39 @@ int writeFileNlmixr2(SBMLDocument*, std::string);
    {
      Rcpp::Rcerr << "Unable to perform conversion due to the following:" << endl;
      document->printErrors(Rcpp::Rcerr);
-     return errors;
+     Rcpp::stop("Conversion failed.");
    }
 
-   else
-   {
-     // make names equal to ID if name doesn't exist
+   // make names equal to ID if name doesn't exist
 
-     Rcpp::Rcout << "Conversion completed." << endl;
-     Rcpp::Rcout << "Number of ODEs - " << document->getModel()->getNumRules() << endl;
-     int numRules = document->getModel()->getNumRules();
+   Rcpp::Rcout << "Conversion completed." << endl;
+   Rcpp::Rcout << "Number of ODEs - " << document->getModel()->getNumRules() << endl;
+   int numRules = document->getModel()->getNumRules();
 
-     std::ofstream out(outputFile);
-     out << "// Model equations generated from .xml file \n" << endl;
+   std::ofstream out(outputFile);
+   out << "// Model equations generated from .xml file \n" << endl;
 
-     // std::string outFormat = format;
-     if (format.compare("R") == 0 || format.compare("deSolve") == 0)  {
-        writeFileR(document, outputFile);
+   if (format.compare("R") == 0 || format.compare("deSolve") == 0)  {
+      writeFileR(document, outputFile);
 
-        for(int i = 0; i < numRules; i++)
-        {
-          // mathML to infix
-          // out << "ODE for " << document->getModel()->getRule(i)->getVariable()
-          // << " is " << document->getModel()->getRule(i)->getFormula() << endl;
-        }
-        out.close();
-     }
-     else if (format.compare("mrgsolve") == 0)  {
-        writeFileMrgsolve(document, outputFile);
-     }
-     else if (format.compare("nlmixr2") == 0 || format.compare("rxode") == 0)  {
-        writeFileNlmixr2(document, outputFile);
-     }
-
-     // SBMLWriter writer;
-     // writer.writeSBMLToFile(document, outputFile);
-     // libsbml::writeSBMLToFile(document, outputFile);
+      for(int i = 0; i < numRules; i++)
+      {
+        // mathML to infix
+        // out << "ODE for " << document->getModel()->getRule(i)->getVariable()
+        // << " is " << document->getModel()->getRule(i)->getFormula() << endl;
+      }
+      out.close();
+   }
+   else if (format.compare("mrgsolve") == 0)  {
+      writeFileMrgsolve(document, outputFile);
+   }
+   else if (format.compare("nlmixr2") == 0 || format.compare("rxode") == 0)  {
+      writeFileNlmixr2(document, outputFile);
    }
 
-   return 0;
+   // SBMLWriter writer;
+   // writer.writeSBMLToFile(document, outputFile);
+   // libsbml::writeSBMLToFile(document, outputFile);
  }
 
 // write output ODEs for R

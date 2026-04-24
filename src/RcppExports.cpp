@@ -33,16 +33,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // convertReactions
-int convertReactions(SEXP infile, SEXP outfile, std::string format);
+void convertReactions(SEXP infile, SEXP outfile, std::string format);
 RcppExport SEXP _r2sbml_convertReactions(SEXP infileSEXP, SEXP outfileSEXP, SEXP formatSEXP) {
 BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type infile(infileSEXP);
     Rcpp::traits::input_parameter< SEXP >::type outfile(outfileSEXP);
     Rcpp::traits::input_parameter< std::string >::type format(formatSEXP);
-    rcpp_result_gen = Rcpp::wrap(convertReactions(infile, outfile, format));
-    return rcpp_result_gen;
+    convertReactions(infile, outfile, format);
+    return R_NilValue;
 END_RCPP
 }
 // echoSBML

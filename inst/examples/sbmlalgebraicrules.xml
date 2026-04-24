@@ -23,7 +23,7 @@
 </listOfUnitDefinitions>
 <listOfCompartments>
 <compartment id="cell" size="1" spatialDimensions="3" constant="true"/>
-/listOfCompartments>
+</listOfCompartments>
 <listOfSpecies>
 <species id="E" compartment="cell" initialConcentration="0.5" constant="false"
 hasOnlySubstanceUnits="false" boundaryCondition="true"/>

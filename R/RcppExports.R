@@ -28,7 +28,7 @@ getCmtSizes <- function(input_model) {
 #'convertReactions
 #'@param infile input file name
 #'@param outfile output file name
-#'@param format output code format, should be 'MATLAB','mrgsolve',rxode' or 'R' (default)
+#'@param format output code format, should be 'mrgsolve', 'nlmixr2' (or 'rxode'), or 'R'/'deSolve' (default)
 #'@examples
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'out_file <- tempfile(fileext = ".R")
@@ -37,9 +37,9 @@ getCmtSizes <- function(input_model) {
 #'convertReactions(sbml_file, out_file_mrg, format = "mrgsolve")
 #'out_file_rx <- tempfile(fileext = ".R")
 #'convertReactions(sbml_file, out_file_rx, format = "nlmixr2")
-#'@return integer 0 if successful
+#'@return NULL invisibly
 convertReactions <- function(infile, outfile, format = "R") {
-    .Call(`_r2sbml_convertReactions`, infile, outfile, format)
+    invisible(.Call(`_r2sbml_convertReactions`, infile, outfile, format))
 }
 
 #'echoSBML
@@ -169,7 +169,7 @@ getSpeciesNames <- function(input_model) {
     .Call(`_r2sbml_getSpeciesNames`, input_model)
 }
 
-#'getSpeciesIC
+#'getspeciesIC
 #'Outputs the Initial Concentrations of Species
 #'@param input_model input should be an SBML Model
 #'@examples
@@ -181,7 +181,7 @@ getSpeciesIC <- function(input_model) {
     .Call(`_r2sbml_getSpeciesIC`, input_model)
 }
 
-#'getSpeciesTable
+#'getspeciesTable
 #'Outputs the Information Table for Species
 #'@param input_model input should be an SBML Model
 #'@examples
