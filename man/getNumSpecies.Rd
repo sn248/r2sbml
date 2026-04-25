@@ -14,9 +14,6 @@ getNumSpecies(input_model)
 getSpeciesNum
 Outputs the number of Species in the model
 }
-\value{
-  integer representing the number of species
-}
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 model <- getModel(sbml_file)

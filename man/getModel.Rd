@@ -14,9 +14,6 @@ getModel(filename)
 getModel
 Outputs an external pointer to the Model from SBML file
 }
-\value{
-  external pointer to the SBML Model
-}
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 model <- getModel(sbml_file)

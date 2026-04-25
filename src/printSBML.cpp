@@ -11,7 +11,6 @@ LIBSBML_CPP_NAMESPACE_USE
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'printSBML(sbml_file)
-//'@return integer 0 if successful
 // [[Rcpp::export]]
 int printSBML (SEXP filename) {
 

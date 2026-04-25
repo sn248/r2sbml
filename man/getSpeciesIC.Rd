@@ -14,9 +14,6 @@ getSpeciesIC(input_model)
 getspeciesIC
 Outputs the Initial Concentrations of Species
 }
-\value{
-  \code{NumericVector} of values
-}
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 model <- getModel(sbml_file)

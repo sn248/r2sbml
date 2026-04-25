@@ -14,9 +14,6 @@ getCmtSizes(input_model)
 getCmtSizes
 Outputs the Sizes of Compartments
 }
-\value{
-  \code{NumericVector} of values
-}
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 model <- getModel(sbml_file)

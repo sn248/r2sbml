@@ -14,9 +14,6 @@ getReactionTable(input_model)
 getReactionTable
 Outputs the Information Table for Reactions
 }
-\value{
-  \code{DataFrame} of information
-}
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 model <- getModel(sbml_file)

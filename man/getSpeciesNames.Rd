@@ -14,9 +14,6 @@ getSpeciesNames(input_model)
 getSpeciesNames
 Outputs the Names of Compartments
 }
-\value{
-  \code{StringVector} of names
-}
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 model <- getModel(sbml_file)

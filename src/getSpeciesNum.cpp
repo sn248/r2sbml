@@ -14,7 +14,6 @@ LIBSBML_CPP_NAMESPACE_USE
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)
 //'getNumSpecies(model)
-//'@return integer representing the number of species
 // [[Rcpp::export]]
 int getNumSpecies (SEXP input_model) {
 

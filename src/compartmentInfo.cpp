@@ -16,7 +16,6 @@ LIBSBML_CPP_NAMESPACE_USE
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)
 //'getCmtNames(model)
-//'@return \code{StringVector} of compartment names
 // [[Rcpp::export]]
 Rcpp::StringVector getCmtNames (SEXP input_model) {
 
@@ -48,7 +47,6 @@ Rcpp::StringVector getCmtNames (SEXP input_model) {
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)
 //'getCmtSizes(model)
-//'@return \code{NumericVector} of compartment sizes
 // [[Rcpp::export]]
 Rcpp::NumericVector getCmtSizes (SEXP input_model) {
 
