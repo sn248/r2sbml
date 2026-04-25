@@ -109,67 +109,15 @@ getNumSpecies <- function(input_model) {
     .Call(`_r2sbml_getNumSpecies`, input_model)
 }
 
-#'getParameterTable
-#'Outputs the Information Table for Paremeters
-#'@param input_model input should be an SBML Model
-#'@examples
-#'sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
-#'model <- getModel(sbml_file)
-#'getParameterTable(model)
-getParameterTable <- function(input_model) {
-    .Call(`_r2sbml_getParameterTable`, input_model)
-}
-
-#'printSBML
-#'@param filename filename should be the name of the xml file
-#'@examples
-#'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
-#'printSBML(sbml_file)
 printSBML <- function(filename) {
-    .Call(`_r2sbml_printSBML`, filename)
+    .Call('_Rcppsbml_printSBML', PACKAGE = 'Rcppsbml', filename)
 }
 
-#'getReactionTable
-#'Outputs the Information Table for Reactions
-#'@param input_model input should be an SBML Model
-#'@examples
-#'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
-#'model <- getModel(sbml_file)
-#'getReactionTable(model)
-getReactionTable <- function(input_model) {
-    .Call(`_r2sbml_getReactionTable`, input_model)
+rcpp_hello <- function() {
+    .Call('_Rcppsbml_rcpp_hello', PACKAGE = 'Rcppsbml')
 }
 
-#'getSpeciesNames
-#'Outputs the Names of Compartments
-#'@param input_model input should be an SBML Model
-#'@examples
-#'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
-#'model <- getModel(sbml_file)
-#'getSpeciesNames(model)
-getSpeciesNames <- function(input_model) {
-    .Call(`_r2sbml_getSpeciesNames`, input_model)
-}
-
-#'getspeciesIC
-#'Outputs the Initial Concentrations of Species
-#'@param input_model input should be an SBML Model
-#'@examples
-#'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
-#'model <- getModel(sbml_file)
-#'getSpeciesIC(model)
-getSpeciesIC <- function(input_model) {
-    .Call(`_r2sbml_getSpeciesIC`, input_model)
-}
-
-#'getspeciesTable
-#'Outputs the Information Table for Species
-#'@param input_model input should be an SBML Model
-#'@examples
-#'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
-#'model <- getModel(sbml_file)
-#'getSpeciesTable(model)
-getSpeciesTable <- function(input_model) {
-    .Call(`_r2sbml_getSpeciesTable`, input_model)
+echoSBML <- function(filename) {
+    .Call('_Rcppsbml_echoSBML', PACKAGE = 'Rcppsbml', filename)
 }
 
