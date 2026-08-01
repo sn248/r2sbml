@@ -12,10 +12,10 @@
 ^src/libsbml-install$
 ^GEMINI.md$
 ^\.github$
-^inst/examples$
-^man$
 ^README.md$
 ^.gitattributes$
 ^r2sbml.Rproj$
 ^\.positai$
 ^\.claude$
+^CLAUDE\.md$
+^test_paths\.R$
