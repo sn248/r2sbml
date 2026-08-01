@@ -33,3 +33,4 @@ config.status
 configure~
 GEMINI.md
 .positai
+.claude/

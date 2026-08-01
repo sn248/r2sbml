@@ -12,7 +12,6 @@
 ^src/libsbml-install$
 ^GEMINI.md$
 ^\.github$
-^README.md$
 ^.gitattributes$
 ^r2sbml.Rproj$
 ^\.positai$
