@@ -14,13 +14,30 @@ CFLAGS="$CPPFLAGS $CPICFLAGS $CFLAGS"
 echo set CFLAGS=$CFLAGS
 export CFLAGS
 
-CXX=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CXX11`
+## R 4.3 deprecated the CXX11* config variables and R 4.6 made them defunct:
+## "R CMD config CXX11FLAGS" now prints an error to stderr and returns nothing,
+## which silently left CXX and CXXFLAGS empty and made cmake fall back to its
+## own compiler defaults.  Use the plain CXX* names and only fall back to the
+## CXX11* ones for R < 4.3.
+CXX_FULL=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CXX 2>/dev/null`
+if test -z "$CXX_FULL"; then
+    CXX_FULL=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CXX11 2>/dev/null`
+fi
+
+## "R CMD config CXX" returns the compiler together with its standard flag
+## (e.g. "g++ -std=gnu++20"); cmake wants the binary on its own, so split the
+## first word off and carry the remainder in CXXFLAGS.
+CXX=`echo "$CXX_FULL" | cut -d' ' -f1`
+CXXSTD=`echo "$CXX_FULL" | cut -s -d' ' -f2-`
 echo set CXX=$CXX
 export CXX
 
-CXXSTD=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CXX11STD`
-CXXFLAGS=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CXX11FLAGS`
-CXXPICFLAGS=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CXX11PICFLAGS`
+CXXFLAGS=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CXXFLAGS 2>/dev/null`
+CXXPICFLAGS=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CXXPICFLAGS 2>/dev/null`
+if test -z "$CXXFLAGS"; then
+    CXXFLAGS=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CXX11FLAGS 2>/dev/null`
+    CXXPICFLAGS=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CXX11PICFLAGS 2>/dev/null`
+fi
 
 CXXFLAGS="$CXXSTD $CPPFLAGS $CXXPICFLAGS $CXXFLAGS"
 echo set CXXFLAGS=$CXXFLAGS

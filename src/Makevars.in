@@ -1,2 +1,21 @@
 PKG_CPPFLAGS= @SBML_INCLUDE@
 PKG_LIBS= $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) @SBML_LIBS@
+
+# r2sbml.so statically links libsbml, so it inherits the debug info of every
+# libsbml object the linker pulls in.  Removing it takes the installed shared
+# object from ~65MB to ~6.6MB.  Global symbols are kept, so the R-level
+# interface is unaffected; only DWARF is discarded.
+#
+# Guarded on uname because the flag spelling differs: GNU binutils uses
+# --strip-debug, Apple's strip uses -S.  Anything else is left alone.
+all: $(SHLIB) strippedLib
+
+strippedLib: $(SHLIB)
+	@if command -v strip >/dev/null 2>&1; then \
+	  case `uname -s` in \
+	    Linux)  strip --strip-debug $(SHLIB) || true ;; \
+	    Darwin) strip -S $(SHLIB) || true ;; \
+	  esac; \
+	fi
+
+.PHONY: all strippedLib

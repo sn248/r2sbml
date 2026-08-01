@@ -96,6 +96,19 @@ perl -pi -e 's/sprintf\(number, /snprintf(number, sizeof(number), /g' \
 dot() { file=$1; shift; . "$file"; }
 dot ./scripts/r_config.sh ""
 
+# Drop -g from the flags handed to the vendored libsbml build.  R's default
+# CFLAGS/CXXFLAGS carry -g, and DWARF for a third-party library that is never
+# debugged from R dominates the build: libsbml-static.a is ~150MB with debug
+# info and ~14MB without, and the debug info follows the linker into
+# r2sbml.so.  Only libsbml is affected; r2sbml's own sources are still
+# compiled with R's flags verbatim by src/Makevars.
+strip_g_flag() {
+    echo " $* " | sed 's/ -g / /g; s/ -g[0-9] / /g; s/ -ggdb[0-9]* / /g' \
+                | sed 's/^ *//; s/ *$//'
+}
+SBML_CFLAGS=`strip_g_flag "${CFLAGS}"`
+SBML_CXXFLAGS=`strip_g_flag "${CXXFLAGS}"`
+
 ${RSCRIPT_BIN} --vanilla -e 'getRversion() > "4.0.0"' | grep TRUE > /dev/null
 if [ $? -eq 0 ]; then
   CMAKE_ADD_AR="-D CMAKE_AR=${AR}"
@@ -185,8 +198,8 @@ ${CMAKE_BIN} \
     -D ENABLE_SPATIAL=OFF \
     -D CMAKE_CXX_STANDARD=14 \
     -D CMAKE_CXX_STANDARD_REQUIRED=OFF \
-    -D CMAKE_C_FLAGS="${CFLAGS} ${EXTRA_C_WARN_FLAGS} -std=gnu17" \
-    -D CMAKE_CXX_FLAGS="${CXXFLAGS} ${EXTRA_CXX_WARN_FLAGS}" \
+    -D CMAKE_C_FLAGS="${SBML_CFLAGS} ${EXTRA_C_WARN_FLAGS} -std=gnu17" \
+    -D CMAKE_CXX_FLAGS="${SBML_CXXFLAGS} ${EXTRA_CXX_WARN_FLAGS}" \
     ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ${LIBSBML_DEPENDENCY_DIR_FLAG} ${LIBXML_WIN32_FLAG} ../libsbml-src
 
 ${CMAKE_BIN} --build . -j${NCORES}

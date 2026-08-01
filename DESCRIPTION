@@ -20,5 +20,5 @@ Suggests:
 LinkingTo:
     Rcpp
 Biarch: TRUE
-RoxygenNote: 7.3.3
 SystemRequirements: cmake, libxml2, libbz2
+Config/roxygen2/version: 8.0.0

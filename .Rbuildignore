@@ -17,3 +17,5 @@
 ^README.md$
 ^.gitattributes$
 ^r2sbml.Rproj$
+^\.positai$
+^\.claude$

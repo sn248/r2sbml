@@ -55,9 +55,19 @@ fi
 
 ## Write src/Makevars.win with the cmake-built library paths.
 ## Note: LAPACK_LIBS/BLAS_LIBS/FLIBS are omitted — not needed on Windows.
+## The strippedLib target mirrors src/Makevars.in: r2sbml.dll statically links
+## libsbml and would otherwise carry its debug info.  \$ and backticks are
+## escaped so the heredoc writes them literally into the makefile.
 cat > src/Makevars.win << EOF
 PKG_CPPFLAGS= -I${SRC_ABS_DIR}/libsbml-install/include/ ${LIBXML2_CPPFLAGS}
 PKG_LIBS= -L${SRC_ABS_DIR}/libsbml-install/lib/ -lsbml-static ${RTOOLS_LIBFLAG} -lxml2 -lbz2 -lz -llzma -liconv -lws2_32
+
+all: \$(SHLIB) strippedLib
+
+strippedLib: \$(SHLIB)
+	@if command -v strip >/dev/null 2>&1; then strip --strip-debug \$(SHLIB) || true; fi
+
+.PHONY: all strippedLib
 EOF
 
 echo ""

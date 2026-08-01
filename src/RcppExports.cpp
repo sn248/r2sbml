@@ -33,28 +33,6 @@ BEGIN_RCPP
 END_RCPP
 }
 // convertReactions
-int convertReactions(SEXP infile, SEXP outfile, std::string format);
-RcppExport SEXP _r2sbml_convertReactions(SEXP infileSEXP, SEXP outfileSEXP, SEXP formatSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
-    rcpp_result_gen = Rcpp::wrap(getCmtNames(input_model));
-    return rcpp_result_gen;
-END_RCPP
-}
-// getCmtSizes
-Rcpp::NumericVector getCmtSizes(SEXP input_model);
-RcppExport SEXP _r2sbml_getCmtSizes(SEXP input_modelSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
-    rcpp_result_gen = Rcpp::wrap(getCmtSizes(input_model));
-    return rcpp_result_gen;
-END_RCPP
-}
-// convertReactions
 void convertReactions(SEXP infile, SEXP outfile, std::string format);
 RcppExport SEXP _r2sbml_convertReactions(SEXP infileSEXP, SEXP outfileSEXP, SEXP formatSEXP) {
 BEGIN_RCPP
@@ -62,8 +40,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< SEXP >::type infile(infileSEXP);
     Rcpp::traits::input_parameter< SEXP >::type outfile(outfileSEXP);
     Rcpp::traits::input_parameter< std::string >::type format(formatSEXP);
-    rcpp_result_gen = Rcpp::wrap(convertReactions(infile, outfile, format));
-    return rcpp_result_gen;
+    convertReactions(infile, outfile, format);
+    return R_NilValue;
 END_RCPP
 }
 // echoSBML
