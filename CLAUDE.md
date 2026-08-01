@@ -94,4 +94,17 @@ It applies four libsbml converters in sequence before emitting anything — `rep
 
 Note that `convertReactions` opens `outputFile` and writes a header line, then each `writeFile*` helper reopens the same path with `std::ofstream`, truncating it. The header is therefore discarded and only the helper's output survives. Harmless today, but don't be surprised by the dead write.
 
+### Serialising math: always use `src/formulaToInfix.h`
+
+Never call `SBML_formulaToString()` or `Rule::getFormula()` — both emit the SBML **Level 1** infix syntax, which has no relational or logical operators. It writes `b > 1` as `gt(b, 1)`, `a && b` as `and(a, b)`, and `a^b` as `pow(a, b)`. None of `gt`, `and` or `pow` is a function in R or rxode2, so anything serialised that way emitted code that could not run.
+
+`r2sbml::formulaToInfix()` uses the Level 3 writer instead. Two things about it are non-obvious:
+
+- It appends unit annotations to literal numbers — `3 mole` serialises as `3 mole`, not `3` — which is right for round-tripping SBML and wrong for generating code. The helper suppresses this with `setParseUnits(L3P_NO_UNITS)`. Do not call `SBML_formulaToL3String()` directly; it has no settings argument and will leak units into the output.
+- It writes exponentiation as `a^b`, which suits R and rxode2 but not mrgsolve, whose model blocks are C++ where `^` is bitwise XOR and does not compile for doubles.
+
+`r2sbml::formulaToInfixC()` is the mrgsolve variant: it deep-copies the AST, retypes every power node, and serialises that. The retype targets `AST_FUNCTION` (a plain named call) rather than `AST_FUNCTION_POWER`, because the Level 3 writer spells *both* `AST_POWER` and `AST_FUNCTION_POWER` as `a^b` — only a named call comes back as `pow(a, b)`. The rest of the Level 3 syntax is an improvement for mrgsolve too, since `b > 1` and `a && b` are valid C++ where the Level 1 spellings were not.
+
+Unrelated to the serialiser: SBML's `delay` csymbol still passes through as `delay(...)`, which is not a function in base R. `sbmldelay.xml` is the one example whose generated deSolve/rxode2 code will not run; deSolve would need `lagvalue()`.
+
 Do not namespace-qualify libsbml types here (`libsbml::SBMLWriter`). libsbml's `WITH_CPP_NAMESPACE` defaults to `OFF` and the build does not enable it, so no `libsbml` namespace exists — `LIBSBML_CPP_NAMESPACE_USE` expands to nothing and qualified names fail to compile. A previous revert of this file to the stock libSBML sample broke the build exactly this way.

@@ -49,6 +49,8 @@
 #include <sbml/SBMLTypes.h>
 #include <sbml/conversion/ConversionProperties.h>
 
+#include "formulaToInfix.h"
+
 using namespace std;
 LIBSBML_CPP_NAMESPACE_USE
 
@@ -303,7 +305,8 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    out << endl;
    out << "   ## Mass Balances" << endl;
    for (int i = 0; i < numODEs; i++){
-     out << "   d" << model->getRule(i)->getVariable() << "_dt = "<< model->getRule(i)->getFormula() << endl;
+     out << "   d" << model->getRule(i)->getVariable() << "_dt = "
+         << r2sbml::formulaToInfix(model->getRule(i)->getMath()) << endl;
    }
 
    out << endl;
@@ -368,7 +371,9 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
    out << "\n$ODE\n";
    int numODEs = model->getNumRules();
    for (int i = 0; i < numODEs; i++){
-     out << "dxdt_" << model->getRule(i)->getVariable() << " = "<< model->getRule(i)->getFormula() << ";\n";
+     // mrgsolve model blocks are C++, so powers have to be pow() calls.
+     out << "dxdt_" << model->getRule(i)->getVariable() << " = "
+         << r2sbml::formulaToInfixC(model->getRule(i)->getMath()) << ";\n";
    }
 
    out.close();
@@ -406,7 +411,8 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
    out << "\n";
    int numODEs = model->getNumRules();
    for (int i = 0; i < numODEs; i++){
-     out << "    d/dt(" << model->getRule(i)->getVariable() << ") <- "<< model->getRule(i)->getFormula() << "\n";
+     out << "    d/dt(" << model->getRule(i)->getVariable() << ") <- "
+         << r2sbml::formulaToInfix(model->getRule(i)->getMath()) << "\n";
    }
 
    out << "  })\n";

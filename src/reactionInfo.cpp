@@ -9,6 +9,8 @@
 #include <string>
 #include <sbml/SBMLTypes.h>
 
+#include "formulaToInfix.h"
+
 using namespace std;
 using namespace Rcpp;
 
@@ -59,10 +61,8 @@ Rcpp::DataFrame getReactionTable (SEXP input_model) {
       kl = reaction->getKineticLaw();
       if ( kl->isSetMath() )
       {
-        formula = SBML_formulaToString( kl->getMath() );
         // Rcpp::Rcout << "Reaction " << i+1 << ", formula: " << formula << std::endl;
-        rateLaw.push_back(formula);
-        free(formula);
+        rateLaw.push_back(r2sbml::formulaToInfix( kl->getMath() ));
       }
     }
 

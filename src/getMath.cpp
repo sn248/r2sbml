@@ -46,6 +46,8 @@
 #include <iostream>
 #include <sbml/SBMLTypes.h>
 
+#include "formulaToInfix.h"
+
 using namespace std;
 using namespace Rcpp;
 
@@ -79,12 +81,11 @@ int getRuleMath (SEXP input_model) {
 
   for(int n = 0; n < numRules; n++)
   {
-    char* formula;
     //Rcpp::StringVector formula;
     const Rule* r = model->getRule(n);
     if ( r->isSetMath() )
     {
-      formula = SBML_formulaToString( r->getMath() );
+      std::string formula = r2sbml::formulaToInfix( r->getMath() );
 
       if (r->getVariable().length() > 0)
       {
@@ -96,7 +97,6 @@ int getRuleMath (SEXP input_model) {
         Rcout << "Rule " << n << ", formula: "
               << formula << " = 0" << endl;
       }
-      free(formula);
     }
   }
 
@@ -133,7 +133,6 @@ int getReactionMath (SEXP input_model) {
   // Print Reaction Math
   for(int n = 0; n < numReactions; n++){
 
-    char* formula;
     const KineticLaw* kl;
     Reaction* r = model->getReaction(n);
 
@@ -143,9 +142,8 @@ int getReactionMath (SEXP input_model) {
 
       if ( kl->isSetMath() )
       {
-        formula = SBML_formulaToString( kl->getMath() );
-        Rcout << "Reaction " << n << ", formula: " << formula << endl;
-        free(formula);
+        Rcout << "Reaction " << n << ", formula: "
+              << r2sbml::formulaToInfix( kl->getMath() ) << endl;
       }
     }
   }
@@ -166,7 +164,6 @@ int getFunctionDefinition (SEXP input_model) {
   Model* model = Rcpp::XPtr<Model>(input_model);
 
   const ASTNode* math;
-  char* formula;
   int numFunctionDefinitions = model->getNumFunctionDefinitions();
   if (numFunctionDefinitions == 0)
   {
@@ -206,9 +203,7 @@ int getFunctionDefinition (SEXP input_model) {
       else
       {
         math    = math->getChild(math->getNumChildren() - 1);
-        formula = SBML_formulaToString(math);
-        Rcout << formula << endl;
-        free(formula);
+        Rcout << r2sbml::formulaToInfix(math) << endl;
       }
     }
   }
@@ -219,18 +214,14 @@ int getFunctionDefinition (SEXP input_model) {
 void printEventAssignmentMath (unsigned int n, const EventAssignment* ea)
 {
   std::string variable;
-  char* formula;
-
 
   if ( ea->isSetMath() )
   {
     variable = ea->getVariable();
-    formula  = SBML_formulaToString( ea->getMath() );
 
     Rcout <<"  EventAssignment " << n
-          << ", trigger: " << variable << " = " << formula << endl;
-
-    free(formula);
+          << ", trigger: " << variable << " = "
+          << r2sbml::formulaToInfix( ea->getMath() ) << endl;
   }
 }
 
@@ -261,22 +252,19 @@ int getEventMath (SEXP input_model) {
 
   for(int n = 0; n < numEvents; n++)
   {
-    char* formula;
     unsigned int i;
     Event* e = model->getEvent(n);
 
     if ( e->isSetDelay() )
     {
-      formula = SBML_formulaToString( e->getDelay()->getMath() );
-      Rcout << "Event " << n << " delay: " << formula << endl;
-      free(formula);
+      Rcout << "Event " << n << " delay: "
+            << r2sbml::formulaToInfix( e->getDelay()->getMath() ) << endl;
     }
 
     if ( e->isSetTrigger() )
     {
-      formula = SBML_formulaToString( e->getTrigger()->getMath() );
-      Rcout << "Event " << n << " trigger: " << formula << endl;
-      free(formula);
+      Rcout << "Event " << n << " trigger: "
+            << r2sbml::formulaToInfix( e->getTrigger()->getMath() ) << endl;
     }
 
     for (i = 0; i < e->getNumEventAssignments(); ++i)
