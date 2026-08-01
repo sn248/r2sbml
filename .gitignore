@@ -10,18 +10,20 @@ src/**/*.a
 src/symbols.rds
 windows
 
-# libsbml is downloaded, patched and built from source by tools/cmake_call.sh
-# on every install, so none of these are authored by this package.  libsbml-src
-# and libsbml-build are normally removed by that script's EXIT trap but survive
-# an interrupted build; libsbml-install is the cmake install prefix.
+# libsbml is unpacked, patched and built from the bundled source archive by
+# tools/cmake_call.sh on every install, so none of these are authored by this
+# package.  libsbml-src and libsbml-build are normally removed by that script's
+# EXIT trap but survive an interrupted build; libsbml-install is the cmake
+# install prefix.
 src/libsbml-src/
 src/libsbml-build/
 src/libsbml-install/
-src/libsbml-*.tar.gz
 
 # R CMD build / R CMD check output
 *.tar.gz
 *.Rcheck/
+# ...but the bundled libsbml source archive is committed and must stay tracked
+!src/libsbml-mod-*.tar.gz
 src/Makevars
 src/Makevars.win
 src/Makevars.ucrt

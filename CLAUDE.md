@@ -52,13 +52,25 @@ One `.cpp` file per topic, each function exported with `// [[Rcpp::export]]`:
 
 This is the part most likely to surprise you. `configure.ac` unconditionally sets `need_to_build=yes` and calls `tools/cmake_call.sh`, which:
 
-1. downloads libsbml 5.21.0 from GitHub into `src/libsbml-src` (`src/scripts/libsbml_download.sh`),
+1. unpacks the bundled `src/libsbml-mod-5.21.0.tar.gz` into `src/libsbml-src` (`src/scripts/libsbml_download.sh` — the name is historical; it no longer downloads anything, so installing needs no network),
 2. applies a block of **CRAN compliance patches** with `perl -pi -e` — removing `srand`/`rand`, `cout`/`fprintf` to stderr, and rewriting `sprintf`→`snprintf` in libsbml sources (Writing R Extensions §1.6.4 forbids these entry points),
 3. cmake-builds a static `libsbml-static.a` into `src/libsbml-install/` (the only libsbml artefact that outlives the build; it is gitignored and `.Rbuildignore`d, so every clone and every tarball rebuilds it from scratch),
 4. normalizes CRLF and missing trailing newlines in the installed headers,
 5. deletes `libsbml-src`/`libsbml-build` via an `EXIT` trap so `R CMD check` never sees them.
 
-Consequences: the perl patches match **exact source lines of libsbml 5.21.0** — bumping `LIBSBML_VERSION` in `src/scripts/libsbml_download.sh` will silently no-op some patches and reintroduce CRAN check failures. `configure` is generated from `configure.ac` by autoconf; edit the `.ac`. `src/Makevars` is generated from `src/Makevars.in` and contains absolute paths, so it is machine-specific and not committed.
+Consequences: the perl patches match **exact source lines of libsbml 5.21.0**, so a version bump is a three-part change — regenerate the archive with `tools/strip_libsbml_tarball.sh <version>`, move it to `src/`, and update `LIBSBML_VERSION` in `src/scripts/libsbml_download.sh` — and then re-check every patch, because one that no longer matches fails silently and reintroduces CRAN check failures. `configure` is generated from `configure.ac` by autoconf; edit the `.ac`. `src/Makevars` is generated from `src/Makevars.in` and contains absolute paths, so it is machine-specific and not committed.
+
+### The bundled libsbml archive
+
+`src/libsbml-mod-5.21.0.tar.gz` (1.6MB) is an official libsbml release with whole directories removed; the files it keeps are byte-for-byte upstream. `tools/strip_libsbml_tarball.sh` regenerates it and is the single place recording what is dropped: language bindings, docs, examples, `dev/`, the autotools build system, every `test/` directory, and the SBML Level 3 package sources other than `l3v2extendedmath`.
+
+Three things there are load-bearing and easy to break by pruning more:
+
+- `src/bindings/` must survive, because `src/CMakeLists.txt` calls `add_subdirectory(bindings)` unconditionally. Only its `CMakeLists.txt` is kept; every language inside is behind a `WITH_<LANG>` guard that is off.
+- `src/sbml/packages/*-register.{h,cxx}` are kept even for deleted packages, because `src/CMakeLists.txt` `file(GLOB)`s them into a generated header. Their bodies are `#ifdef USE_<PKG>`-guarded, so the deleted sources are never referenced.
+- `COPYING.txt`, `FUNDING.txt`, `LICENSE.txt`, `NEWS.txt`, `README.md` and `VERSION.txt` are libsbml's `DOCUMENTATION_FILES`; `cmake --install` fails outright if any one is missing.
+
+Unlike everything else under `src/libsbml-*`, this archive is tracked in git — `.gitignore` ignores `*.tar.gz` and then re-includes it with `!src/libsbml-mod-*.tar.gz` — and it is deliberately **not** in `.Rbuildignore`, since shipping it is the whole point.
 
 ### Compiler flags and artefact size
 

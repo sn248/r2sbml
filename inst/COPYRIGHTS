@@ -50,13 +50,27 @@ Copyright:  (C) 2013-2018 jointly by the California Institute of Technology
 Licence:    GNU Lesser General Public License (LGPL), version 2.1 or, at
             your option, any later version.
 
-libSBML source code is NOT shipped inside this package.  tools/cmake_call.sh
-downloads libSBML 5.21.0 from https://github.com/sbmlteam/libsbml at build
-time, builds it as a static library and links it into the r2sbml shared
-object.  The installed binary therefore contains libSBML code, even though
-the package sources do not.
+libSBML source code IS shipped inside this package, as the archive
+src/libsbml-mod-5.21.0.tar.gz.  tools/cmake_call.sh unpacks it at build time,
+builds it as a static library and links it into the r2sbml shared object, so
+both the package sources and the installed binary contain libSBML code.
 
-The build installs libSBML's own licence files alongside the library, at
+That archive is the official libSBML 5.21.0 release from
+https://github.com/sbmlteam/libsbml with whole directories removed -- the
+language bindings, documentation, examples, development tooling, autotools
+build system, test suites, and the SBML Level 3 package sources this build
+does not enable.  The files it does retain are byte-for-byte upstream.
+tools/strip_libsbml_tarball.sh regenerates the archive from an official
+release and documents exactly what it drops.
+
+libSBML sources ARE modified during the build, after unpacking and before
+compiling: tools/cmake_call.sh applies a set of patches required by CRAN
+policy (removing calls to the system random number generator, output to
+stdout/stderr, and [v]sprintf).  Those patches are applied to the unpacked
+copy only; the archive itself is left as distributed upstream.
+
+libSBML's own licence files are included in the archive and are installed
+alongside the built library, at
 src/libsbml-install/share/libsbml/LICENSE.txt (terms and copyright summary)
 and src/libsbml-install/share/libsbml/COPYING.txt (the full LGPL 2.1 text).
 Both are also available from https://sbml.org/software/libsbml/ and from the
