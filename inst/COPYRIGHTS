@@ -1,0 +1,118 @@
+Copyright and licence information for the r2sbml package
+========================================================
+
+The r2sbml package as a whole is distributed under GPL (>= 2).  Parts of it
+are derived from, or are linked against, third-party code held by other
+copyright holders and released under other (compatible) terms.  Those parts
+are itemised below.
+
+
+1. The R package itself
+-----------------------------------------------------------------------
+
+Files:      everything not listed under the sections below.
+Copyright:  Satyaprakash Nayak
+Licence:    GPL (>= 2)
+
+
+2. Code adapted from the libSBML example programs
+-----------------------------------------------------------------------
+
+Files:      src/convertReactions.cpp
+            src/getMath.cpp
+Authors:    Sarah Keating, Frank T. Bergmann
+Copyright:  (c) 2013-2016 by the California Institute of Technology
+            (California, USA), the European Bioinformatics Institute
+            (EMBL-EBI, UK) and the University of Heidelberg (Germany),
+            with support from the National Institutes of Health (USA)
+            under grant R01GM070923.
+Licence:    MIT
+
+These two files are adapted from example programs shipped with libSBML.
+Those examples are distributed under a different licence from the rest of
+libSBML: the MIT licence.  The full licence text and the accompanying
+non-endorsement clause are retained verbatim in the header comment of each
+of the two files.
+
+
+3. libSBML
+-----------------------------------------------------------------------
+
+Copyright:  (C) 2013-2018 jointly by the California Institute of Technology
+              (Pasadena, CA, USA), the EMBL European Bioinformatics
+              Institute (EMBL-EBI, Hinxton, UK) and the University of
+              Heidelberg (Heidelberg, Germany)
+            (C) 2009-2013 jointly by the California Institute of Technology
+              and the EMBL European Bioinformatics Institute
+            (C) 2006-2008 by the California Institute of Technology
+            (C) 2002-2005 jointly by the California Institute of Technology
+              and the Japan Science and Technology Agency (Japan)
+Licence:    GNU Lesser General Public License (LGPL), version 2.1 or, at
+            your option, any later version.
+
+libSBML source code is NOT shipped inside this package.  tools/cmake_call.sh
+downloads libSBML 5.21.0 from https://github.com/sbmlteam/libsbml at build
+time, builds it as a static library and links it into the r2sbml shared
+object.  The installed binary therefore contains libSBML code, even though
+the package sources do not.
+
+The build installs libSBML's own licence files alongside the library, at
+src/libsbml-install/share/libsbml/LICENSE.txt (terms and copyright summary)
+and src/libsbml-install/share/libsbml/COPYING.txt (the full LGPL 2.1 text).
+Both are also available from https://sbml.org/software/libsbml/ and from the
+libSBML source repository.
+
+libSBML's main authors are Sarah M. Keating, Frank T. Bergmann,
+Lucian P. Smith, Brett G. Olivier, Akiya Jouraku, Michael Hucka and
+Ben Bornstein, with contributions from many others.
+
+Note: libSBML also carries a copyright statement for the "SBML Layout" code,
+(C) 2004-2008 by European Media Laboratories Research gGmbH (Heidelberg,
+Germany).  That code is not compiled into r2sbml, because the build enables
+no SBML Level 3 packages.  It would need to be listed here if
+tools/cmake_call.sh were ever changed to enable them.
+
+
+4. MiniZip 1.01e, incorporated into libSBML
+-----------------------------------------------------------------------
+
+Files:      compiled into libSBML from src/sbml/compress/ in the libSBML
+            source tree: crypt.h, ioapi.c/.h, iowin32.c/.h, unzip.c/.h,
+            zip.c/.h
+Copyright:  (C) 1998-2005 Gilles Vollant
+            (http://www.winimage.com/zLibDll/minizip.html)
+Licence:    zlib licence, reproduced below.
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+
+Some of these files were modified by the libSBML developers to address
+compiler warnings.  r2sbml additionally patches crypt.h at build time (see
+tools/cmake_call.sh) to remove calls to the system random number generator,
+which CRAN policy does not permit in compiled code.
+
+
+5. iostream wrappers derived from zlib contributed code, incorporated
+   into libSBML
+-----------------------------------------------------------------------
+
+Files:      compiled into libSBML from src/sbml/compress/ in the libSBML
+            source tree: zfstream.cpp/.h, and bzfstream and zipfstream
+            which are based on them
+Authors:    Ludwig Schwardt <schwardt@sun.ac.za>, from an original
+            implementation by Kevin Ruland <kevin@rodin.wustl.edu>
+Origin:     contributed sample files of zlib 1.2.3 (http://www.zlib.net/)
+Licence:    zlib licence, as reproduced in section 4 above.

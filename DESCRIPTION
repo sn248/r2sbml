@@ -2,10 +2,34 @@ Package: r2sbml
 Type: Package
 Title: A Lightweight R Interface to the 'libsbml' Library
 Version: 0.1.0
-Authors@R: person(given = "Satyaprakash",
-                  family = "Nayak",
-                  role = c("aut", "cre"),
-                  email = "sn248@cornell.edu")
+Authors@R: c(
+    person(given = "Satyaprakash", family = "Nayak",
+           role = c("aut", "cre", "cph"),
+           email = "sn248@cornell.edu"),
+    person(given = "Sarah M.", family = "Keating", role = "ctb",
+           comment = "Author of 'libSBML' and of the example code adapted in src/convertReactions.cpp and src/getMath.cpp"),
+    person(given = "Frank T.", family = "Bergmann", role = "ctb",
+           comment = "Author of 'libSBML' and of the example code adapted in src/convertReactions.cpp and src/getMath.cpp"),
+    person(given = "Lucian P.", family = "Smith", role = "ctb",
+           comment = "Author of 'libSBML'"),
+    person(given = "Brett G.", family = "Olivier", role = "ctb",
+           comment = "Author of 'libSBML'"),
+    person(given = "Akiya", family = "Jouraku", role = "ctb",
+           comment = "Author of 'libSBML'"),
+    person(given = "Michael", family = "Hucka", role = "ctb",
+           comment = "Author of 'libSBML'"),
+    person(given = "Ben", family = "Bornstein", role = "ctb",
+           comment = "Author of 'libSBML'"),
+    person(given = "California Institute of Technology", role = "cph",
+           comment = "Copyright holder of 'libSBML', 2002-2018"),
+    person(given = "EMBL European Bioinformatics Institute", role = "cph",
+           comment = "Copyright holder of 'libSBML', 2009-2018"),
+    person(given = "University of Heidelberg", role = "cph",
+           comment = "Copyright holder of 'libSBML', 2013-2018"),
+    person(given = "Japan Science and Technology Agency", role = "cph",
+           comment = "Copyright holder of 'libSBML', 2002-2005"),
+    person(given = "Gilles", family = "Vollant", role = "cph",
+           comment = "Copyright holder of MiniZip 1.01e, bundled with 'libSBML'"))
 Description: Helps explore a model in 'SBML' format in R. Allows querying the
     imported model for information regarding components such species, parameters,
     reactions, rules, events and function definitions. Also allows exporting
