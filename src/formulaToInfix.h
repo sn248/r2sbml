@@ -27,6 +27,7 @@
 
 #include <string>
 #include <cstdlib>
+#include <vector>
 
 #include <sbml/SBMLTypes.h>
 #include <sbml/math/ASTNode.h>
@@ -169,6 +170,167 @@ inline std::string formulaToInfixMatlab(const LIBSBML_CPP_NAMESPACE_QUALIFIER AS
   }
 
   return formula;
+}
+
+/**
+ * Serialise @p math in ubiquity's model-definition syntax.
+ *
+ * ubiquity is the one target that cannot be reached by fixing up the Level 3
+ * writer's output.  It spells exponentiation, the transcendental functions and
+ * every comparison as bracketed prefix calls -- `SIMINT_POWER[a][b]`,
+ * `SIMINT_LOGN[a]`, `SIMINT_GT[a][b]` -- so there is no infix text to patch,
+ * and delegating a subtree to the Level 3 writer does not compose: a power
+ * nested anywhere inside would come back out as `a^b`.  Hence a full walk.
+ *
+ * Arithmetic stays infix.  Every operand is parenthesised rather than tracking
+ * precedence, which is verbose but cannot get the grouping wrong.
+ *
+ * Anything with no ubiquity spelling -- root, piecewise, factorial, delay,
+ * and the trigonometric functions -- is emitted as a plain `name(args)` call
+ * and flagged by ubiquityUnsupported() so the caller can warn.  ubiquity will
+ * reject those files, which is the honest outcome: silently emitting
+ * something that parses but computes the wrong thing would be worse.
+ */
+inline std::string formulaToUbiquity(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math);
+
+/** Names of constructs in @p math that formulaToUbiquity cannot translate. */
+inline void ubiquityUnsupported(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node,
+                                std::vector<std::string>& found)
+{
+  if (node == NULL) return;
+
+  switch (node->getType())
+  {
+    case AST_FUNCTION_ROOT:      found.push_back("root");      break;
+    case AST_FUNCTION_PIECEWISE: found.push_back("piecewise"); break;
+    case AST_FUNCTION_FACTORIAL: found.push_back("factorial"); break;
+    case AST_FUNCTION_DELAY:     found.push_back("delay");     break;
+    case AST_LOGICAL_OR:         found.push_back("or");        break;
+    case AST_LOGICAL_NOT:        found.push_back("not");       break;
+    case AST_LOGICAL_XOR:        found.push_back("xor");       break;
+    case AST_FUNCTION:
+      // A named call libsbml did not recognise; delay arrives here too when
+      // the csymbol was not resolved.
+      found.push_back(node->getName() ? node->getName() : "unknown function");
+      break;
+    default: break;
+  }
+
+  for (unsigned int i = 0; i < node->getNumChildren(); ++i)
+  {
+    ubiquityUnsupported(node->getChild(i), found);
+  }
+}
+
+inline std::string formulaToUbiquity(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n)
+{
+  if (n == NULL) return std::string();
+
+  const unsigned int kids = n->getNumChildren();
+
+  // SIMINT_NAME[a] and SIMINT_NAME[a][b] forms.
+  const char* unary  = NULL;
+  const char* binary = NULL;
+
+  switch (n->getType())
+  {
+    case AST_POWER:
+    case AST_FUNCTION_POWER:    binary = "SIMINT_POWER";  break;
+    case AST_RELATIONAL_LT:     binary = "SIMINT_LT";     break;
+    case AST_RELATIONAL_LEQ:    binary = "SIMINT_LE";     break;
+    case AST_RELATIONAL_GT:     binary = "SIMINT_GT";     break;
+    case AST_RELATIONAL_GEQ:    binary = "SIMINT_GE";     break;
+    case AST_RELATIONAL_EQ:     binary = "SIMINT_EQ";     break;
+    case AST_LOGICAL_AND:       binary = "SIMINT_AND";    break;
+    case AST_FUNCTION_EXP:      unary  = "SIMINT_EXP";    break;
+    case AST_FUNCTION_LN:       unary  = "SIMINT_LOGN";   break;
+    default: break;
+  }
+
+  // MathML <log> is base 10 when given one argument and base-b with two.
+  if (n->getType() == AST_FUNCTION_LOG)
+  {
+    if (kids == 1) unary = "SIMINT_LOG10";
+    else if (kids == 2)
+    {
+      // log_b(x) has no ubiquity spelling; write it as a ratio of logs.
+      return "(SIMINT_LOGN[" + formulaToUbiquity(n->getChild(1)) +
+             "]/SIMINT_LOGN[" + formulaToUbiquity(n->getChild(0)) + "])";
+    }
+  }
+
+  if (unary != NULL && kids == 1)
+  {
+    return std::string(unary) + "[" + formulaToUbiquity(n->getChild(0)) + "]";
+  }
+  if (binary != NULL && kids == 2)
+  {
+    return std::string(binary) + "[" + formulaToUbiquity(n->getChild(0)) +
+           "][" + formulaToUbiquity(n->getChild(1)) + "]";
+  }
+  // AND over more than two operands nests pairwise.
+  if (binary != NULL && kids > 2)
+  {
+    std::string acc = formulaToUbiquity(n->getChild(0));
+    for (unsigned int i = 1; i < kids; ++i)
+    {
+      acc = std::string(binary) + "[" + acc + "][" +
+            formulaToUbiquity(n->getChild(i)) + "]";
+    }
+    return acc;
+  }
+
+  switch (n->getType())
+  {
+    case AST_PLUS:
+    case AST_TIMES:
+    case AST_DIVIDE:
+    case AST_MINUS:
+    {
+      const char op = (n->getType() == AST_PLUS)  ? '+'
+                    : (n->getType() == AST_TIMES) ? '*'
+                    : (n->getType() == AST_DIVIDE) ? '/' : '-';
+
+      if (n->getType() == AST_MINUS && kids == 1)
+      {
+        return "(-" + formulaToUbiquity(n->getChild(0)) + ")";
+      }
+      if (kids == 0) return std::string();
+
+      std::string acc = "(" + formulaToUbiquity(n->getChild(0));
+      for (unsigned int i = 1; i < kids; ++i)
+      {
+        acc += op + formulaToUbiquity(n->getChild(i));
+      }
+      return acc + ")";
+    }
+
+    // The simulation time is an internal variable, not a name to pass through.
+    case AST_NAME_TIME:      return "SIMINT_TIME";
+    case AST_CONSTANT_E:     return "SIMINT_EXP[1]";
+    case AST_CONSTANT_PI:    return "3.14159265358979";
+    case AST_CONSTANT_TRUE:  return "1";
+    case AST_CONSTANT_FALSE: return "0";
+
+    default: break;
+  }
+
+  if (n->isNumber() || n->isName())
+  {
+    // Numbers and identifiers have the same spelling in both languages, so
+    // let the Level 3 writer format them.
+    return serialiseL3(n);
+  }
+
+  // Unrecognised: emit a call and let ubiquityUnsupported() flag it.
+  std::string name = n->getName() ? n->getName() : "SIMINT_UNKNOWN";
+  std::string acc  = name + "(";
+  for (unsigned int i = 0; i < kids; ++i)
+  {
+    if (i) acc += ", ";
+    acc += formulaToUbiquity(n->getChild(i));
+  }
+  return acc + ")";
 }
 
 } // namespace r2sbml

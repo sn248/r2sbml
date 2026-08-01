@@ -40,6 +40,46 @@ test_that("convertReactions formats work", {
     expect_true(any(grepl("using DifferentialEquations", lines_jl)))
     expect_true(any(grepl("function massbalances!\\(du, u, p, t\\)", lines_jl)))
     expect_true(any(grepl("ODEProblem", lines_jl)))
+
+    # ubiquity
+    out_file_ub <- tempfile(fileext = ".txt")
+    expect_invisible(convertReactions(sbml_file, out_file_ub, format = "ubiquity"))
+    lines_ub <- readLines(out_file_ub)
+    expect_true(any(grepl("^<P> ", lines_ub)))
+    expect_true(any(grepl("^<I> ", lines_ub)))
+    expect_true(any(grepl("^<ODE:", lines_ub)))
+})
+
+test_that("ubiquity math uses the SIMINT spellings", {
+    # sbmldelay is the only example with an exponentiation, so it is the one
+    # that exercises SIMINT_POWER.  It also carries a delay(), which ubiquity
+    # cannot express, so the writer is expected to warn.
+    sbml_file <- system.file("examples", "sbmldelay.xml", package = "r2sbml")
+    if (sbml_file == "") sbml_file <- "../../inst/examples/sbmldelay.xml"
+
+    out <- tempfile(fileext = ".txt")
+    expect_warning(convertReactions(sbml_file, out, format = "ubiquity"),
+                   "no equivalent for")
+
+    lines <- readLines(out)
+    expect_true(any(grepl("SIMINT_POWER\\[", lines)))
+    # `^` is not ubiquity syntax and must not survive into the ODEs
+    expect_false(any(grepl("\\^", grep("^<ODE:", lines, value = TRUE))))
+    # the unsupported construct is called out in the file, not just at the console
+    expect_true(any(grepl("^# WARNING", lines)))
+})
+
+test_that("ubiquity assignment rules become dynamic secondary parameters", {
+    sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
+    if (sbml_file == "") sbml_file <- "../../inst/examples/sbmlassignmentrules.xml"
+
+    out <- tempfile(fileext = ".txt")
+    expect_invisible(convertReactions(sbml_file, out, format = "ubiquity"))
+
+    lines <- readLines(out)
+    expect_true(any(grepl("^<Ad> S1 = ", lines)))
+    # a species set by an assignment rule is not integrated, so it gets no ODE
+    expect_false(any(grepl("^<ODE:S1>", lines)))
 })
 
 test_that("convertReactions rejects an unknown format", {
@@ -56,7 +96,7 @@ test_that("initial values are numeric for concentration-based models", {
     sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
     if (sbml_file == "") sbml_file <- "../../inst/examples/sbmlassignmentrules.xml"
 
-    for (fmt in c("R", "mrgsolve", "nlmixr2", "MATLAB", "Julia")) {
+    for (fmt in c("R", "mrgsolve", "nlmixr2", "MATLAB", "Julia", "ubiquity")) {
         out <- tempfile()
         expect_invisible(convertReactions(sbml_file, out, format = fmt))
         expect_false(any(grepl("\\bnan\\b", readLines(out))))

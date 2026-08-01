@@ -27,7 +27,7 @@ getCmtSizes <- function(input_model) {
 #'@param infile input file name
 #'@param outfile output file name
 #'@param format output code format, one of 'R'/'deSolve' (default), 'mrgsolve',
-#' 'nlmixr2' (or 'rxode'), 'MATLAB' or 'Julia'.  An unrecognised format is an error.
+#' 'nlmixr2' (or 'rxode'), 'MATLAB', 'Julia' or 'ubiquity'.  An unrecognised format is an error.
 #'@examples
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'out_file <- tempfile(fileext = ".R")
@@ -40,6 +40,8 @@ getCmtSizes <- function(input_model) {
 #'convertReactions(sbml_file, out_file_m, format = "MATLAB")
 #'out_file_jl <- tempfile(fileext = ".jl")
 #'convertReactions(sbml_file, out_file_jl, format = "Julia")
+#'out_file_ub <- tempfile(fileext = ".txt")
+#'convertReactions(sbml_file, out_file_ub, format = "ubiquity")
 #'@return NULL invisibly
 convertReactions <- function(infile, outfile, format = "R") {
     invisible(.Call(`_r2sbml_convertReactions`, infile, outfile, format))

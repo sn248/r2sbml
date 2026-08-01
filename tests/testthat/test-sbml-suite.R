@@ -11,6 +11,7 @@ test_that("Conversion works on SBML test suite cases", {
         out_rx <- tempfile(fileext = ".R")
         out_m <- tempfile(fileext = ".m")
         out_jl <- tempfile(fileext = ".jl")
+        out_ub <- tempfile(fileext = ".txt")
 
         # Test R/deSolve
         expect_invisible(convertReactions(xml_file, out_r, format = "R"))
@@ -31,6 +32,12 @@ test_that("Conversion works on SBML test suite cases", {
         # Test Julia
         expect_invisible(convertReactions(xml_file, out_jl, format = "Julia"))
         expect_true(file.exists(out_jl))
+
+        # Test ubiquity.  Models using constructs ubiquity cannot express warn
+        # by design, so the warning is suppressed rather than asserted here.
+        suppressWarnings(
+            expect_invisible(convertReactions(xml_file, out_ub, format = "ubiquity")))
+        expect_true(file.exists(out_ub))
     }
   }
 })

@@ -12,7 +12,7 @@ convertReactions(infile, outfile, format = "R")
 \item{outfile}{output file name}
 
 \item{format}{output code format, one of 'R'/'deSolve' (default), 'mrgsolve',
-'nlmixr2' (or 'rxode'), 'MATLAB' or 'Julia'.  An unrecognised format is an error.}
+'nlmixr2' (or 'rxode'), 'MATLAB', 'Julia' or 'ubiquity'.  An unrecognised format is an error.}
 }
 \value{
 NULL invisibly
@@ -32,4 +32,6 @@ out_file_m <- tempfile(fileext = ".m")
 convertReactions(sbml_file, out_file_m, format = "MATLAB")
 out_file_jl <- tempfile(fileext = ".jl")
 convertReactions(sbml_file, out_file_jl, format = "Julia")
+out_file_ub <- tempfile(fileext = ".txt")
+convertReactions(sbml_file, out_file_ub, format = "ubiquity")
 }

@@ -47,6 +47,7 @@
 #include <iomanip>
 #include <cctype>
 #include <vector>
+#include <algorithm>
 #include <chrono>
 #include <ctime>
 #include <sbml/SBMLTypes.h>
@@ -62,6 +63,7 @@ int writeFileMrgsolve(SBMLDocument*, std::string);
 int writeFileNlmixr2(SBMLDocument*, std::string);
 int writeFileMatlab(SBMLDocument*, std::string);
 int writeFileJulia(SBMLDocument*, std::string);
+int writeFileUbiquity(SBMLDocument*, std::string);
 
 // Starting value for a species.
 //
@@ -80,7 +82,7 @@ static double speciesInitialValue(const Species* species)
 //'@param infile input file name
 //'@param outfile output file name
 //'@param format output code format, one of 'R'/'deSolve' (default), 'mrgsolve',
-//' 'nlmixr2' (or 'rxode'), 'MATLAB' or 'Julia'.  An unrecognised format is an error.
+//' 'nlmixr2' (or 'rxode'), 'MATLAB', 'Julia' or 'ubiquity'.  An unrecognised format is an error.
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'out_file <- tempfile(fileext = ".R")
@@ -93,6 +95,8 @@ static double speciesInitialValue(const Species* species)
 //'convertReactions(sbml_file, out_file_m, format = "MATLAB")
 //'out_file_jl <- tempfile(fileext = ".jl")
 //'convertReactions(sbml_file, out_file_jl, format = "Julia")
+//'out_file_ub <- tempfile(fileext = ".txt")
+//'convertReactions(sbml_file, out_file_ub, format = "ubiquity")
 //'@return NULL invisibly
 // [[Rcpp::export]]
  void convertReactions(SEXP infile, SEXP outfile, std::string format = "R"){
@@ -204,11 +208,14 @@ static double speciesInitialValue(const Species* species)
    else if (format.compare("Julia") == 0 || format.compare("julia") == 0)  {
       writeFileJulia(document, outputFile);
    }
+   else if (format.compare("ubiquity") == 0 || format.compare("Ubiquity") == 0)  {
+      writeFileUbiquity(document, outputFile);
+   }
    else {
       // Without this an unrecognised format quietly leaves an empty file
       // behind, which looks like a successful conversion.
       Rcpp::stop("Unknown format '" + format + "'. Use one of 'R'/'deSolve', "
-                 "'mrgsolve', 'nlmixr2'/'rxode', 'MATLAB' or 'Julia'.");
+                 "'mrgsolve', 'nlmixr2'/'rxode', 'MATLAB', 'Julia' or 'ubiquity'.");
    }
 
    // SBMLWriter writer;
@@ -753,6 +760,134 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
 
    out << "tspan = (0.0, 10.0)\n";
    out << "prob = ODEProblem(massbalances!, u0, tspan, p)\n";
+
+   out.close();
+   return 0;
+}
+
+// write output ODEs for ubiquity
+int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
+{
+   std::ofstream out(outfilename);
+   out << std::setprecision(15);
+   Model* model = document->getModel();
+
+   const std::vector<int> states = integratedSpecies(model);
+   const int numStates = (int)states.size();
+
+   int numParams = model->getNumParameters();
+   int numCmt    = model->getNumCompartments();
+   int numRules  = model->getNumRules();
+
+   // Constructs with no ubiquity spelling pass through as plain calls, which
+   // build_system() accepts but the generated C then fails to compile, with an
+   // error naming a shared object rather than the model.  Say so up front.
+   std::vector<std::string> unsupported;
+   for (int i = 0; i < numRules; i++){
+     if (model->getRule(i)->isSetMath()){
+       r2sbml::ubiquityUnsupported(model->getRule(i)->getMath(), unsupported);
+     }
+   }
+   std::sort(unsupported.begin(), unsupported.end());
+   unsupported.erase(std::unique(unsupported.begin(), unsupported.end()),
+                     unsupported.end());
+
+   out << "# Automatically generated ubiquity system file by r2sbml\n";
+   out << "#\n";
+   out << "# Build with:  cfg <- build_system(system_file = \"<this file>\")\n";
+   out << "#\n";
+
+   if (!unsupported.empty()){
+     std::string list;
+     for (size_t i = 0; i < unsupported.size(); i++){
+       if (i) list += ", ";
+       list += unsupported[i];
+     }
+     out << "# WARNING: this model uses constructs with no ubiquity equivalent,\n";
+     out << "#          left below as plain calls: " << list << "\n";
+     out << "#          The file will not build until they are replaced by hand.\n";
+     out << "#\n";
+     Rcpp::warning("ubiquity has no equivalent for: " + list +
+                   ". They were written out unchanged and the system file "
+                   "will not build until they are replaced.");
+   }
+
+   out << "# Model Summary\n";
+   out << "#        compartments: " << numCmt << "\n";
+   out << "#             species: " << model->getNumSpecies() << "\n";
+   out << "#          parameters: " << numParams << "\n";
+   out << "#               rules: " << numRules << "\n";
+   out << "#              events: " << model->getNumEvents() << "\n\n";
+
+   // ubiquity has no compartment concept of its own: a compartment volume is
+   // just a constant the rate expressions divide by, so it becomes a <P>.
+   // Bounds are -inf/inf rather than the eps/inf seen in hand-written systems,
+   // because an SBML value may legitimately be zero or negative and a lower
+   // bound above the value is inconsistent.  They only matter for estimation.
+   out << "# Compartment volumes\n";
+   for (int i = 0; i < numCmt; i++){
+     const Compartment* c = model->getCompartment(i);
+     out << "<P> " << c->getId() << " " << c->getVolume()
+         << " -inf inf " << (c->isSetUnits() ? c->getUnits() : "1")
+         << " yes System\n";
+   }
+   out << "\n";
+
+   out << "# Parameters\n";
+   for (int i = 0; i < numParams; i++){
+     const Parameter* p = model->getParameter(i);
+     out << "<P> " << p->getIdAttribute() << " " << p->getValue()
+         << " -inf inf " << (p->isSetUnits() ? p->getUnits() : "1")
+         << " yes System\n";
+   }
+   out << "\n";
+
+   out << "# Initial conditions\n";
+   for (int i = 0; i < numStates; i++){
+     out << "<I> " << model->getSpecies(states[i])->getIdAttribute() << " = "
+         << speciesInitialValue(model->getSpecies(states[i])) << "\n";
+   }
+   out << "\n";
+
+   // Assignment rules read states, so they are dynamic secondary parameters.
+   bool anyAssignment = false;
+   for (int i = 0; i < numRules; i++){
+     const Rule* r = model->getRule(i);
+     if (r->isAssignment()){
+       if (!anyAssignment){ out << "# Assignment rules\n"; anyAssignment = true; }
+       out << "<Ad> " << r->getVariable() << " = "
+           << r2sbml::formulaToUbiquity(r->getMath()) << "\n";
+     }
+   }
+   if (anyAssignment) out << "\n";
+
+   out << "# Mass balances\n";
+   for (int i = 0; i < numStates; i++){
+     const std::string id = model->getSpecies(states[i])->getIdAttribute();
+     int rule = rateRuleForSpecies(model, id);
+     if (rule >= 0){
+       out << "<ODE:" << id << "> "
+           << r2sbml::formulaToUbiquity(model->getRule(rule)->getMath()) << "\n";
+     } else {
+       // An <I> alone would leave the state with no equation; be explicit.
+       out << "<ODE:" << id << "> 0   # no rate rule, held constant\n";
+     }
+   }
+
+   for (int i = 0; i < numRules; i++){
+     const Rule* r = model->getRule(i);
+     if (r->isAlgebraic()){
+       out << "# Algebraic rule, not expressible as an explicit ODE: 0 = "
+           << r2sbml::formulaToUbiquity(r->getMath()) << "\n";
+     }
+   }
+
+   out << "\n";
+   out << "# Outputs\n";
+   for (int i = 0; i < numStates; i++){
+     const std::string id = model->getSpecies(states[i])->getIdAttribute();
+     out << "<O> " << id << "_out = " << id << "\n";
+   }
 
    out.close();
    return 0;

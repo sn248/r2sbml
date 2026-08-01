@@ -88,11 +88,11 @@ Ten `.xml` files covering simple reactions, assignment rules, algebraic rules, f
 
 ## `convertReactions`
 
-The one function that does not take a model pointer. `convertReactions(infile, outfile, format = "R")` reads the SBML file itself and writes ready-to-simulate code, returning `NULL` invisibly (tests assert this with `expect_invisible`). Formats: `"R"`/`"deSolve"`, `"mrgsolve"`, `"nlmixr2"`/`"rxode"`, `"MATLAB"` and `"Julia"` (the last two also accept lowercase). An unrecognised format raises an error — it used to leave an empty file behind, which looked like success.
+The one function that does not take a model pointer. `convertReactions(infile, outfile, format = "R")` reads the SBML file itself and writes ready-to-simulate code, returning `NULL` invisibly (tests assert this with `expect_invisible`). Formats: `"R"`/`"deSolve"`, `"mrgsolve"`, `"nlmixr2"`/`"rxode"`, `"MATLAB"`, `"Julia"` and `"ubiquity"` (the last three also accept the other case). An unrecognised format raises an error — it used to leave an empty file behind, which looked like success.
 
-It applies four libsbml converters in sequence before emitting anything — `replaceReactions`, `promoteLocalParameters`, `expandInitialAssignments`, `expandFunctionDefinitions` — so the model reaching the writers is always rate-rule form with no local parameters or function definitions left. That is why the writers only ever walk rules and parameters. Each format has its own `writeFile*` helper (`writeFileR`, `writeFileMrgsolve`, `writeFileNlmixr2`, `writeFileMatlab`, `writeFileJulia`), forward-declared at the top of the file.
+It applies four libsbml converters in sequence before emitting anything — `replaceReactions`, `promoteLocalParameters`, `expandInitialAssignments`, `expandFunctionDefinitions` — so the model reaching the writers is always rate-rule form with no local parameters or function definitions left. That is why the writers only ever walk rules and parameters. Each format has its own `writeFile*` helper (`writeFileR`, `writeFileMrgsolve`, `writeFileNlmixr2`, `writeFileMatlab`, `writeFileJulia`, `writeFileUbiquity`), forward-declared at the top of the file.
 
-Use `speciesInitialValue()` rather than `Species::getInitialAmount()` for a starting value. A species carries `initialAmount` *or* `initialConcentration`, never both, and the unset one reads back as NaN — which `operator<<` prints as the literal `nan`, a number in none of the five target languages. Six of the ten example models are concentration-based, so this affected most output.
+Use `speciesInitialValue()` rather than `Species::getInitialAmount()` for a starting value. A species carries `initialAmount` *or* `initialConcentration`, never both, and the unset one reads back as NaN — which `operator<<` prints as the literal `nan`, a number in none of the six target languages. Six of the ten example models are concentration-based, so this affected most output.
 
 ### The MATLAB and Julia writers
 
@@ -105,6 +105,16 @@ These two index into a state vector rather than naming derivatives, so they have
 Watch the older writers for the bug this avoids: `writeFileR` emits one `d<var>_dt` per *rule* and then builds its return vector from *species*, so on a model where those differ (`sbmlmutlicompartment.xml`, 4 species and 3 rate rules) the generated R references an undefined `dX_dt`.
 
 Two smaller target constraints. MATLAB resolves a function by file name, so `matlabFunctionName()` derives the function's name from the output path — renaming a generated `.m` file breaks it. And SBML's csymbol for time serialises as `time`, which the MATLAB RHS gets for free by naming its argument `time`, while the Julia RHS receives `t` and needs the `time = t` alias the writer emits.
+
+### The ubiquity writer
+
+`writeFileUbiquity` emits a ubiquity system file: `<P>` for parameters *and* compartment volumes (ubiquity has no compartment concept, so a volume is just a constant the rate expressions divide by), `<I>` for initial conditions, `<Ad>` for assignment rules — dynamic rather than static secondary parameters, since they read states — `<ODE:name>` for the mass balances, and `<O>` for outputs. It shares `integratedSpecies()` with the MATLAB and Julia writers.
+
+Bounds are written `-inf inf`, not the `eps inf` you see in hand-written ubiquity systems: an SBML value may legitimately be zero or negative, and a lower bound above the value is inconsistent. They only matter for estimation.
+
+ubiquity is the one target that **cannot** reuse the Level 3 writer. It spells exponentiation, the transcendental functions and every comparison as bracketed prefix calls — `SIMINT_POWER[a][b]`, `SIMINT_LOGN[a]`, `SIMINT_GT[a][b]` — so there is no infix text to patch up, and delegating a subtree to Level 3 does not compose, because a power nested anywhere inside comes back out as `a^b`. `formulaToUbiquity()` is therefore a full recursive walk over the AST. It parenthesises every arithmetic operand rather than tracking precedence: verbose output, but it cannot get the grouping wrong.
+
+Constructs with no ubiquity spelling (`root`, `piecewise`, `factorial`, `delay`, `or`, `not`, `xor`) pass through as plain calls and are collected by `ubiquityUnsupported()`. The writer then puts a `# WARNING` block at the top of the file *and* raises an R warning. This matters because `build_system()` accepts such a file and the failure only surfaces later as a C compile error naming a shared object, with nothing pointing back at the model.
 
 Note that `convertReactions` opens `outputFile` and writes a header line, then each `writeFile*` helper reopens the same path with `std::ofstream`, truncating it. The header is therefore discarded and only the helper's output survives. Harmless today, but don't be surprised by the dead write.
 
