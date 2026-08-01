@@ -88,9 +88,23 @@ Ten `.xml` files covering simple reactions, assignment rules, algebraic rules, f
 
 ## `convertReactions`
 
-The one function that does not take a model pointer. `convertReactions(infile, outfile, format = "R")` reads the SBML file itself and writes ready-to-simulate code, returning `NULL` invisibly (tests assert this with `expect_invisible`). Formats: `"R"`/`"deSolve"`, `"mrgsolve"`, `"nlmixr2"`/`"rxode"`. An unrecognised format is silently a no-op rather than an error.
+The one function that does not take a model pointer. `convertReactions(infile, outfile, format = "R")` reads the SBML file itself and writes ready-to-simulate code, returning `NULL` invisibly (tests assert this with `expect_invisible`). Formats: `"R"`/`"deSolve"`, `"mrgsolve"`, `"nlmixr2"`/`"rxode"`, `"MATLAB"` and `"Julia"` (the last two also accept lowercase). An unrecognised format raises an error — it used to leave an empty file behind, which looked like success.
 
-It applies four libsbml converters in sequence before emitting anything — `replaceReactions`, `promoteLocalParameters`, `expandInitialAssignments`, `expandFunctionDefinitions` — so the model reaching the writers is always rate-rule form with no local parameters or function definitions left. That is why the writers only ever walk rules and parameters. Each format has its own `writeFile*` helper (`writeFileR`, `writeFileMrgsolve`, `writeFileNlmixr2`), forward-declared at the top of the file.
+It applies four libsbml converters in sequence before emitting anything — `replaceReactions`, `promoteLocalParameters`, `expandInitialAssignments`, `expandFunctionDefinitions` — so the model reaching the writers is always rate-rule form with no local parameters or function definitions left. That is why the writers only ever walk rules and parameters. Each format has its own `writeFile*` helper (`writeFileR`, `writeFileMrgsolve`, `writeFileNlmixr2`, `writeFileMatlab`, `writeFileJulia`), forward-declared at the top of the file.
+
+Use `speciesInitialValue()` rather than `Species::getInitialAmount()` for a starting value. A species carries `initialAmount` *or* `initialConcentration`, never both, and the unset one reads back as NaN — which `operator<<` prints as the literal `nan`, a number in none of the five target languages. Six of the ten example models are concentration-based, so this affected most output.
+
+### The MATLAB and Julia writers
+
+These two index into a state vector rather than naming derivatives, so they have to decide explicitly what the states *are*; `integratedSpecies()` is that decision and the older writers have no equivalent:
+
+- A species that is the variable of an **assignment rule** is not integrated. Its value follows from the rule at every time point, so it is emitted as a local inside the RHS and given no slot. Handing it one leaves the solver carrying a copy that never updates while the rule recomputes a different value beside it.
+- A species with **no rate rule** — a boundary condition, or one in no reaction — keeps its slot with a zero derivative, so it still appears in the solution.
+- **Algebraic rules** cannot be written as explicit ODEs and are emitted as comments.
+
+Watch the older writers for the bug this avoids: `writeFileR` emits one `d<var>_dt` per *rule* and then builds its return vector from *species*, so on a model where those differ (`sbmlmutlicompartment.xml`, 4 species and 3 rate rules) the generated R references an undefined `dX_dt`.
+
+Two smaller target constraints. MATLAB resolves a function by file name, so `matlabFunctionName()` derives the function's name from the output path — renaming a generated `.m` file breaks it. And SBML's csymbol for time serialises as `time`, which the MATLAB RHS gets for free by naming its argument `time`, while the Julia RHS receives `t` and needs the `time = t` alias the writer emits.
 
 Note that `convertReactions` opens `outputFile` and writes a header line, then each `writeFile*` helper reopens the same path with `std::ofstream`, truncating it. The header is therefore discarded and only the helper's output survives. Harmless today, but don't be surprised by the dead write.
 

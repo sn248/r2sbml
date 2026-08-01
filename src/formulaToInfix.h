@@ -48,8 +48,8 @@ inline const LIBSBML_CPP_NAMESPACE_QUALIFIER L3ParserSettings& l3WriterSettings(
   return settings;
 }
 
-/** Serialise @p math as Level 3 infix.  Returns "" when @p math is null. */
-inline std::string formulaToInfix(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math)
+/** Raw Level 3 serialisation, no dialect fixes applied. */
+inline std::string serialiseL3(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math)
 {
   if (math == NULL) return std::string();
 
@@ -59,6 +59,42 @@ inline std::string formulaToInfix(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode*
 
   std::string formula(text);
   free(text);
+  return formula;
+}
+
+/**
+ * Rename natural log below @p node from `ln` to `log`.
+ *
+ * MathML's <ln> serialises as `ln(x)`, which is not a function in R, rxode2,
+ * MATLAB, Julia or C++ -- all five spell natural log `log`.  (Base-10 log is
+ * unaffected: MathML <log> already serialises as `log10(x)`, which all five
+ * understand.)
+ */
+inline void naturalLogToLog(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node)
+{
+  if (node == NULL) return;
+
+  for (unsigned int i = 0; i < node->getNumChildren(); ++i)
+  {
+    naturalLogToLog(node->getChild(i));
+  }
+
+  if (node->getType() == AST_FUNCTION_LN)
+  {
+    node->setType(AST_FUNCTION);
+    node->setName("log");
+  }
+}
+
+/** Serialise @p math as Level 3 infix.  Returns "" when @p math is null. */
+inline std::string formulaToInfix(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math)
+{
+  if (math == NULL) return std::string();
+
+  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* copy = math->deepCopy();
+  naturalLogToLog(copy);
+  std::string formula = serialiseL3(copy);
+  delete copy;
   return formula;
 }
 
@@ -97,9 +133,41 @@ inline std::string formulaToInfixC(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode
   if (math == NULL) return std::string();
 
   LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* copy = math->deepCopy();
+  naturalLogToLog(copy);
   powersToCalls(copy);
-  std::string formula = formulaToInfix(copy);
+  std::string formula = serialiseL3(copy);
   delete copy;
+  return formula;
+}
+
+/**
+ * Serialise @p math as Level 3 infix in MATLAB's spelling.
+ *
+ * MATLAB writes logical negation `~` and inequality `~=`, where the Level 3
+ * writer emits `!` and `!=`.  In MATLAB `!` is the shell-escape prefix and is
+ * a syntax error inside an expression, so the substitution is required.
+ *
+ * Rewriting the text is safe here, unlike the `^` case which needed the AST:
+ * an SBML identifier is [A-Za-z_][A-Za-z0-9_]* so it can never contain `!`,
+ * and formula output has no string literals.  Every `!` in the serialised
+ * text is therefore either the negation operator or the head of `!=`.
+ * Order matters -- `!=` has to go first, or it would become `~!=`.
+ */
+inline std::string formulaToInfixMatlab(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math)
+{
+  std::string formula = formulaToInfix(math);
+
+  std::string::size_type at = 0;
+  while ((at = formula.find("!=", at)) != std::string::npos)
+  {
+    formula.replace(at, 2, "~=");
+    at += 2;
+  }
+  for (std::string::size_type i = 0; i < formula.size(); ++i)
+  {
+    if (formula[i] == '!') formula[i] = '~';
+  }
+
   return formula;
 }
 

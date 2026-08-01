@@ -9,6 +9,8 @@ test_that("Conversion works on SBML test suite cases", {
         out_r <- tempfile(fileext = ".R")
         out_mrg <- tempfile(fileext = ".cpp")
         out_rx <- tempfile(fileext = ".R")
+        out_m <- tempfile(fileext = ".m")
+        out_jl <- tempfile(fileext = ".jl")
 
         # Test R/deSolve
         expect_invisible(convertReactions(xml_file, out_r, format = "R"))
@@ -21,6 +23,14 @@ test_that("Conversion works on SBML test suite cases", {
         # Test nlmixr2/rxode
         expect_invisible(convertReactions(xml_file, out_rx, format = "nlmixr2"))
         expect_true(file.exists(out_rx))
+
+        # Test MATLAB
+        expect_invisible(convertReactions(xml_file, out_m, format = "MATLAB"))
+        expect_true(file.exists(out_m))
+
+        # Test Julia
+        expect_invisible(convertReactions(xml_file, out_jl, format = "Julia"))
+        expect_true(file.exists(out_jl))
     }
   }
 })

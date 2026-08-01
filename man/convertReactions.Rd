@@ -11,7 +11,8 @@ convertReactions(infile, outfile, format = "R")
 
 \item{outfile}{output file name}
 
-\item{format}{output code format, should be 'mrgsolve', 'nlmixr2' (or 'rxode'), or 'R'/'deSolve' (default)}
+\item{format}{output code format, one of 'R'/'deSolve' (default), 'mrgsolve',
+'nlmixr2' (or 'rxode'), 'MATLAB' or 'Julia'.  An unrecognised format is an error.}
 }
 \value{
 NULL invisibly
@@ -27,4 +28,8 @@ out_file_mrg <- tempfile(fileext = ".cpp")
 convertReactions(sbml_file, out_file_mrg, format = "mrgsolve")
 out_file_rx <- tempfile(fileext = ".R")
 convertReactions(sbml_file, out_file_rx, format = "nlmixr2")
+out_file_m <- tempfile(fileext = ".m")
+convertReactions(sbml_file, out_file_m, format = "MATLAB")
+out_file_jl <- tempfile(fileext = ".jl")
+convertReactions(sbml_file, out_file_jl, format = "Julia")
 }
