@@ -180,21 +180,10 @@ static double speciesInitialValue(const Species* species)
 
    Rcpp::Rcout << "Conversion completed." << endl;
    Rcpp::Rcout << "Number of ODEs - " << document->getModel()->getNumRules() << endl;
-   int numRules = document->getModel()->getNumRules();
 
-   std::ofstream out(outputFile);
-   out << "// Model equations generated from .xml file \n" << endl;
-
+   // Every writeFile* helper opens outputFile itself; nothing is written here.
    if (format.compare("R") == 0 || format.compare("deSolve") == 0)  {
       writeFileR(document, outputFile);
-
-      for(int i = 0; i < numRules; i++)
-      {
-        // mathML to infix
-        // out << "ODE for " << document->getModel()->getRule(i)->getVariable()
-        // << " is " << document->getModel()->getRule(i)->getFormula() << endl;
-      }
-      out.close();
    }
    else if (format.compare("mrgsolve") == 0)  {
       writeFileMrgsolve(document, outputFile);

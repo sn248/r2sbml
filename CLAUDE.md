@@ -80,7 +80,7 @@ Unlike everything else under `src/libsbml-*`, this archive is tracked in git —
 
 There is nothing to gain by disabling libsbml docs/tests/examples: `WITH_EXAMPLES`, `WITH_CHECK`, `WITH_DOXYGEN`, every language binding, and `WITH_STABLE_PACKAGES`/`WITH_ALL_PACKAGES` all default to `OFF` in libsbml's `CMakeLists.txt`, and `BUILD_TESTING=OFF` is passed explicitly. The install tree's `share/` is 232KB of licence and README text.
 
-Windows uses `configure.win` (writes `src/Makevars.win` directly, no autoconf) and links against the Rtools libxml2/bz2/lzma/iconv. `tools/winlibs.R` (rwinlib prebuilt download) is a leftover from the old approach and is no longer on the build path.
+Windows uses `configure.win` (writes `src/Makevars.win` directly, no autoconf) and links against the Rtools libxml2/bz2/lzma/iconv.
 
 ### Example SBML files (`inst/examples/`)
 
@@ -116,7 +116,7 @@ ubiquity is the one target that **cannot** reuse the Level 3 writer. It spells e
 
 Constructs with no ubiquity spelling (`root`, `piecewise`, `factorial`, `delay`, `or`, `not`, `xor`) pass through as plain calls and are collected by `ubiquityUnsupported()`. The writer then puts a `# WARNING` block at the top of the file *and* raises an R warning. This matters because `build_system()` accepts such a file and the failure only surfaces later as a C compile error naming a shared object, with nothing pointing back at the model.
 
-Note that `convertReactions` opens `outputFile` and writes a header line, then each `writeFile*` helper reopens the same path with `std::ofstream`, truncating it. The header is therefore discarded and only the helper's output survives. Harmless today, but don't be surprised by the dead write.
+`convertReactions` itself never opens `outputFile`; each `writeFile*` helper opens the path with `std::ofstream` and owns the whole file. It used to write a header line first, which every helper then truncated away.
 
 ### Serialising math: always use `src/formulaToInfix.h`
 

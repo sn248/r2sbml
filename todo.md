@@ -70,17 +70,6 @@ None of these is exercised by the example models, so all are untested:
   falls into the generic named-call path and is reported by name rather than
   being in the explicit list.
 
-## Tidying
-
-- `convertReactions()` opens `outputFile` and writes a header line, then each
-  `writeFile*` helper reopens the same path and truncates it. The header is
-  always discarded. Harmless, but it is dead code.
-- `configure~` is tracked in git even though `.gitignore` lists it. It is an
-  autoconf backup and does not reach the tarball (`R CMD build` drops `*~`),
-  so it is repo hygiene only: `git rm --cached configure~`.
-- `tools/winlibs.R` downloads prebuilt libSBML from rwinlib. It is a leftover
-  from before the source build and is no longer on any build path.
-
 ## Not action items, recorded so they are not rediscovered
 
 - **libSBML 5.21.1** exists but is tagged prerelease and its only change is a
