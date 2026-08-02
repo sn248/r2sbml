@@ -1,42 +1,38 @@
 url: https://sn248.github.io/r2sbml/
-
 template:
   bootstrap: 5
   bslib:
-    primary: "#0F6E56"
-    code_font: {google: "JetBrains Mono"}
-
+    primary: '#0F6E56'
+    code_font:
+      google: JetBrains Mono
 home:
   title: An R interface to libSBML
-  description: >
-    Read an SBML model, query its components from R, and export its mass
-    balances as ready-to-simulate code for deSolve, mrgsolve, rxode2, MATLAB,
-    Julia and ubiquity.
-
+  description: |
+    Read an SBML model, query its components from R, and export its mass balances as ready-to-simulate code for deSolve, mrgsolve, rxode2, MATLAB, Julia and ubiquity.
 navbar:
   structure:
-    left:  [intro, reference, articles, news]
-    right: [search, github]
-
+    left:
+    - intro
+    - reference
+    - articles
+    - news
+    right:
+    - search
+    - github
 articles:
 - title: Articles
   navbar: ~
   contents:
   - r2sbml
   - limitations
-
 reference:
 - title: Reading a model
-  desc: >
-    Everything except `convertReactions()` works in two phases: read the file
-    once, then query the pointer that comes back.
-  contents:
-  - getModel
-
+  desc: |
+    Everything except `convertReactions()` works in two phases: read the file once, then query the pointer that comes back.
+  contents: getModel
 - title: Querying components
-  desc: >
-    These return R objects. Note that a query for a component the model does
-    not have raises an error rather than returning an empty result.
+  desc: |
+    These return R objects. Note that a query for a component the model does not have raises an error rather than returning an empty result.
   contents:
   - getSpeciesTable
   - getParameterTable
@@ -46,28 +42,22 @@ reference:
   - getNumSpecies
   - getCmtNames
   - getCmtSizes
-
 - title: Printing the mathematics
-  desc: >
-    These write to the console and return `0` invisibly, so capture them with
-    `capture.output()` rather than assigning them.
+  desc: |
+    These write to the console and return `0` invisibly, so capture them with `capture.output()` rather than assigning them.
   contents:
   - getRuleMath
   - getReactionMath
   - getFunctionDefinition
   - getEventMath
-
 - title: Printing the document
-  desc: >
-    The exception to the two-phase rule: these take a filename, not a model
-    pointer.
+  desc: |
+    The exception to the two-phase rule: these take a filename, not a model pointer.
   contents:
   - printSBML
   - echoSBML
-
 - title: Exporting mass balances
-  desc: >
-    Writes ready-to-simulate code for one of six ODE targets. Reads the SBML
-    file itself, so it takes no model pointer.
-  contents:
-  - convertReactions
+  desc: |
+    Writes ready-to-simulate code for one of six ODE targets. Reads the SBML file itself, so it takes no model pointer.
+  contents: convertReactions
+
