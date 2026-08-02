@@ -2,8 +2,15 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 #'getCmtNames
-#'Outputs the Names of Compartments
+#'Names of the compartments in a model
+#'
+#'Returns the `name` where one is set and falls back to the `id` otherwise,
+#'the same rule `getSpeciesNames()` uses. Previously this returned the `id`
+#'unconditionally while `getSpeciesNames()` returned the `name`, so the two
+#'disagreed about what a "name" was. For a model whose compartments set no
+#'`name` -- which is all ten of the bundled examples -- the result is unchanged.
 #'@param input_model input should be an SBML Model
+#'@return a character vector, one entry per compartment, in model order
 #'@examples
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
@@ -153,8 +160,16 @@ getReactionTable <- function(input_model) {
 }
 
 #'getSpeciesNames
-#'Outputs the Names of Compartments
+#'Names of the species in a model
+#'
+#'SBML separates `id`, which every species must have, from `name`, which is an
+#'optional human-readable label. Most models in the wild set only `id`, so
+#'returning `name` alone gave a vector of empty strings. This returns the
+#'`name` where one is set and falls back to the `id` otherwise, which is how
+#'SBML tools conventionally display a species. `getCmtNames()` follows the
+#'same rule. Use `getSpeciesTable()` when you need the two columns separately.
 #'@param input_model input should be an SBML Model
+#'@return a character vector, one entry per species, in model order
 #'@examples
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)
@@ -163,9 +178,25 @@ getSpeciesNames <- function(input_model) {
     .Call(`_r2sbml_getSpeciesNames`, input_model)
 }
 
-#'getspeciesIC
-#'Outputs the Initial Concentrations of Species
+#'getSpeciesIC
+#'Initial values of the species in a model
+#'
+#'A species carries `initialAmount` *or* `initialConcentration`, never both,
+#'and the unset one reads back as NaN. Asking only for the concentration
+#'therefore returned NaN for every species in an amount-based model. This
+#'returns whichever attribute the model actually sets.
+#'
+#'The value is reported **as the file states it**, with no unit conversion, so
+#'a model that mixes amount-valued and concentration-valued species yields a
+#'vector that mixes units too -- `getSpeciesTable()` shows which column each
+#'species used. This deliberately differs from `convertReactions()`, which
+#'must divide an amount by the compartment volume because the ODE it generates
+#'integrates concentrations.
+#'
+#'A species that sets neither attribute -- its value comes from an initial
+#'assignment or a rule -- is reported as `NA`, not 0.
 #'@param input_model input should be an SBML Model
+#'@return a named numeric vector, one entry per species, named by species id
 #'@examples
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'model <- getModel(sbml_file)

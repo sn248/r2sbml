@@ -3,16 +3,23 @@
 \name{getSpeciesNames}
 \alias{getSpeciesNames}
 \title{getSpeciesNames
-Outputs the Names of Compartments}
+Names of the species in a model}
 \usage{
 getSpeciesNames(input_model)
 }
 \arguments{
 \item{input_model}{input should be an SBML Model}
 }
+\value{
+a character vector, one entry per species, in model order
+}
 \description{
-getSpeciesNames
-Outputs the Names of Compartments
+SBML separates \code{id}, which every species must have, from \code{name}, which is an
+optional human-readable label. Most models in the wild set only \code{id}, so
+returning \code{name} alone gave a vector of empty strings. This returns the
+\code{name} where one is set and falls back to the \code{id} otherwise, which is how
+SBML tools conventionally display a species. \code{getCmtNames()} follows the
+same rule. Use \code{getSpeciesTable()} when you need the two columns separately.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")

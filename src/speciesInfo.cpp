@@ -10,8 +10,16 @@ using namespace Rcpp;
 LIBSBML_CPP_NAMESPACE_USE
 
 //'getSpeciesNames
-//'Outputs the Names of Compartments
+//'Names of the species in a model
+//'
+//'SBML separates `id`, which every species must have, from `name`, which is an
+//'optional human-readable label. Most models in the wild set only `id`, so
+//'returning `name` alone gave a vector of empty strings. This returns the
+//'`name` where one is set and falls back to the `id` otherwise, which is how
+//'SBML tools conventionally display a species. `getCmtNames()` follows the
+//'same rule. Use `getSpeciesTable()` when you need the two columns separately.
 //'@param input_model input should be an SBML Model
+//'@return a character vector, one entry per species, in model order
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)
@@ -20,7 +28,6 @@ LIBSBML_CPP_NAMESPACE_USE
 Rcpp::StringVector getSpeciesNames (SEXP input_model) {
 
   Model* model = Rcpp::XPtr<Model>(input_model);
-  // std::vector<string> cmtNames;
   Rcpp::StringVector speciesNames;
 
   if (model == 0)
@@ -38,17 +45,33 @@ Rcpp::StringVector getSpeciesNames (SEXP input_model) {
 
   for(int i = 0; i < numSpecies; i++){
 
-    speciesNames.push_back(model->getSpecies(i)->getName());
-    Rcpp::Rcout << speciesNames[i] << std::endl;
+    const Species* s = model->getSpecies(i);
+    speciesNames.push_back(s->isSetName() ? s->getName() : s->getIdAttribute());
   }
 
   return speciesNames;
 }
 
 
-//'getspeciesIC
-//'Outputs the Initial Concentrations of Species
+//'getSpeciesIC
+//'Initial values of the species in a model
+//'
+//'A species carries `initialAmount` *or* `initialConcentration`, never both,
+//'and the unset one reads back as NaN. Asking only for the concentration
+//'therefore returned NaN for every species in an amount-based model. This
+//'returns whichever attribute the model actually sets.
+//'
+//'The value is reported **as the file states it**, with no unit conversion, so
+//'a model that mixes amount-valued and concentration-valued species yields a
+//'vector that mixes units too -- `getSpeciesTable()` shows which column each
+//'species used. This deliberately differs from `convertReactions()`, which
+//'must divide an amount by the compartment volume because the ODE it generates
+//'integrates concentrations.
+//'
+//'A species that sets neither attribute -- its value comes from an initial
+//'assignment or a rule -- is reported as `NA`, not 0.
 //'@param input_model input should be an SBML Model
+//'@return a named numeric vector, one entry per species, named by species id
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)
@@ -59,6 +82,7 @@ Rcpp::NumericVector getSpeciesIC (SEXP input_model) {
   Model* model = Rcpp::XPtr<Model>(input_model);
 
   Rcpp::NumericVector speciesIC;
+  Rcpp::StringVector  speciesIds;
 
   if (model == 0)
   {
@@ -75,10 +99,16 @@ Rcpp::NumericVector getSpeciesIC (SEXP input_model) {
 
   for(int i = 0; i < numSpecies; i++){
 
-    speciesIC.push_back(model->getSpecies(i)->getInitialConcentration());
-    // Rcpp::Rcout << speciesIC[i] << std::endl;
+    const Species* s = model->getSpecies(i);
+
+    if (s->isSetInitialAmount())             speciesIC.push_back(s->getInitialAmount());
+    else if (s->isSetInitialConcentration()) speciesIC.push_back(s->getInitialConcentration());
+    else                                     speciesIC.push_back(NA_REAL);
+
+    speciesIds.push_back(s->getIdAttribute());
   }
 
+  speciesIC.attr("names") = speciesIds;
   return speciesIC;
 }
 

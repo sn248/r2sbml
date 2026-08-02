@@ -10,8 +10,15 @@ using namespace Rcpp;
 LIBSBML_CPP_NAMESPACE_USE
 
 //'getCmtNames
-//'Outputs the Names of Compartments
+//'Names of the compartments in a model
+//'
+//'Returns the `name` where one is set and falls back to the `id` otherwise,
+//'the same rule `getSpeciesNames()` uses. Previously this returned the `id`
+//'unconditionally while `getSpeciesNames()` returned the `name`, so the two
+//'disagreed about what a "name" was. For a model whose compartments set no
+//'`name` -- which is all ten of the bundled examples -- the result is unchanged.
 //'@param input_model input should be an SBML Model
+//'@return a character vector, one entry per compartment, in model order
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)
@@ -20,7 +27,6 @@ LIBSBML_CPP_NAMESPACE_USE
 Rcpp::StringVector getCmtNames (SEXP input_model) {
 
   Model* model = Rcpp::XPtr<Model>(input_model);
-  // std::vector<string> cmtNames;
   Rcpp::StringVector cmtNames;
 
   if (model == 0)
@@ -32,8 +38,8 @@ Rcpp::StringVector getCmtNames (SEXP input_model) {
   int numCmt = model->getNumCompartments();
   for(int i = 0; i < numCmt; i++){
 
-    cmtNames.push_back(model->getCompartment(i)->getId());
-    Rcpp::Rcout << cmtNames[i] << std::endl;
+    const Compartment* c = model->getCompartment(i);
+    cmtNames.push_back(c->isSetName() ? c->getName() : c->getIdAttribute());
   }
 
   return cmtNames;

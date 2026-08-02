@@ -2,17 +2,33 @@
 % Please edit documentation in R/RcppExports.R
 \name{getSpeciesIC}
 \alias{getSpeciesIC}
-\title{getspeciesIC
-Outputs the Initial Concentrations of Species}
+\title{getSpeciesIC
+Initial values of the species in a model}
 \usage{
 getSpeciesIC(input_model)
 }
 \arguments{
 \item{input_model}{input should be an SBML Model}
 }
+\value{
+a named numeric vector, one entry per species, named by species id
+}
 \description{
-getspeciesIC
-Outputs the Initial Concentrations of Species
+A species carries \code{initialAmount} \emph{or} \code{initialConcentration}, never both,
+and the unset one reads back as NaN. Asking only for the concentration
+therefore returned NaN for every species in an amount-based model. This
+returns whichever attribute the model actually sets.
+}
+\details{
+The value is reported \strong{as the file states it}, with no unit conversion, so
+a model that mixes amount-valued and concentration-valued species yields a
+vector that mixes units too -- \code{getSpeciesTable()} shows which column each
+species used. This deliberately differs from \code{convertReactions()}, which
+must divide an amount by the compartment volume because the ODE it generates
+integrates concentrations.
+
+A species that sets neither attribute -- its value comes from an initial
+assignment or a rule -- is reported as \code{NA}, not 0.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")

@@ -3,16 +3,22 @@
 \name{getCmtNames}
 \alias{getCmtNames}
 \title{getCmtNames
-Outputs the Names of Compartments}
+Names of the compartments in a model}
 \usage{
 getCmtNames(input_model)
 }
 \arguments{
 \item{input_model}{input should be an SBML Model}
 }
+\value{
+a character vector, one entry per compartment, in model order
+}
 \description{
-getCmtNames
-Outputs the Names of Compartments
+Returns the \code{name} where one is set and falls back to the \code{id} otherwise,
+the same rule \code{getSpeciesNames()} uses. Previously this returned the \code{id}
+unconditionally while \code{getSpeciesNames()} returned the \code{name}, so the two
+disagreed about what a "name" was. For a model whose compartments set no
+\code{name} -- which is all ten of the bundled examples -- the result is unchanged.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")

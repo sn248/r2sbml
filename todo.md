@@ -73,21 +73,6 @@ None of these is exercised by the example models, so all are untested:
 
 ## Query-function quirks
 
-Found while writing the vignettes, which had to document the actual behaviour.
-None affects `convertReactions()` — that path uses `speciesInitialValue()` and
-is unaffected.
-
-- **`getSpeciesIC()` reads `initialConcentration` only** (`src/speciesInfo.cpp`
-  line 78), so it returns `NaN` for every species in an amount-based model.
-  Four of the ten examples are amount-based, `sbmlsimple.xml` among them, so
-  `getSpeciesIC(getModel(ex("sbmlsimple.xml")))` is `NaN NaN NaN NaN`. The fix
-  is the one `speciesInitialValue()` already applies: take whichever attribute
-  is set. Whether it should also convert amount to concentration is a separate
-  question — a query function arguably ought to report the file, not the ODE.
-- **`getSpeciesNames()` returns the SBML `name` attribute**, which is optional
-  and set by none of the ten examples, so it returns empty strings. Meanwhile
-  `getCmtNames()` returns the compartment *id*. One of the two is misnamed;
-  `getSpeciesTable()` reports both `ID` and `Name` and is the honest one.
 - **Empty-component errors carry no useful message.** The explanatory line goes
   to `Rcout` and the condition message is only `"Stopping!"`, so a caller
   cannot tell "no rules" from "no parameters" without capturing stdout.

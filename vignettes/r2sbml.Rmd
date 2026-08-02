@@ -96,10 +96,12 @@ The full set of data-returning functions:
 | `getSpeciesIC()`, `getCmtSizes()` | a numeric vector |
 | `getNumSpecies()` | an integer |
 
-Two of these have sharp edges worth knowing about before you rely on them —
-`getSpeciesNames()` returns the SBML `name` attribute (usually empty) and
-`getSpeciesIC()` reads only `initialConcentration`. Both are covered in the
-companion vignette, `vignette("limitations", package = "r2sbml")`.
+`getSpeciesIC()` reports whichever of `initialAmount` or `initialConcentration`
+the model sets, named by species id, and applies **no** unit conversion — unlike
+`convertReactions()`, which must divide an amount by the compartment volume
+because the ODE it writes integrates concentrations. `getSpeciesNames()` and
+`getCmtNames()` return the SBML `name` where one is set and fall back to the
+`id` otherwise. See `vignette("limitations", package = "r2sbml")` for both.
 
 ## Functions that print
 
