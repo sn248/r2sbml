@@ -100,6 +100,19 @@ Second, and less visible: **the attribute that is set is not necessarily in the 
 
 The volume comes from the species' own compartment, so a multi-compartment model rescales per species: in `sbmlmutlicompartment.xml` only `Y2` (cytoplasm, size 5) moves, while `Y1n` (nucleus, size 1) does not. Compartments with `spatialDimensions="0"`, an unset size, or a size of 0 convert through a volume of 1 — there is nothing meaningful to divide by, and 0 would only produce an inf.
 
+### Compartments whose volume is not constant
+
+`replaceReactions` leaves out **two** things when a compartment varies, and both had to be put back:
+
+- **Its rate rule never reaches the writers.** `integratedSpecies()` walks species, and `rateRuleFor()` was only ever asked about species ids, so a `rateRule` on a compartment was silently discarded and the volume emitted as a fixed number. `integratedCompartments()` now collects them and they join the state vector *after* the species, which keeps every existing state index — and so the MATLAB/Julia mass-matrix rows — where it was.
+- **The species rate rules carry only the reaction term.** Since `[S] = n/V`, the true derivative is `d[S]/dt = (dn/dt)/V - [S]*(dV/dt)/V`, and libSBML supplies only the first half. `speciesDerivative()` appends the dilution term. Verify this on a model with no reactions at all: the concentration must still fall as the volume grows, so a species with *no* rate rule can still have a non-zero derivative — which is why the writers test `rule >= 0 || diluted` rather than `rule >= 0`.
+
+`speciesDerivative()` takes the target's formula writer as a function pointer, since composing `(reaction) - S * (dV/dt) / V` is the only target-specific part and all six spell `+ - * /` infix — including ubiquity, whose prefix `SIMINT_*` spellings are confined to powers and transcendentals.
+
+Dilution is only derivable when the compartment has a **rate** rule, because `dV/dt` is then given outright. An **assignment**-rule compartment gets the right volume — the existing assignment-rule loop is variable-agnostic and already emits it — but its dilution would need a symbolic time derivative of the rule, so `warnAssignmentRuleCompartment()` warns instead of emitting a plausible wrong answer. `constant` and `hasOnlySubstanceUnits` species are never diluted: the first does not move, the second integrates an amount.
+
+None of the ten example models has a non-constant compartment, so the tests build their own (`growing_volume_model()` in `test-convert.R`) and check `[A] = 2/(1+t)` against the closed form.
+
 This class of bug is silent: the generated code runs, and simply integrates from the wrong place. The regression test therefore checks a purpose-built decay model against its closed-form solution (`decay_model()` in `test-convert.R`) rather than against a golden output file.
 
 ### What the state vector is: `integratedSpecies()`

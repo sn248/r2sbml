@@ -29,15 +29,17 @@ Two related gaps in what *is* implemented:
   equations to come last in the residual vector, which the current row order
   does not guarantee.
 
-### Compartments whose volume is not constant
+### Dilution for an assignment-rule compartment
 
-`speciesInitialValue()` divides an amount-valued initial condition by the
-compartment size, which is right at t = 0. If the compartment is not
-`constant`, two further things are wrong that nothing currently handles: the
-volume in the rate expressions is emitted as a fixed number rather than a
-state, and d(concentration)/dt in a changing volume carries a dilution term
-that `replaceReactions` does not add for us. Every example model has
-`constant="true"` compartments, so none of this is exercised.
+A compartment with a *rate* rule is now integrated as a state and the species
+inside it get the dilution term `-[S]*(dV/dt)/V`. A compartment with an
+*assignment* rule gets the right volume but no dilution: forming the term
+needs dV/dt, i.e. a symbolic time derivative of the assignment expression,
+chain rule and all. All six writers warn in that case.
+
+Doing it properly means differentiating an AST with respect to time and the
+states it reads. That is a real piece of work, and worth it only if such
+models turn up — no example has one.
 
 ### `delay`
 

@@ -385,3 +385,130 @@ test_that("the generated model reproduces a known analytic solution", {
                          func = env2$massBalances, parms = env2$parameters)
     expect_equal(as.numeric(sol2[, "A"]), 12 * exp(-0.5 * times), tolerance = 1e-5)
 })
+
+# A species in a compartment whose volume grows at a constant rate g, with
+# optional first-order decay.  [A] = n/V, so the concentration falls even with
+# no reaction at all.  `assignment` drives the volume by an assignment rule
+# instead of a rate rule, which is the case dilution cannot be derived for.
+growing_volume_model <- function(decay = FALSE, assignment = FALSE) {
+    volume_rule <- if (assignment) {
+        '<assignmentRule variable="c"><math xmlns="http://www.w3.org/1998/Math/MathML">
+         <apply><plus/><cn>1</cn><ci>g</ci></apply></math></assignmentRule>'
+    } else {
+        '<rateRule variable="c"><math xmlns="http://www.w3.org/1998/Math/MathML">
+         <ci>g</ci></math></rateRule>'
+    }
+    reaction <- if (!decay) "" else
+'<listOfReactions>
+<reaction id="decay" reversible="false">
+<listOfReactants><speciesReference species="A" stoichiometry="1" constant="true"/></listOfReactants>
+<kineticLaw><math xmlns="http://www.w3.org/1998/Math/MathML">
+<apply><times/><ci>k</ci><ci>A</ci><ci>c</ci></apply></math></kineticLaw>
+</reaction>
+</listOfReactions>'
+    xml <- sprintf('<?xml version="1.0" encoding="UTF-8" ?>
+<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2">
+<model substanceUnits="mole" volumeUnits="litre" timeUnits="second" extentUnits="mole">
+<listOfCompartments>
+<compartment id="c" size="1" spatialDimensions="3" constant="false"/>
+</listOfCompartments>
+<listOfSpecies>
+<species id="A" compartment="c" initialConcentration="2" boundaryCondition="false"
+hasOnlySubstanceUnits="false" constant="false"/>
+</listOfSpecies>
+<listOfParameters>
+<parameter id="g" value="1" constant="true"/>
+<parameter id="k" value="0.5" constant="true"/>
+</listOfParameters>
+<listOfRules>%s</listOfRules>
+%s
+</model>
+</sbml>', volume_rule, reaction)
+    f <- tempfile(fileext = ".xml")
+    writeLines(xml, f)
+    f
+}
+
+test_that("a compartment with a rate rule becomes a state, not a constant", {
+    out <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(growing_volume_model(), out, format = "R"))
+    lines <- readLines(out)
+
+    # not emitted as a file-level constant any more
+    expect_false(any(grepl("^c = 1$", lines)))
+    # integrated instead: an initial value, an unpacking and a derivative
+    expect_true(any(grepl("^\\s*c = 1\\b.*compartment volume", lines)))
+    expect_true(any(grepl('^\\s*c = states\\[\\["c"\\]\\]', lines)))
+    expect_true(any(grepl("^\\s*dc_dt = g\\b", lines)))
+    expect_true(any(grepl("^\\s*dc_dt\\s*$", lines)))   # in the returned vector
+
+    # every other target integrates it too
+    for (spec in list(c("mrgsolve", "^dxdt_c = g;"),
+                      c("nlmixr2",  "^\\s*d/dt\\(c\\) <- g\\b"),
+                      c("MATLAB",   "^\\s*dydt\\(2\\) = g;"),
+                      c("Julia",    "^\\s*du\\[2\\] = g\\b"),
+                      c("ubiquity", "^<ODE:c> g"))) {
+        o <- tempfile()
+        expect_no_warning(convertReactions(growing_volume_model(), o, format = spec[1]))
+        expect_true(any(grepl(spec[2], readLines(o))))
+    }
+})
+
+test_that("species in a varying compartment get the dilution term", {
+    # d[A]/dt = (dn/dt)/V - [A]*(dV/dt)/V; libSBML supplies only the first term
+    out <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(growing_volume_model(decay = TRUE), out, format = "R"))
+    expect_true(any(grepl("dA_dt = \\(.*\\) - A \\* \\(g\\) / c", readLines(out))))
+
+    # with no reaction at all the derivative is dilution alone, not zero
+    out2 <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(growing_volume_model(), out2, format = "R"))
+    lines2 <- readLines(out2)
+    expect_true(any(grepl("^\\s*dA_dt = -A \\* \\(g\\) / c", lines2)))
+    expect_false(any(grepl("dA_dt = 0", lines2)))
+
+    # a constant-volume model must be untouched by any of this
+    simple <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+    if (simple == "") simple <- "../../inst/examples/sbmlsimple.xml"
+    out3 <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(simple, out3, format = "R"))
+    lines3 <- readLines(out3)
+    expect_true(any(grepl("^comp = 1e-14$", lines3)))
+    expect_false(any(grepl("dcomp_dt", lines3)))
+})
+
+test_that("an assignment-rule compartment warns that dilution is missing", {
+    # dV/dt would need a symbolic time derivative of the rule, so the volume is
+    # right but the dilution term cannot be formed
+    for (fmt in c("R", "mrgsolve", "nlmixr2", "MATLAB", "Julia", "ubiquity")) {
+        expect_warning(
+            convertReactions(growing_volume_model(assignment = TRUE), tempfile(), format = fmt),
+            "assignment rule")
+    }
+})
+
+test_that("a growing compartment reproduces its analytic solution", {
+    skip_if_not_installed("deSolve")
+
+    times <- c(0, 1, 3, 7)
+
+    # no reaction: the amount is fixed at 2, so [A] = 2 / (1 + t)
+    out <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(growing_volume_model(), out, format = "R"))
+    env <- new.env(); source(out, local = env)
+    d <- as.data.frame(deSolve::ode(y = env$InitialAmounts, times = times,
+                                    func = env$massBalances, parms = env$parameters,
+                                    rtol = 1e-10, atol = 1e-10))
+    expect_equal(d$c, 1 + times, tolerance = 1e-8)
+    expect_equal(d$A, 2 / (1 + times), tolerance = 1e-8)
+    expect_equal(d$A * d$c, rep(2, length(times)), tolerance = 1e-8)  # amount conserved
+
+    # with decay: [A] = 2 * exp(-k t) / (1 + t)
+    out2 <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(growing_volume_model(decay = TRUE), out2, format = "R"))
+    env2 <- new.env(); source(out2, local = env2)
+    d2 <- as.data.frame(deSolve::ode(y = env2$InitialAmounts, times = times,
+                                     func = env2$massBalances, parms = env2$parameters,
+                                     rtol = 1e-10, atol = 1e-10))
+    expect_equal(d2$A, 2 * exp(-0.5 * times) / (1 + times), tolerance = 1e-7)
+})

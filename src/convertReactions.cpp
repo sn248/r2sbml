@@ -114,12 +114,12 @@ static double speciesInitialValue(const Model* model, const Species* species)
 // species has none.  After the replaceReactions conversion every reaction has
 // become a rate rule, so a species without one is held constant -- a boundary
 // condition, or a species taking part in no reaction.
-static int rateRuleForSpecies(Model* model, const std::string& speciesId)
+static int rateRuleFor(Model* model, const std::string& id)
 {
    for (unsigned int i = 0; i < model->getNumRules(); i++)
    {
      const Rule* r = model->getRule(i);
-     if (r->isRate() && r->getVariable() == speciesId) return (int)i;
+     if (r->isRate() && r->getVariable() == id) return (int)i;
    }
    return -1;
 }
@@ -156,6 +156,96 @@ static std::vector<int> integratedSpecies(Model* model)
      }
    }
    return states;
+}
+
+// --- compartments whose volume is not constant ----------------------------
+//
+// replaceReactions leaves two things out when a compartment varies. Its own
+// rate rule never reaches the writers, so the volume would be emitted as a
+// fixed number; and the species rate rules it produces carry only the reaction
+// term. Since a species symbol is [S] = n/V,
+//
+//     d[S]/dt = (dn/dt)/V  -  [S] * (dV/dt)/V
+//
+// and libSBML supplies just the first half. Both the volume and the dilution
+// have to be put back here, or the model integrates at a frozen volume and
+// silently drifts away from the right answer.
+
+// Compartments carrying a rate rule. They join the state vector *after* the
+// species, so every existing state index keeps its position.
+static std::vector<int> integratedCompartments(Model* model)
+{
+   std::vector<int> cmts;
+   for (unsigned int i = 0; i < model->getNumCompartments(); i++)
+   {
+     if (rateRuleFor(model, model->getCompartment(i)->getIdAttribute()) >= 0)
+     {
+       cmts.push_back((int)i);
+     }
+   }
+   return cmts;
+}
+
+// A varying compartment must not also be emitted as a constant: one with a
+// rate rule is a state, one with an assignment rule is recomputed in the RHS
+// by the same loop that handles assignment-rule species.
+static bool compartmentIsVarying(Model* model, const std::string& id)
+{
+   return rateRuleFor(model, id) >= 0 || hasAssignmentRule(model, id);
+}
+
+// The compartment whose changing volume dilutes @p species, or "" for none.
+// A hasOnlySubstanceUnits species integrates an amount, which dilution does
+// not touch, and a constant species does not move at all.
+static std::string dilutingCompartment(Model* model, const Species* species)
+{
+   if (species->getConstant() || species->getHasOnlySubstanceUnits()) return "";
+   const std::string cid = species->getCompartment();
+   return rateRuleFor(model, cid) >= 0 ? cid : "";
+}
+
+// Right-hand side for a species, with the dilution term when one applies.
+// @p serialise is the target's formula writer, so the composition below is the
+// only target-specific part -- every target spells +, -, * and / infix.
+static std::string speciesDerivative(Model* model, const Species* species,
+                                     std::string (*serialise)(const ASTNode*))
+{
+   const std::string id   = species->getIdAttribute();
+   const int         rule = rateRuleFor(model, id);
+   const std::string cid  = dilutingCompartment(model, species);
+
+   const std::string reaction =
+       (rule >= 0) ? serialise(model->getRule(rule)->getMath()) : std::string("0");
+   if (cid.empty()) return reaction;
+
+   const std::string dV =
+       serialise(model->getRule(rateRuleFor(model, cid))->getMath());
+   const std::string dilution = id + " * (" + dV + ") / " + cid;
+
+   return (rule >= 0) ? "(" + reaction + ") - " + dilution : "-" + dilution;
+}
+
+// An assignment-rule compartment gets its volume right but not its dilution:
+// that needs dV/dt, and differentiating the assignment expression symbolically
+// is beyond what this does. Say so rather than emit a plausible wrong answer.
+static void warnAssignmentRuleCompartment(Model* model, const std::string& target)
+{
+   std::string list;
+   for (unsigned int i = 0; i < model->getNumCompartments(); i++)
+   {
+     const std::string id = model->getCompartment(i)->getIdAttribute();
+     if (hasAssignmentRule(model, id))
+     {
+       if (!list.empty()) list += ", ";
+       list += id;
+     }
+   }
+   if (list.empty()) return;
+
+   Rcpp::warning("Compartment(s) " + list + " follow an assignment rule, so " +
+                 target + " receives the right volume but no dilution term for "
+                 "the species inside them. d[S]/dt is missing -[S]*(dV/dt)/V, "
+                 "which needs a symbolic time derivative of the rule.");
 }
 
 //'convertReactions
@@ -320,7 +410,7 @@ static std::vector<int> algebraicStates(Model* model, const std::vector<int>& st
    for (size_t i = 0; i < states.size(); i++)
    {
      const Species* s = model->getSpecies(states[i]);
-     if (!s->getConstant() && rateRuleForSpecies(model, s->getIdAttribute()) < 0)
+     if (!s->getConstant() && rateRuleFor(model, s->getIdAttribute()) < 0)
      {
        alg.push_back((int)i);
      }
@@ -369,6 +459,9 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    const bool dae = daeIsSquare(algRules, algStates);
    if (!algRules.empty() && !dae) warnAlgebraicUnsolved("deSolve", algRules.size(), false);
 
+   const std::vector<int> volStates = integratedCompartments(model);
+   warnAssignmentRuleCompartment(model, "deSolve");
+
    // auto now = std::chrono::system_clock::now();
    out << "## Automatically generated model file by r2sbml at " << endl;
 
@@ -406,6 +499,8 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    // out << "Comaparmtments <- c(" << endl;
    int numCmt = model->getNumCompartments();
    for (int i = 0; i < numCmt; i++){
+        // a varying compartment is a state or a local, not a constant
+        if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
         out <<  model->getCompartment(i)->getId() << " = " << model->getCompartment(i)->getVolume() << endl; //" # (" << model->getCompartment(i)->getUnits() << ")" << endl;
    }
 
@@ -413,10 +508,17 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
 
    out <<"## Initial Amounts" << endl;
    out << "InitialAmounts <- c(" << endl;
+   const int numEntries = numStates + (int)volStates.size();
    for (int i = 0; i < numStates; i++){
       const Species* s = model->getSpecies(states[i]);
       out << "         " << s->getIdAttribute() << " = " << speciesInitialValue(model, s)
-          << (i + 1 < numStates ? "," : "") << endl;
+          << (i + 1 < numEntries ? "," : "") << endl;
+   }
+   for (size_t i = 0; i < volStates.size(); i++){
+      const Compartment* c = model->getCompartment(volStates[i]);
+      out << "         " << c->getIdAttribute() << " = " << c->getVolume()
+          << ((int)(numStates + i + 1) < numEntries ? "," : "")
+          << "   ## compartment volume, integrated" << endl;
    }
 
   out << "                    )" << endl;
@@ -464,11 +566,17 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
      out << "## states fixed by an algebraic rule are not read." << endl;
      out << "InitialDerivatives <- with(as.list(c(InitialAmounts, parameters)), c(" << endl;
      for (int i = 0; i < numStates; i++){
-       const std::string id = model->getSpecies(states[i])->getIdAttribute();
-       int rule = rateRuleForSpecies(model, id);
-       out << "         " << id << " = "
-           << (rule >= 0 ? r2sbml::formulaToInfix(model->getRule(rule)->getMath()) : "0")
-           << (i + 1 < numStates ? "," : "") << endl;
+       const Species* sp = model->getSpecies(states[i]);
+       out << "         " << sp->getIdAttribute() << " = "
+           << speciesDerivative(model, sp, r2sbml::formulaToInfix)
+           << (i + 1 < numEntries ? "," : "") << endl;
+     }
+     for (size_t i = 0; i < volStates.size(); i++){
+       const Compartment* c = model->getCompartment(volStates[i]);
+       out << "         " << c->getIdAttribute() << " = "
+           << r2sbml::formulaToInfix(
+                  model->getRule(rateRuleFor(model, c->getIdAttribute()))->getMath())
+           << ((int)(numStates + i + 1) < numEntries ? "," : "") << endl;
      }
      out << "                    ))" << endl << endl;
 
@@ -491,6 +599,10 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    out << "   ## Get States Names " << endl;
    for (int i = 0; i < numStates; i++){
         out << "   " << model->getSpecies(states[i])->getIdAttribute() << " = states[[\"" << model->getSpecies(states[i])->getIdAttribute() << "\"]]" << endl;
+   }
+   for (size_t i = 0; i < volStates.size(); i++){
+        const std::string cid = model->getCompartment(volStates[i])->getIdAttribute();
+        out << "   " << cid << " = states[[\"" << cid << "\"]]" << endl;
    }
 
    out << endl;
@@ -523,10 +635,12 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
      size_t nextAlgRule = 0;
      for (int i = 0; i < numStates; i++){
        const std::string id = model->getSpecies(states[i])->getIdAttribute();
-       int rule = rateRuleForSpecies(model, id);
-       if (rule >= 0){
+       int rule = rateRuleFor(model, id);
+       const bool diluted = !dilutingCompartment(model, model->getSpecies(states[i])).empty();
+       if (rule >= 0 || diluted){
          out << "   res_" << id << " = derivs[[\"" << id << "\"]] - ("
-             << r2sbml::formulaToInfix(model->getRule(rule)->getMath()) << ")" << endl;
+             << speciesDerivative(model, model->getSpecies(states[i]),
+                                  r2sbml::formulaToInfix) << ")" << endl;
        } else if (nextAlgRule < algRules.size() &&
                   std::find(algStates.begin(), algStates.end(), i) != algStates.end()){
          const Rule* r = model->getRule(algRules[nextAlgRule++]);
@@ -538,13 +652,23 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
              << " is constant" << endl;
        }
      }
+     for (size_t i = 0; i < volStates.size(); i++){
+       const std::string cid = model->getCompartment(volStates[i])->getIdAttribute();
+       out << "   res_" << cid << " = derivs[[\"" << cid << "\"]] - ("
+           << r2sbml::formulaToInfix(
+                  model->getRule(rateRuleFor(model, cid))->getMath()) << ")" << endl;
+     }
 
      out << endl;
      out << "   ## Make a list of Residuals" << endl;
      out << "   Residuals <- c(" << endl;
      for (int i = 0; i < numStates; i++){
         out << "     res_" << model->getSpecies(states[i])->getIdAttribute()
-            << (i + 1 < numStates ? " ," : "") << endl;
+            << (i + 1 < numEntries ? " ," : "") << endl;
+     }
+     for (size_t i = 0; i < volStates.size(); i++){
+        out << "     res_" << model->getCompartment(volStates[i])->getIdAttribute()
+            << ((int)(numStates + i + 1) < numEntries ? " ," : "") << endl;
      }
      out << "   )" << endl;
      out << "   return(list(Residuals))" << endl;
@@ -555,15 +679,24 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
 
    out << "   ## Mass Balances" << endl;
    for (int i = 0; i < numStates; i++){
-     const std::string id = model->getSpecies(states[i])->getIdAttribute();
-     int rule = rateRuleForSpecies(model, id);
-     if (rule >= 0){
+     const Species* sp = model->getSpecies(states[i]);
+     const std::string id = sp->getIdAttribute();
+     int rule = rateRuleFor(model, id);
+     const bool diluted = !dilutingCompartment(model, sp).empty();
+     if (rule >= 0 || diluted){
        out << "   d" << id << "_dt = "
-           << r2sbml::formulaToInfix(model->getRule(rule)->getMath()) << endl;
+           << speciesDerivative(model, sp, r2sbml::formulaToInfix)
+           << (diluted ? "  ## includes dilution by the changing volume" : "") << endl;
      } else {
        out << "   d" << id << "_dt = 0  ## " << id
            << " has no rate rule and is held constant" << endl;
      }
+   }
+   for (size_t i = 0; i < volStates.size(); i++){
+     const std::string cid = model->getCompartment(volStates[i])->getIdAttribute();
+     out << "   d" << cid << "_dt = "
+         << r2sbml::formulaToInfix(model->getRule(rateRuleFor(model, cid))->getMath())
+         << "  ## compartment volume" << endl;
    }
 
    for (int i = 0; i < numODEs; i++){
@@ -579,7 +712,11 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    out << "   MassBalances <- c(" << endl;
    for (int i = 0; i < numStates; i++){
       out << "     d" << model->getSpecies(states[i])->getIdAttribute() << "_dt"
-          << (i + 1 < numStates ? " ," : "") << endl;
+          << (i + 1 < numEntries ? " ," : "") << endl;
+   }
+   for (size_t i = 0; i < volStates.size(); i++){
+      out << "     d" << model->getCompartment(volStates[i])->getIdAttribute() << "_dt"
+          << ((int)(numStates + i + 1) < numEntries ? " ," : "") << endl;
    }
    out << "   )" << endl;
    out << "   return(list(MassBalances))" << endl;
@@ -606,6 +743,8 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
 
    const std::vector<int> states = integratedSpecies(model);
    const int numStates = (int)states.size();
+   const std::vector<int> volStates = integratedCompartments(model);
+   warnAssignmentRuleCompartment(model, "mrgsolve");
 
    out << "## Automatically generated mrgsolve model file by r2sbml\n" << endl;
    out << "$PROB\n" << endl;
@@ -620,15 +759,24 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
    for (int i = 0; i < numStates; i++){
         out << model->getSpecies(states[i])->getIdAttribute() << "\n";
    }
+   // a compartment with a rate rule is integrated alongside the species
+   for (size_t i = 0; i < volStates.size(); i++){
+        out << model->getCompartment(volStates[i])->getIdAttribute() << "\n";
+   }
 
    out << "\n$MAIN\n";
    for (int i = 0; i < numStates; i++){
         out << model->getSpecies(states[i])->getIdAttribute() << "_0 = "
             << speciesInitialValue(model, model->getSpecies(states[i])) << ";\n";
    }
+   for (size_t i = 0; i < volStates.size(); i++){
+        const Compartment* c = model->getCompartment(volStates[i]);
+        out << c->getIdAttribute() << "_0 = " << c->getVolume() << ";\n";
+   }
 
    int numCmt = model->getNumCompartments();
    for (int i = 0; i < numCmt; i++){
+        if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
         out <<  model->getCompartment(i)->getId() << " = " << model->getCompartment(i)->getVolume() << ";\n";
    }
 
@@ -646,16 +794,25 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
    }
 
    for (int i = 0; i < numStates; i++){
-     const std::string id = model->getSpecies(states[i])->getIdAttribute();
-     int rule = rateRuleForSpecies(model, id);
+     const Species* sp = model->getSpecies(states[i]);
+     const std::string id = sp->getIdAttribute();
+     int rule = rateRuleFor(model, id);
+     const bool diluted = !dilutingCompartment(model, sp).empty();
      // mrgsolve model blocks are C++, so powers have to be pow() calls.
-     if (rule >= 0){
+     if (rule >= 0 || diluted){
        out << "dxdt_" << id << " = "
-           << r2sbml::formulaToInfixC(model->getRule(rule)->getMath()) << ";\n";
+           << speciesDerivative(model, sp, r2sbml::formulaToInfixC) << ";"
+           << (diluted ? " // includes dilution by the changing volume" : "") << "\n";
      } else {
        out << "dxdt_" << id << " = 0; // " << id
            << " has no rate rule and is held constant\n";
      }
+   }
+   for (size_t i = 0; i < volStates.size(); i++){
+     const std::string cid = model->getCompartment(volStates[i])->getIdAttribute();
+     out << "dxdt_" << cid << " = "
+         << r2sbml::formulaToInfixC(model->getRule(rateRuleFor(model, cid))->getMath())
+         << "; // compartment volume\n";
    }
 
    // mrgsolve integrates ODEs only, so a constraint can only be recorded.
@@ -678,6 +835,8 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
 
    const std::vector<int> states = integratedSpecies(model);
    const int numStates = (int)states.size();
+   const std::vector<int> volStates = integratedCompartments(model);
+   warnAssignmentRuleCompartment(model, "rxode2");
 
    out << "## Automatically generated nlmixr2/rxode model file by r2sbml\n" << endl;
    out << "model <- function() {\n";
@@ -693,12 +852,18 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
 
    int numCmt = model->getNumCompartments();
    for (int i = 0; i < numCmt; i++){
+        if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
         out << "    " << model->getCompartment(i)->getId() << " <- " << model->getCompartment(i)->getVolume() << "\n";
    }
 
    for (int i = 0; i < numStates; i++){
         out << "    " << model->getSpecies(states[i])->getIdAttribute() << "(0) <- "
             << speciesInitialValue(model, model->getSpecies(states[i])) << "\n";
+   }
+   // a compartment with a rate rule is integrated alongside the species
+   for (size_t i = 0; i < volStates.size(); i++){
+        const Compartment* c = model->getCompartment(volStates[i]);
+        out << "    " << c->getIdAttribute() << "(0) <- " << c->getVolume() << "\n";
    }
 
    out << "\n";
@@ -715,15 +880,24 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
    }
 
    for (int i = 0; i < numStates; i++){
-     const std::string id = model->getSpecies(states[i])->getIdAttribute();
-     int rule = rateRuleForSpecies(model, id);
-     if (rule >= 0){
+     const Species* sp = model->getSpecies(states[i]);
+     const std::string id = sp->getIdAttribute();
+     int rule = rateRuleFor(model, id);
+     const bool diluted = !dilutingCompartment(model, sp).empty();
+     if (rule >= 0 || diluted){
        out << "    d/dt(" << id << ") <- "
-           << r2sbml::formulaToInfix(model->getRule(rule)->getMath()) << "\n";
+           << speciesDerivative(model, sp, r2sbml::formulaToInfix)
+           << (diluted ? " # includes dilution by the changing volume" : "") << "\n";
      } else {
        out << "    d/dt(" << id << ") <- 0 # " << id
            << " has no rate rule and is held constant\n";
      }
+   }
+   for (size_t i = 0; i < volStates.size(); i++){
+     const std::string cid = model->getCompartment(volStates[i])->getIdAttribute();
+     out << "    d/dt(" << cid << ") <- "
+         << r2sbml::formulaToInfix(model->getRule(rateRuleFor(model, cid))->getMath())
+         << " # compartment volume\n";
    }
 
    // rxode2 integrates ODEs only, so a constraint can only be recorded.
@@ -781,6 +955,10 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    const bool dae = daeIsSquare(algRules, algStates);
    if (!algRules.empty() && !dae) warnAlgebraicUnsolved("MATLAB", algRules.size(), false);
 
+   const std::vector<int> volStates = integratedCompartments(model);
+   const int numEntries = numStates + (int)volStates.size();
+   warnAssignmentRuleCompartment(model, "MATLAB");
+
    int numParams = model->getNumParameters();
    int numCmt    = model->getNumCompartments();
    int numRules  = model->getNumRules();
@@ -791,7 +969,11 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    out << "% Columns of y are, in order: ";
    for (int i = 0; i < numStates; i++){
      out << model->getSpecies(states[i])->getIdAttribute()
-         << (i + 1 < numStates ? ", " : "\n");
+         << (i + 1 < numEntries ? ", " : "\n");
+   }
+   for (size_t i = 0; i < volStates.size(); i++){
+     out << model->getCompartment(volStates[i])->getIdAttribute()
+         << ((int)(numStates + i + 1) < numEntries ? ", " : "\n");
    }
    out << "%\n";
    out << "% Model Summary\n";
@@ -809,6 +991,7 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
 
    out << "    % Compartments\n";
    for (int i = 0; i < numCmt; i++){
+     if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
      out << "    " << model->getCompartment(i)->getId() << " = "
          << model->getCompartment(i)->getVolume() << ";\n";
    }
@@ -828,6 +1011,11 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
      out << "            " << speciesInitialValue(model, model->getSpecies(states[i]))
          << "; % " << model->getSpecies(states[i])->getIdAttribute() << "\n";
    }
+   for (size_t i = 0; i < volStates.size(); i++){
+     const Compartment* c = model->getCompartment(volStates[i]);
+     out << "            " << c->getVolume() << "; % " << c->getIdAttribute()
+         << " (compartment volume)\n";
+   }
    out << "        ];\n";
    out << "    end\n\n";
 
@@ -837,7 +1025,7 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
      // index-1 systems in this form.
      out << "    % Mass matrix: a zero row marks a state fixed by an algebraic\n";
      out << "    % rule, so that row reads 0 = residual rather than dy/dt = f.\n";
-     out << "    M = eye(" << numStates << ");\n";
+     out << "    M = eye(" << numEntries << ");\n";
      for (size_t i = 0; i < algStates.size(); i++){
        out << "    M(" << algStates[i] + 1 << ", " << algStates[i] + 1 << ") = 0; % "
            << model->getSpecies(states[algStates[i]])->getIdAttribute() << "\n";
@@ -856,6 +1044,10 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
      out << "        " << model->getSpecies(states[i])->getIdAttribute()
          << " = states(" << i + 1 << ");\n";
    }
+   for (size_t i = 0; i < volStates.size(); i++){
+     out << "        " << model->getCompartment(volStates[i])->getIdAttribute()
+         << " = states(" << numStates + (int)i + 1 << ");\n";
+   }
    out << "\n";
 
    // Assignment rules come after the state unpacking, since they may read
@@ -872,15 +1064,17 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    if (anyAssignment) out << "\n";
 
    out << "        % Mass balances\n";
-   out << "        dydt = zeros(" << numStates << ", 1);\n";
+   out << "        dydt = zeros(" << numEntries << ", 1);\n";
    size_t nextAlgRule = 0;
    for (int i = 0; i < numStates; i++){
-     const std::string id = model->getSpecies(states[i])->getIdAttribute();
-     int rule = rateRuleForSpecies(model, id);
-     if (rule >= 0){
+     const Species* sp = model->getSpecies(states[i]);
+     const std::string id = sp->getIdAttribute();
+     int rule = rateRuleFor(model, id);
+     const bool diluted = !dilutingCompartment(model, sp).empty();
+     if (rule >= 0 || diluted){
        out << "        dydt(" << i + 1 << ") = "
-           << r2sbml::formulaToInfixMatlab(model->getRule(rule)->getMath())
-           << "; % " << id << "\n";
+           << speciesDerivative(model, sp, r2sbml::formulaToInfixMatlab)
+           << "; % " << id << (diluted ? ", with dilution" : "") << "\n";
      } else if (dae && nextAlgRule < algRules.size() &&
                 std::find(algStates.begin(), algStates.end(), i) != algStates.end()){
        // Paired with a zero row of M, so this is a constraint, not a rate.
@@ -892,6 +1086,13 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
        out << "        % dydt(" << i + 1 << ") stays 0: " << id
            << " has no rate rule and is held constant\n";
      }
+   }
+   for (size_t i = 0; i < volStates.size(); i++){
+     const std::string cid = model->getCompartment(volStates[i])->getIdAttribute();
+     out << "        dydt(" << numStates + (int)i + 1 << ") = "
+         << r2sbml::formulaToInfixMatlab(
+                model->getRule(rateRuleFor(model, cid))->getMath())
+         << "; % " << cid << " (compartment volume)\n";
    }
 
    if (!dae){
@@ -927,6 +1128,10 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    const bool dae = daeIsSquare(algRules, algStates);
    if (!algRules.empty() && !dae) warnAlgebraicUnsolved("Julia", algRules.size(), false);
 
+   const std::vector<int> volStates = integratedCompartments(model);
+   const int numEntries = numStates + (int)volStates.size();
+   warnAssignmentRuleCompartment(model, "Julia");
+
    int numParams = model->getNumParameters();
    int numCmt    = model->getNumCompartments();
    int numRules  = model->getNumRules();
@@ -943,7 +1148,11 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    out << "# Elements of u are, in order: ";
    for (int i = 0; i < numStates; i++){
      out << model->getSpecies(states[i])->getIdAttribute()
-         << (i + 1 < numStates ? ", " : "\n");
+         << (i + 1 < numEntries ? ", " : "\n");
+   }
+   for (size_t i = 0; i < volStates.size(); i++){
+     out << model->getCompartment(volStates[i])->getIdAttribute()
+         << ((int)(numStates + i + 1) < numEntries ? ", " : "\n");
    }
    out << "#\n";
    out << "# Model Summary\n";
@@ -962,6 +1171,7 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
 
    out << "    # Compartments\n";
    for (int i = 0; i < numCmt; i++){
+     if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
      out << "    " << model->getCompartment(i)->getId() << " = "
          << model->getCompartment(i)->getVolume() << "\n";
    }
@@ -979,6 +1189,10 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
      out << "    " << model->getSpecies(states[i])->getIdAttribute()
          << " = u[" << i + 1 << "]\n";
    }
+   for (size_t i = 0; i < volStates.size(); i++){
+     out << "    " << model->getCompartment(volStates[i])->getIdAttribute()
+         << " = u[" << numStates + (int)i + 1 << "]\n";
+   }
    out << "\n";
 
    bool anyAssignment = false;
@@ -995,12 +1209,14 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    out << "    # Mass balances\n";
    size_t nextAlgRule = 0;
    for (int i = 0; i < numStates; i++){
-     const std::string id = model->getSpecies(states[i])->getIdAttribute();
-     int rule = rateRuleForSpecies(model, id);
-     if (rule >= 0){
+     const Species* sp = model->getSpecies(states[i]);
+     const std::string id = sp->getIdAttribute();
+     int rule = rateRuleFor(model, id);
+     const bool diluted = !dilutingCompartment(model, sp).empty();
+     if (rule >= 0 || diluted){
        out << "    du[" << i + 1 << "] = "
-           << r2sbml::formulaToInfix(model->getRule(rule)->getMath())
-           << "  # " << id << "\n";
+           << speciesDerivative(model, sp, r2sbml::formulaToInfix)
+           << "  # " << id << (diluted ? ", with dilution" : "") << "\n";
      } else if (dae && nextAlgRule < algRules.size() &&
                 std::find(algStates.begin(), algStates.end(), i) != algStates.end()){
        // Paired with a zero row of M, so this row reads 0 = residual.
@@ -1012,6 +1228,12 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
        out << "    du[" << i + 1 << "] = 0.0  # " << id
            << " has no rate rule and is held constant\n";
      }
+   }
+   for (size_t i = 0; i < volStates.size(); i++){
+     const std::string cid = model->getCompartment(volStates[i])->getIdAttribute();
+     out << "    du[" << numStates + (int)i + 1 << "] = "
+         << r2sbml::formulaToInfix(model->getRule(rateRuleFor(model, cid))->getMath())
+         << "  # " << cid << " (compartment volume)\n";
    }
 
    if (!dae){
@@ -1033,7 +1255,11 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    out << "u0 = Float64[";
    for (int i = 0; i < numStates; i++){
      out << speciesInitialValue(model, model->getSpecies(states[i]))
-         << (i + 1 < numStates ? ", " : "");
+         << (i + 1 < numEntries ? ", " : "");
+   }
+   for (size_t i = 0; i < volStates.size(); i++){
+     out << model->getCompartment(volStates[i])->getVolume()
+         << ((int)(numStates + i + 1) < numEntries ? ", " : "");
    }
    out << "]\n";
 
@@ -1047,12 +1273,16 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    if (dae){
      out << "\n# Mass matrix: a zero row marks a state fixed by an algebraic rule,\n";
      out << "# so that row reads 0 = residual rather than du = f.\n";
-     out << "M = zeros(" << numStates << ", " << numStates << ")\n";
+     out << "M = zeros(" << numEntries << ", " << numEntries << ")\n";
      for (int i = 0; i < numStates; i++){
        if (std::find(algStates.begin(), algStates.end(), i) == algStates.end()){
          out << "M[" << i + 1 << ", " << i + 1 << "] = 1.0  # "
              << model->getSpecies(states[i])->getIdAttribute() << "\n";
        }
+     }
+     for (size_t i = 0; i < volStates.size(); i++){
+       out << "M[" << numStates + (int)i + 1 << ", " << numStates + (int)i + 1
+           << "] = 1.0  # " << model->getCompartment(volStates[i])->getIdAttribute() << "\n";
      }
      out << "\nmassbalances = ODEFunction(massbalances!; mass_matrix = M)\n";
      out << "prob = ODEProblem(massbalances, u0, tspan, p)\n";
@@ -1073,6 +1303,8 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
 
    const std::vector<int> states = integratedSpecies(model);
    const int numStates = (int)states.size();
+   const std::vector<int> volStates = integratedCompartments(model);
+   warnAssignmentRuleCompartment(model, "ubiquity");
 
    int numParams = model->getNumParameters();
    int numCmt    = model->getNumCompartments();
@@ -1126,6 +1358,9 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
    out << "# Compartment volumes\n";
    for (int i = 0; i < numCmt; i++){
      const Compartment* c = model->getCompartment(i);
+     // a varying compartment is a state (<I>/<ODE:>) or a dynamic secondary
+     // parameter (<Ad>), not a constant
+     if (compartmentIsVarying(model, c->getIdAttribute())) continue;
      out << "<P> " << c->getId() << " " << c->getVolume()
          << " -inf inf " << (c->isSetUnits() ? c->getUnits() : "1")
          << " yes System\n";
@@ -1146,6 +1381,11 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
      out << "<I> " << model->getSpecies(states[i])->getIdAttribute() << " = "
          << speciesInitialValue(model, model->getSpecies(states[i])) << "\n";
    }
+   for (size_t i = 0; i < volStates.size(); i++){
+     const Compartment* c = model->getCompartment(volStates[i]);
+     out << "<I> " << c->getIdAttribute() << " = " << c->getVolume()
+         << "   # compartment volume, integrated\n";
+   }
    out << "\n";
 
    // Assignment rules read states, so they are dynamic secondary parameters.
@@ -1162,15 +1402,24 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
 
    out << "# Mass balances\n";
    for (int i = 0; i < numStates; i++){
-     const std::string id = model->getSpecies(states[i])->getIdAttribute();
-     int rule = rateRuleForSpecies(model, id);
-     if (rule >= 0){
+     const Species* sp = model->getSpecies(states[i]);
+     const std::string id = sp->getIdAttribute();
+     int rule = rateRuleFor(model, id);
+     const bool diluted = !dilutingCompartment(model, sp).empty();
+     if (rule >= 0 || diluted){
        out << "<ODE:" << id << "> "
-           << r2sbml::formulaToUbiquity(model->getRule(rule)->getMath()) << "\n";
+           << speciesDerivative(model, sp, r2sbml::formulaToUbiquity)
+           << (diluted ? "   # includes dilution by the changing volume" : "") << "\n";
      } else {
        // An <I> alone would leave the state with no equation; be explicit.
        out << "<ODE:" << id << "> 0   # no rate rule, held constant\n";
      }
+   }
+   for (size_t i = 0; i < volStates.size(); i++){
+     const std::string cid = model->getCompartment(volStates[i])->getIdAttribute();
+     out << "<ODE:" << cid << "> "
+         << r2sbml::formulaToUbiquity(model->getRule(rateRuleFor(model, cid))->getMath())
+         << "   # compartment volume\n";
    }
 
    // ubiquity integrates ODEs only, so a constraint can only be recorded.
@@ -1186,6 +1435,10 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
    for (int i = 0; i < numStates; i++){
      const std::string id = model->getSpecies(states[i])->getIdAttribute();
      out << "<O> " << id << "_out = " << id << "\n";
+   }
+   for (size_t i = 0; i < volStates.size(); i++){
+     const std::string cid = model->getCompartment(volStates[i])->getIdAttribute();
+     out << "<O> " << cid << "_out = " << cid << "\n";
    }
 
    out.close();
