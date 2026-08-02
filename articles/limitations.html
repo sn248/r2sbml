@@ -139,21 +139,6 @@ file</td>
 <strong>silent</strong> — untested</td>
 </tr>
 <tr class="odd">
-<td>
-<code><a href="../reference/getSpeciesIC.html">getSpeciesIC()</a></code> on an amount-based model</td>
-<td>
-<strong>silent</strong> — returns <code>NaN</code>
-</td>
-</tr>
-<tr class="even">
-<td>
-<code><a href="../reference/getSpeciesNames.html">getSpeciesNames()</a></code> when no <code>name</code> attribute
-is set</td>
-<td>
-<strong>silent</strong> — returns <code>""</code>
-</td>
-</tr>
-<tr class="odd">
 <td>Inconsistent initial conditions for a DAE</td>
 <td>solver error, not mentioning SBML</td>
 </tr>
@@ -541,14 +526,12 @@ species referenced before it is defined.</p>
 <p>These are not code-generation issues; they affect the inspection
 API.</p>
 <div class="section level3">
-<h3 id="getspeciesic-returns-nan-for-amount-based-models">
-<code>getSpeciesIC()</code> returns <code>NaN</code> for
-amount-based models<a class="anchor" aria-label="anchor" href="#getspeciesic-returns-nan-for-amount-based-models"></a>
+<h3 id="initial-values-are-reported-as-the-file-states-them">Initial values are reported as the file states them<a class="anchor" aria-label="anchor" href="#initial-values-are-reported-as-the-file-states-them"></a>
 </h3>
-<p>It reads <code>initialConcentration</code> only. A species carries
-<code>initialAmount</code> <em>or</em>
-<code>initialConcentration</code>, never both, and the unset one reads
-back as <code>NaN</code>:</p>
+<p><code><a href="../reference/getSpeciesIC.html">getSpeciesIC()</a></code> returns whichever of
+<code>initialAmount</code> or <code>initialConcentration</code> the
+model actually sets — a species carries one or the other, never both —
+and names the result by species id:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/getModel.html">getModel</a></span><span class="op">(</span><span class="fu">ex</span><span class="op">(</span><span class="st">"sbmlsimple.xml"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -558,43 +541,54 @@ back as <code>NaN</code>:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; File: /home/runner/work/_temp/Library/r2sbml/examples/sbmlsimple.xml (Level 3, version 2)</span></span>
 <span><span class="fu"><a href="../reference/getSpeciesIC.html">getSpeciesIC</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] NaN NaN NaN NaN</span></span></code></pre></div>
-<p>All four species in <code>sbmlsimple.xml</code> set
-<code>initialAmount</code>, so every value comes back <code>NaN</code>.
-<code><a href="../reference/getSpeciesTable.html">getSpeciesTable()</a></code> is the reliable alternative — it reports
-both columns, so you can see which one is populated:</p>
+<span><span class="co">#&gt;     E     S     P    ES </span></span>
+<span><span class="co">#&gt; 5e-21 1e-20 0e+00 0e+00</span></span></code></pre></div>
+<p><strong>No unit conversion is applied.</strong> That is deliberate,
+and it is the one thing here worth watching: a query function should
+report the file. So a model that mixes amount-valued and
+concentration-valued species yields a vector that mixes units, and
+<code><a href="../reference/getSpeciesIC.html">getSpeciesIC()</a></code> deliberately disagrees with the initial
+conditions <code><a href="../reference/convertReactions.html">convertReactions()</a></code> writes, which are divided by
+compartment volume because the generated ODE integrates
+concentrations:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".R"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/capture.output.html" class="external-link">capture.output</a></span><span class="op">(</span><span class="fu"><a href="../reference/convertReactions.html">convertReactions</a></span><span class="op">(</span><span class="fu">ex</span><span class="op">(</span><span class="st">"sbmlsimple.xml"</span><span class="op">)</span>, <span class="va">out</span>, format <span class="op">=</span> <span class="st">"R"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"^ +E = [0-9]"</span>, <span class="fu"><a href="https://rdrr.io/r/base/readLines.html" class="external-link">readLines</a></span><span class="op">(</span><span class="va">out</span><span class="op">)</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>   <span class="co"># 5e-07 = 5e-21 / 1e-14</span></span>
+<span><span class="co">#&gt; [1] "         E = 5e-07,"</span></span></code></pre></div>
+<p><code><a href="../reference/getSpeciesTable.html">getSpeciesTable()</a></code> shows which column each species used,
+so you can tell the units apart:</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/getSpeciesTable.html">getSpeciesTable</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ID"</span>, <span class="st">"InitialConcentration"</span>, <span class="st">"InitialAmount"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;   ID InitialConcentration InitialAmount</span></span>
 <span><span class="co">#&gt; 1  E                  NaN         5e-21</span></span>
 <span><span class="co">#&gt; 2  S                  NaN         1e-20</span></span>
 <span><span class="co">#&gt; 3  P                  NaN         0e+00</span></span>
 <span><span class="co">#&gt; 4 ES                  NaN         0e+00</span></span></code></pre></div>
-<p>Note that <code><a href="../reference/convertReactions.html">convertReactions()</a></code> is <strong>not</strong>
-affected by this: it uses a separate helper that takes whichever
-attribute is set and converts between amount and concentration using the
-compartment volume. The inconsistency is confined to
-<code><a href="../reference/getSpeciesIC.html">getSpeciesIC()</a></code>.</p>
+<p>A species that sets neither attribute — its value comes from an
+initial assignment or a rule — is reported as <code>NA</code> rather
+than a fabricated <code>0</code>. Note that <code>NA</code> there is
+distinct from the <code>NaN</code> in the table above, which marks the
+attribute the model simply did not use.</p>
 </div>
 <div class="section level3">
-<h3 id="getspeciesnames-returns-the-name-attribute-which-is-usually-empty">
-<code>getSpeciesNames()</code> returns the <code>name</code>
-attribute, which is usually empty<a class="anchor" aria-label="anchor" href="#getspeciesnames-returns-the-name-attribute-which-is-usually-empty"></a>
+<h3 id="names-fall-back-to-the-id">Names fall back to the id<a class="anchor" aria-label="anchor" href="#names-fall-back-to-the-id"></a>
 </h3>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/getSpeciesNames.html">getSpeciesNames</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "" "" "" ""</span></span></code></pre></div>
-<p>SBML distinguishes <code>id</code> (a required identifier) from
-<code>name</code> (an optional human label). None of the ten example
-models sets <code>name</code>, so this returns empty strings for all of
-them. Use <code>getSpeciesTable()$ID</code> when you want
-identifiers.</p>
-<p>Compartments are inconsistent with this: <code><a href="../reference/getCmtNames.html">getCmtNames()</a></code>
-returns the <em>id</em>, not the name.</p>
+<p>SBML distinguishes <code>id</code>, which every element must have,
+from <code>name</code>, an optional human label.
+<code><a href="../reference/getSpeciesNames.html">getSpeciesNames()</a></code> and <code><a href="../reference/getCmtNames.html">getCmtNames()</a></code> both
+return the <code>name</code> where one is set and the <code>id</code>
+otherwise, which is how SBML tools conventionally display an
+element:</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/getCmtNames.html">getCmtNames</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
-<span><span class="co">#&gt; comp</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/getSpeciesNames.html">getSpeciesNames</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "E"  "S"  "P"  "ES"</span></span>
+<span><span class="fu"><a href="../reference/getCmtNames.html">getCmtNames</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "comp"</span></span></code></pre></div>
+<p>None of the ten examples sets a <code>name</code>, so both come back
+as ids. Use <code><a href="../reference/getSpeciesTable.html">getSpeciesTable()</a></code>, which keeps <code>ID</code>
+and <code>Name</code> in separate columns, if you need to know whether a
+label was actually present.</p>
 </div>
 <div class="section level3">
 <h3 id="absent-components-raise-an-error-whose-message-is-uninformative">Absent components raise an error whose message is uninformative<a class="anchor" aria-label="anchor" href="#absent-components-raise-an-error-whose-message-is-uninformative"></a>

@@ -164,7 +164,6 @@ anything is wrong.</p>
 <p>Simpler accessors return plain vectors:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/getCmtNames.html">getCmtNames</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
-<span><span class="co">#&gt; comp</span></span>
 <span><span class="co">#&gt; [1] "comp"</span></span>
 <span><span class="fu"><a href="../reference/getCmtSizes.html">getCmtSizes</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
 <span><span class="co">#&gt; 1e-14</span></span>
@@ -208,11 +207,15 @@ anything is wrong.</p>
 </tr>
 </tbody>
 </table>
-<p>Two of these have sharp edges worth knowing about before you rely on
-them — <code><a href="../reference/getSpeciesNames.html">getSpeciesNames()</a></code> returns the SBML <code>name</code>
-attribute (usually empty) and <code><a href="../reference/getSpeciesIC.html">getSpeciesIC()</a></code> reads only
-<code>initialConcentration</code>. Both are covered in the companion
-vignette, <code><a href="../articles/limitations.html">vignette("limitations", package = "r2sbml")</a></code>.</p>
+<p><code><a href="../reference/getSpeciesIC.html">getSpeciesIC()</a></code> reports whichever of
+<code>initialAmount</code> or <code>initialConcentration</code> the
+model sets, named by species id, and applies <strong>no</strong> unit
+conversion — unlike <code><a href="../reference/convertReactions.html">convertReactions()</a></code>, which must divide
+an amount by the compartment volume because the ODE it writes integrates
+concentrations. <code><a href="../reference/getSpeciesNames.html">getSpeciesNames()</a></code> and
+<code><a href="../reference/getCmtNames.html">getCmtNames()</a></code> return the SBML <code>name</code> where one
+is set and fall back to the <code>id</code> otherwise. See
+<code><a href="../articles/limitations.html">vignette("limitations", package = "r2sbml")</a></code> for both.</p>
 </div>
 <div class="section level3">
 <h3 id="functions-that-print">Functions that print<a class="anchor" aria-label="anchor" href="#functions-that-print"></a>
@@ -610,7 +613,7 @@ and does not compile for doubles, so powers are written
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/readLines.html" class="external-link">readLines</a></span><span class="op">(</span><span class="va">out_m</span><span class="op">)</span>, sep <span class="op">=</span> <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; % Automatically generated MATLAB model file by r2sbml</span></span>
 <span><span class="co">#&gt; %</span></span>
-<span><span class="co">#&gt; % Save as file2a8d4b81f10.m, then solve with:  [t, y] = file2a8d4b81f10();</span></span>
+<span><span class="co">#&gt; % Save as file2a498a75f9a.m, then solve with:  [t, y] = file2a498a75f9a();</span></span>
 <span><span class="co">#&gt; % Columns of y are, in order: E, S, P, ES</span></span>
 <span><span class="co">#&gt; %</span></span>
 <span><span class="co">#&gt; % Model Summary</span></span>
@@ -620,7 +623,7 @@ and does not compile for doubles, so powers are written
 <span><span class="co">#&gt; %               rules: 4</span></span>
 <span><span class="co">#&gt; %              events: 0</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; function [t, y] = file2a8d4b81f10(tspan, y0)</span></span>
+<span><span class="co">#&gt; function [t, y] = file2a498a75f9a(tspan, y0)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     if nargin &lt; 1 || isempty(tspan)</span></span>
 <span><span class="co">#&gt;         tspan = [0 10];</span></span>

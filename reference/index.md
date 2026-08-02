@@ -22,13 +22,13 @@ not have raises an error rather than returning an empty result.
 - [`getReactionTable()`](https://sn248.github.io/r2sbml/reference/getReactionTable.md)
   : getReactionTable Outputs the Information Table for Reactions
 - [`getSpeciesNames()`](https://sn248.github.io/r2sbml/reference/getSpeciesNames.md)
-  : getSpeciesNames Outputs the Names of Compartments
+  : getSpeciesNames Names of the species in a model
 - [`getSpeciesIC()`](https://sn248.github.io/r2sbml/reference/getSpeciesIC.md)
-  : getspeciesIC Outputs the Initial Concentrations of Species
+  : getSpeciesIC Initial values of the species in a model
 - [`getNumSpecies()`](https://sn248.github.io/r2sbml/reference/getNumSpecies.md)
   : getSpeciesNum Outputs the number of Species in the model
 - [`getCmtNames()`](https://sn248.github.io/r2sbml/reference/getCmtNames.md)
-  : getCmtNames Outputs the Names of Compartments
+  : getCmtNames Names of the compartments in a model
 - [`getCmtSizes()`](https://sn248.github.io/r2sbml/reference/getCmtSizes.md)
   : getCmtSizes Outputs the Sizes of Compartments
 

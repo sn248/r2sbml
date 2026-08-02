@@ -30,8 +30,6 @@ limitation falls:
 | Events | **silent** — a count in the header comment only |
 | Two-argument `log(b, x)` in R and MATLAB | **silent** — wrong answer |
 | `root`, `piecewise`, `factorial`, `%` in some targets | **silent** — untested |
-| [`getSpeciesIC()`](https://sn248.github.io/r2sbml/reference/getSpeciesIC.md) on an amount-based model | **silent** — returns `NaN` |
-| [`getSpeciesNames()`](https://sn248.github.io/r2sbml/reference/getSpeciesNames.md) when no `name` attribute is set | **silent** — returns `""` |
 | Inconsistent initial conditions for a DAE | solver error, not mentioning SBML |
 | A semantically invalid model | **silent** — nothing is validated |
 
@@ -318,11 +316,12 @@ assumes the model it is given is a correct one.
 
 These are not code-generation issues; they affect the inspection API.
 
-### `getSpeciesIC()` returns `NaN` for amount-based models
+### Initial values are reported as the file states them
 
-It reads `initialConcentration` only. A species carries `initialAmount`
-*or* `initialConcentration`, never both, and the unset one reads back as
-`NaN`:
+[`getSpeciesIC()`](https://sn248.github.io/r2sbml/reference/getSpeciesIC.md)
+returns whichever of `initialAmount` or `initialConcentration` the model
+actually sets — a species carries one or the other, never both — and
+names the result by species id:
 
 ``` r
 
@@ -334,14 +333,30 @@ model <- getModel(ex("sbmlsimple.xml"))
 #> 
 #> File: /home/runner/work/_temp/Library/r2sbml/examples/sbmlsimple.xml (Level 3, version 2)
 getSpeciesIC(model)
-#> [1] NaN NaN NaN NaN
+#>     E     S     P    ES 
+#> 5e-21 1e-20 0e+00 0e+00
 ```
 
-All four species in `sbmlsimple.xml` set `initialAmount`, so every value
-comes back `NaN`.
+**No unit conversion is applied.** That is deliberate, and it is the one
+thing here worth watching: a query function should report the file. So a
+model that mixes amount-valued and concentration-valued species yields a
+vector that mixes units, and
+[`getSpeciesIC()`](https://sn248.github.io/r2sbml/reference/getSpeciesIC.md)
+deliberately disagrees with the initial conditions
+[`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md)
+writes, which are divided by compartment volume because the generated
+ODE integrates concentrations:
+
+``` r
+
+out <- tempfile(fileext = ".R")
+invisible(capture.output(convertReactions(ex("sbmlsimple.xml"), out, format = "R")))
+grep("^ +E = [0-9]", readLines(out), value = TRUE)   # 5e-07 = 5e-21 / 1e-14
+#> [1] "         E = 5e-07,"
+```
+
 [`getSpeciesTable()`](https://sn248.github.io/r2sbml/reference/getSpeciesTable.md)
-is the reliable alternative — it reports both columns, so you can see
-which one is populated:
+shows which column each species used, so you can tell the units apart:
 
 ``` r
 
@@ -353,36 +368,33 @@ getSpeciesTable(model)[, c("ID", "InitialConcentration", "InitialAmount")]
 #> 4 ES                  NaN         0e+00
 ```
 
-Note that
-[`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md)
-is **not** affected by this: it uses a separate helper that takes
-whichever attribute is set and converts between amount and concentration
-using the compartment volume. The inconsistency is confined to
-[`getSpeciesIC()`](https://sn248.github.io/r2sbml/reference/getSpeciesIC.md).
+A species that sets neither attribute — its value comes from an initial
+assignment or a rule — is reported as `NA` rather than a fabricated `0`.
+Note that `NA` there is distinct from the `NaN` in the table above,
+which marks the attribute the model simply did not use.
 
-### `getSpeciesNames()` returns the `name` attribute, which is usually empty
+### Names fall back to the id
+
+SBML distinguishes `id`, which every element must have, from `name`, an
+optional human label.
+[`getSpeciesNames()`](https://sn248.github.io/r2sbml/reference/getSpeciesNames.md)
+and
+[`getCmtNames()`](https://sn248.github.io/r2sbml/reference/getCmtNames.md)
+both return the `name` where one is set and the `id` otherwise, which is
+how SBML tools conventionally display an element:
 
 ``` r
 
 getSpeciesNames(model)
-#> [1] "" "" "" ""
-```
-
-SBML distinguishes `id` (a required identifier) from `name` (an optional
-human label). None of the ten example models sets `name`, so this
-returns empty strings for all of them. Use `getSpeciesTable()$ID` when
-you want identifiers.
-
-Compartments are inconsistent with this:
-[`getCmtNames()`](https://sn248.github.io/r2sbml/reference/getCmtNames.md)
-returns the *id*, not the name.
-
-``` r
-
+#> [1] "E"  "S"  "P"  "ES"
 getCmtNames(model)
-#> comp
 #> [1] "comp"
 ```
+
+None of the ten examples sets a `name`, so both come back as ids. Use
+[`getSpeciesTable()`](https://sn248.github.io/r2sbml/reference/getSpeciesTable.md),
+which keeps `ID` and `Name` in separate columns, if you need to know
+whether a label was actually present.
 
 ### Absent components raise an error whose message is uninformative
 

@@ -113,7 +113,6 @@ Simpler accessors return plain vectors:
 ``` r
 
 getCmtNames(model)
-#> comp
 #> [1] "comp"
 getCmtSizes(model)
 #> 1e-14
@@ -131,14 +130,19 @@ The full set of data-returning functions:
 | [`getSpeciesIC()`](https://sn248.github.io/r2sbml/reference/getSpeciesIC.md), [`getCmtSizes()`](https://sn248.github.io/r2sbml/reference/getCmtSizes.md) | a numeric vector |
 | [`getNumSpecies()`](https://sn248.github.io/r2sbml/reference/getNumSpecies.md) | an integer |
 
-Two of these have sharp edges worth knowing about before you rely on
-them —
-[`getSpeciesNames()`](https://sn248.github.io/r2sbml/reference/getSpeciesNames.md)
-returns the SBML `name` attribute (usually empty) and
 [`getSpeciesIC()`](https://sn248.github.io/r2sbml/reference/getSpeciesIC.md)
-reads only `initialConcentration`. Both are covered in the companion
-vignette,
-[`vignette("limitations", package = "r2sbml")`](https://sn248.github.io/r2sbml/articles/limitations.md).
+reports whichever of `initialAmount` or `initialConcentration` the model
+sets, named by species id, and applies **no** unit conversion — unlike
+[`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md),
+which must divide an amount by the compartment volume because the ODE it
+writes integrates concentrations.
+[`getSpeciesNames()`](https://sn248.github.io/r2sbml/reference/getSpeciesNames.md)
+and
+[`getCmtNames()`](https://sn248.github.io/r2sbml/reference/getCmtNames.md)
+return the SBML `name` where one is set and fall back to the `id`
+otherwise. See
+[`vignette("limitations", package = "r2sbml")`](https://sn248.github.io/r2sbml/articles/limitations.md)
+for both.
 
 ### Functions that print
 
@@ -504,7 +508,7 @@ convertReactions(sbml_file, out_m, format = "MATLAB")
 cat(readLines(out_m), sep = "\n")
 #> % Automatically generated MATLAB model file by r2sbml
 #> %
-#> % Save as file2a8d4b81f10.m, then solve with:  [t, y] = file2a8d4b81f10();
+#> % Save as file2a498a75f9a.m, then solve with:  [t, y] = file2a498a75f9a();
 #> % Columns of y are, in order: E, S, P, ES
 #> %
 #> % Model Summary
@@ -514,7 +518,7 @@ cat(readLines(out_m), sep = "\n")
 #> %               rules: 4
 #> %              events: 0
 #> 
-#> function [t, y] = file2a8d4b81f10(tspan, y0)
+#> function [t, y] = file2a498a75f9a(tspan, y0)
 #> 
 #>     if nargin < 1 || isempty(tspan)
 #>         tspan = [0 10];

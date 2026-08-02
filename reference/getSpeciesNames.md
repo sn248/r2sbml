@@ -1,6 +1,14 @@
-# getSpeciesNames Outputs the Names of Compartments
+# getSpeciesNames Names of the species in a model
 
-getSpeciesNames Outputs the Names of Compartments
+SBML separates `id`, which every species must have, from `name`, which
+is an optional human-readable label. Most models in the wild set only
+`id`, so returning `name` alone gave a vector of empty strings. This
+returns the `name` where one is set and falls back to the `id`
+otherwise, which is how SBML tools conventionally display a species.
+[`getCmtNames()`](https://sn248.github.io/r2sbml/reference/getCmtNames.md)
+follows the same rule. Use
+[`getSpeciesTable()`](https://sn248.github.io/r2sbml/reference/getSpeciesTable.md)
+when you need the two columns separately.
 
 ## Usage
 
@@ -14,6 +22,10 @@ getSpeciesNames(input_model)
 
   input should be an SBML Model
 
+## Value
+
+a character vector, one entry per species, in model order
+
 ## Examples
 
 ``` r
@@ -26,9 +38,5 @@ model <- getModel(sbml_file)
 #> 
 #> File: /home/runner/work/_temp/Library/r2sbml/examples/sbmlsimple.xml (Level 3, version 2)
 getSpeciesNames(model)
-#> 
-#> 
-#> 
-#> 
-#> [1] "" "" "" ""
+#> [1] "E"  "S"  "P"  "ES"
 ```
