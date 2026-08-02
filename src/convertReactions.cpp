@@ -260,6 +260,69 @@ static std::vector<int> integratedSpecies(Model* model)
    // libsbml::writeSBMLToFile(document, outputFile);
  }
 
+// Indices (into the rule list) of the algebraic rules.
+static std::vector<int> algebraicRules(Model* model)
+{
+   std::vector<int> alg;
+   for (unsigned int i = 0; i < model->getNumRules(); i++)
+   {
+     if (model->getRule(i)->isAlgebraic()) alg.push_back((int)i);
+   }
+   return alg;
+}
+
+// Positions *within @p states* of the states whose value an algebraic rule
+// fixes, rather than integration.
+//
+// SBML does not record which variable a given algebraic rule determines, and
+// libSBML exposes no matching for it.  What can be worked out is the candidate
+// set: a species that is not constant and carries neither a rate rule nor an
+// assignment rule is undetermined, and the specification requires the
+// algebraic rules to determine exactly the undetermined variables.  So when
+// the two counts agree the system is square -- see daeIsSquare() -- and which
+// rule lands in which of these rows does not matter, because the solver treats
+// the residuals as one simultaneous system.
+static std::vector<int> algebraicStates(Model* model, const std::vector<int>& states)
+{
+   std::vector<int> alg;
+   for (size_t i = 0; i < states.size(); i++)
+   {
+     const Species* s = model->getSpecies(states[i]);
+     if (!s->getConstant() && rateRuleForSpecies(model, s->getIdAttribute()) < 0)
+     {
+       alg.push_back((int)i);
+     }
+   }
+   return alg;
+}
+
+// A DAE is only emitted when there is one algebraic rule per undetermined
+// state.  Anything else means the model is over- or under-determined, or that
+// the candidate set has been misread, and guessing there would produce a
+// solver failure with no obvious cause.
+static bool daeIsSquare(const std::vector<int>& algRules,
+                        const std::vector<int>& algStates)
+{
+   return !algRules.empty() && algRules.size() == algStates.size();
+}
+
+// Warning text for a target that cannot express algebraic rules at all, and
+// for a model whose algebraic rules do not form a square system.
+static void warnAlgebraicUnsolved(const std::string& target, size_t nRules,
+                                  bool square)
+{
+   std::string msg = target + " cannot enforce the " + std::to_string(nRules) +
+                     " algebraic rule(s) in this model";
+   if (!square)
+   {
+     msg = "The algebraic rules in this model do not determine exactly the "
+           "undetermined variables, so no DAE was written for " + target;
+   }
+   Rcpp::warning(msg + ". They are written out as comments, and the species "
+                 "they constrain are left at a zero derivative, so the "
+                 "generated code runs but does not honour the constraint.");
+}
+
 // write output ODEs for R
 int writeFileR(SBMLDocument* document, std::string outfilename)
 {
@@ -268,6 +331,11 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
 
    const std::vector<int> states = integratedSpecies(model);
    const int numStates = (int)states.size();
+
+   const std::vector<int> algRules  = algebraicRules(model);
+   const std::vector<int> algStates = algebraicStates(model, states);
+   const bool dae = daeIsSquare(algRules, algStates);
+   if (!algRules.empty() && !dae) warnAlgebraicUnsolved("deSolve", algRules.size(), false);
 
    // auto now = std::chrono::system_clock::now();
    out << "## Automatically generated model file by r2sbml at " << endl;
@@ -356,8 +424,37 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
 
    out << endl;
 
+   if (dae){
+     // daspk needs y' at t = 0 to satisfy the residuals.  The differential
+     // rows are evaluated from the same expressions the residuals use; the
+     // algebraic rows are never read, so they stay 0.
+     out << "## Consistent initial derivatives for daspk.  The components for" << endl;
+     out << "## states fixed by an algebraic rule are not read." << endl;
+     out << "InitialDerivatives <- with(as.list(c(InitialAmounts, parameters)), c(" << endl;
+     for (int i = 0; i < numStates; i++){
+       const std::string id = model->getSpecies(states[i])->getIdAttribute();
+       int rule = rateRuleForSpecies(model, id);
+       out << "         " << id << " = "
+           << (rule >= 0 ? r2sbml::formulaToInfix(model->getRule(rule)->getMath()) : "0")
+           << (i + 1 < numStates ? "," : "") << endl;
+     }
+     out << "                    ))" << endl << endl;
+
+     out << "## Solve with:" << endl;
+     out << "##   solution <- daspk(y = InitialAmounts, dy = InitialDerivatives," << endl;
+     out << "##                     times = seq(0, 10, by = 0.1)," << endl;
+     out << "##                     res = massBalances, parms = parameters)" << endl;
+     out << endl;
+   }
+
    out << "## Mass-Balances (ODEs)" << endl;
-   out << "massBalances <- function(time, states, params){" << endl << endl;
+   if (dae){
+     out << "## This model carries algebraic rules, so it is a DAE: massBalances is" << endl;
+     out << "## a residual function for daspk, not a derivative function for ode." << endl;
+     out << "massBalances <- function(time, states, derivs, params){" << endl << endl;
+   } else {
+     out << "massBalances <- function(time, states, params){" << endl << endl;
+   }
 
    out << "   ## Get States Names " << endl;
    for (int i = 0; i < numStates; i++){
@@ -385,6 +482,45 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    }
 
    out << endl;
+   if (dae){
+     // One residual per state: dy - f for an integrated state, the rule itself
+     // for a state an algebraic rule fixes.  Which rule fills which algebraic
+     // row is arbitrary; daspk solves the residuals simultaneously.
+     out << "   ## Residuals: 0 = d<state>/dt - f() for an integrated state," << endl;
+     out << "   ##            0 = g()               for one fixed by an algebraic rule" << endl;
+     size_t nextAlgRule = 0;
+     for (int i = 0; i < numStates; i++){
+       const std::string id = model->getSpecies(states[i])->getIdAttribute();
+       int rule = rateRuleForSpecies(model, id);
+       if (rule >= 0){
+         out << "   res_" << id << " = derivs[[\"" << id << "\"]] - ("
+             << r2sbml::formulaToInfix(model->getRule(rule)->getMath()) << ")" << endl;
+       } else if (nextAlgRule < algRules.size() &&
+                  std::find(algStates.begin(), algStates.end(), i) != algStates.end()){
+         const Rule* r = model->getRule(algRules[nextAlgRule++]);
+         out << "   res_" << id << " = "
+             << r2sbml::formulaToInfix(r->getMath())
+             << "  ## algebraic rule fixing " << id << endl;
+       } else {
+         out << "   res_" << id << " = derivs[[\"" << id << "\"]]  ## " << id
+             << " is constant" << endl;
+       }
+     }
+
+     out << endl;
+     out << "   ## Make a list of Residuals" << endl;
+     out << "   Residuals <- c(" << endl;
+     for (int i = 0; i < numStates; i++){
+        out << "     res_" << model->getSpecies(states[i])->getIdAttribute()
+            << (i + 1 < numStates ? " ," : "") << endl;
+     }
+     out << "   )" << endl;
+     out << "   return(list(Residuals))" << endl;
+     out << endl << endl << "}" << endl << endl;
+     out.close();
+     return 0;
+   }
+
    out << "   ## Mass Balances" << endl;
    for (int i = 0; i < numStates; i++){
      const std::string id = model->getSpecies(states[i])->getIdAttribute();
@@ -401,7 +537,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    for (int i = 0; i < numODEs; i++){
      const Rule* r = model->getRule(i);
      if (r->isAlgebraic()){
-       out << "   ## Algebraic rule, not expressible as an explicit ODE: 0 = "
+       out << "   ## Algebraic rule, NOT enforced here: 0 = "
            << r2sbml::formulaToInfix(r->getMath()) << endl;
      }
    }
@@ -490,13 +626,13 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
      }
    }
 
-   for (int i = 0; i < numODEs; i++){
-     const Rule* r = model->getRule(i);
-     if (r->isAlgebraic()){
-       out << "// Algebraic rule, not expressible as an explicit ODE: 0 = "
-           << r2sbml::formulaToInfixC(r->getMath()) << "\n";
-     }
+   // mrgsolve integrates ODEs only, so a constraint can only be recorded.
+   const std::vector<int> algRules = algebraicRules(model);
+   for (size_t i = 0; i < algRules.size(); i++){
+     out << "// Algebraic rule, NOT enforced here: 0 = "
+         << r2sbml::formulaToInfixC(model->getRule(algRules[i])->getMath()) << "\n";
    }
+   if (!algRules.empty()) warnAlgebraicUnsolved("mrgsolve", algRules.size(), true);
 
    out.close();
    return 0;
@@ -558,13 +694,13 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
      }
    }
 
-   for (int i = 0; i < numODEs; i++){
-     const Rule* r = model->getRule(i);
-     if (r->isAlgebraic()){
-       out << "    # Algebraic rule, not expressible as an explicit ODE: 0 = "
-           << r2sbml::formulaToInfix(r->getMath()) << "\n";
-     }
+   // rxode2 integrates ODEs only, so a constraint can only be recorded.
+   const std::vector<int> algRules = algebraicRules(model);
+   for (size_t i = 0; i < algRules.size(); i++){
+     out << "    # Algebraic rule, NOT enforced here: 0 = "
+         << r2sbml::formulaToInfix(model->getRule(algRules[i])->getMath()) << "\n";
    }
+   if (!algRules.empty()) warnAlgebraicUnsolved("rxode2", algRules.size(), true);
 
    out << "  })\n";
    out << "}\n";
@@ -607,6 +743,11 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    const std::string fname = matlabFunctionName(outfilename);
    const std::vector<int> states = integratedSpecies(model);
    const int numStates = (int)states.size();
+
+   const std::vector<int> algRules  = algebraicRules(model);
+   const std::vector<int> algStates = algebraicStates(model, states);
+   const bool dae = daeIsSquare(algRules, algStates);
+   if (!algRules.empty() && !dae) warnAlgebraicUnsolved("MATLAB", algRules.size(), false);
 
    int numParams = model->getNumParameters();
    int numCmt    = model->getNumCompartments();
@@ -658,7 +799,22 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    out << "        ];\n";
    out << "    end\n\n";
 
-   out << "    [t, y] = ode15s(@massBalances, tspan, y0);\n\n";
+   if (dae){
+     // M*y' = f(t, y) with a zero row wherever an algebraic rule fixes the
+     // state: that row reads 0 = f_i, which is the constraint.  ode15s solves
+     // index-1 systems in this form.
+     out << "    % Mass matrix: a zero row marks a state fixed by an algebraic\n";
+     out << "    % rule, so that row reads 0 = residual rather than dy/dt = f.\n";
+     out << "    M = eye(" << numStates << ");\n";
+     for (size_t i = 0; i < algStates.size(); i++){
+       out << "    M(" << algStates[i] + 1 << ", " << algStates[i] + 1 << ") = 0; % "
+           << model->getSpecies(states[algStates[i]])->getIdAttribute() << "\n";
+     }
+     out << "    opts = odeset('Mass', M, 'MassSingular', 'yes');\n\n";
+     out << "    [t, y] = ode15s(@massBalances, tspan, y0, opts);\n\n";
+   } else {
+     out << "    [t, y] = ode15s(@massBalances, tspan, y0);\n\n";
+   }
 
    // Nested, so the compartment and parameter values above stay in scope.
    out << "    function dydt = massBalances(time, states)\n\n";
@@ -685,6 +841,7 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
 
    out << "        % Mass balances\n";
    out << "        dydt = zeros(" << numStates << ", 1);\n";
+   size_t nextAlgRule = 0;
    for (int i = 0; i < numStates; i++){
      const std::string id = model->getSpecies(states[i])->getIdAttribute();
      int rule = rateRuleForSpecies(model, id);
@@ -692,17 +849,26 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
        out << "        dydt(" << i + 1 << ") = "
            << r2sbml::formulaToInfixMatlab(model->getRule(rule)->getMath())
            << "; % " << id << "\n";
+     } else if (dae && nextAlgRule < algRules.size() &&
+                std::find(algStates.begin(), algStates.end(), i) != algStates.end()){
+       // Paired with a zero row of M, so this is a constraint, not a rate.
+       const Rule* r = model->getRule(algRules[nextAlgRule++]);
+       out << "        dydt(" << i + 1 << ") = "
+           << r2sbml::formulaToInfixMatlab(r->getMath())
+           << "; % algebraic rule fixing " << id << "\n";
      } else {
        out << "        % dydt(" << i + 1 << ") stays 0: " << id
            << " has no rate rule and is held constant\n";
      }
    }
 
-   for (int i = 0; i < numRules; i++){
-     const Rule* r = model->getRule(i);
-     if (r->isAlgebraic()){
-       out << "        % Algebraic rule, not expressible as an explicit ODE: 0 = "
-           << r2sbml::formulaToInfixMatlab(r->getMath()) << "\n";
+   if (!dae){
+     for (int i = 0; i < numRules; i++){
+       const Rule* r = model->getRule(i);
+       if (r->isAlgebraic()){
+         out << "        % Algebraic rule, NOT enforced here: 0 = "
+             << r2sbml::formulaToInfixMatlab(r->getMath()) << "\n";
+       }
      }
    }
 
@@ -724,13 +890,24 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    const std::vector<int> states = integratedSpecies(model);
    const int numStates = (int)states.size();
 
+   const std::vector<int> algRules  = algebraicRules(model);
+   const std::vector<int> algStates = algebraicStates(model, states);
+   const bool dae = daeIsSquare(algRules, algStates);
+   if (!algRules.empty() && !dae) warnAlgebraicUnsolved("Julia", algRules.size(), false);
+
    int numParams = model->getNumParameters();
    int numCmt    = model->getNumCompartments();
    int numRules  = model->getNumRules();
 
    out << "# Automatically generated Julia model file by r2sbml\n";
    out << "#\n";
-   out << "# Solve with:  using DifferentialEquations; sol = solve(prob)\n";
+   // A singular mass matrix needs a solver that can take one; the default
+   // choice picked by solve(prob) cannot.
+   if (dae){
+     out << "# Solve with:  using DifferentialEquations; sol = solve(prob, Rodas5())\n";
+   } else {
+     out << "# Solve with:  using DifferentialEquations; sol = solve(prob)\n";
+   }
    out << "# Elements of u are, in order: ";
    for (int i = 0; i < numStates; i++){
      out << model->getSpecies(states[i])->getIdAttribute()
@@ -784,6 +961,7 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    if (anyAssignment) out << "\n";
 
    out << "    # Mass balances\n";
+   size_t nextAlgRule = 0;
    for (int i = 0; i < numStates; i++){
      const std::string id = model->getSpecies(states[i])->getIdAttribute();
      int rule = rateRuleForSpecies(model, id);
@@ -791,17 +969,26 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
        out << "    du[" << i + 1 << "] = "
            << r2sbml::formulaToInfix(model->getRule(rule)->getMath())
            << "  # " << id << "\n";
+     } else if (dae && nextAlgRule < algRules.size() &&
+                std::find(algStates.begin(), algStates.end(), i) != algStates.end()){
+       // Paired with a zero row of M, so this row reads 0 = residual.
+       const Rule* r = model->getRule(algRules[nextAlgRule++]);
+       out << "    du[" << i + 1 << "] = "
+           << r2sbml::formulaToInfix(r->getMath())
+           << "  # algebraic rule fixing " << id << "\n";
      } else {
        out << "    du[" << i + 1 << "] = 0.0  # " << id
            << " has no rate rule and is held constant\n";
      }
    }
 
-   for (int i = 0; i < numRules; i++){
-     const Rule* r = model->getRule(i);
-     if (r->isAlgebraic()){
-       out << "    # Algebraic rule, not expressible as an explicit ODE: 0 = "
-           << r2sbml::formulaToInfix(r->getMath()) << "\n";
+   if (!dae){
+     for (int i = 0; i < numRules; i++){
+       const Rule* r = model->getRule(i);
+       if (r->isAlgebraic()){
+         out << "    # Algebraic rule, NOT enforced here: 0 = "
+             << r2sbml::formulaToInfix(r->getMath()) << "\n";
+       }
      }
    }
 
@@ -825,7 +1012,21 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    out << "]\n";
 
    out << "tspan = (0.0, 10.0)\n";
-   out << "prob = ODEProblem(massbalances!, u0, tspan, p)\n";
+   if (dae){
+     out << "\n# Mass matrix: a zero row marks a state fixed by an algebraic rule,\n";
+     out << "# so that row reads 0 = residual rather than du = f.\n";
+     out << "M = zeros(" << numStates << ", " << numStates << ")\n";
+     for (int i = 0; i < numStates; i++){
+       if (std::find(algStates.begin(), algStates.end(), i) == algStates.end()){
+         out << "M[" << i + 1 << ", " << i + 1 << "] = 1.0  # "
+             << model->getSpecies(states[i])->getIdAttribute() << "\n";
+       }
+     }
+     out << "\nmassbalances = ODEFunction(massbalances!; mass_matrix = M)\n";
+     out << "prob = ODEProblem(massbalances, u0, tspan, p)\n";
+   } else {
+     out << "prob = ODEProblem(massbalances!, u0, tspan, p)\n";
+   }
 
    out.close();
    return 0;
@@ -940,13 +1141,13 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
      }
    }
 
-   for (int i = 0; i < numRules; i++){
-     const Rule* r = model->getRule(i);
-     if (r->isAlgebraic()){
-       out << "# Algebraic rule, not expressible as an explicit ODE: 0 = "
-           << r2sbml::formulaToUbiquity(r->getMath()) << "\n";
-     }
+   // ubiquity integrates ODEs only, so a constraint can only be recorded.
+   const std::vector<int> algRules = algebraicRules(model);
+   for (size_t i = 0; i < algRules.size(); i++){
+     out << "# Algebraic rule, NOT enforced here: 0 = "
+         << r2sbml::formulaToUbiquity(model->getRule(algRules[i])->getMath()) << "\n";
    }
+   if (!algRules.empty()) warnAlgebraicUnsolved("ubiquity", algRules.size(), true);
 
    out << "\n";
    out << "# Outputs\n";

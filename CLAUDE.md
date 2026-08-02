@@ -100,9 +100,24 @@ Use `speciesInitialValue()` rather than `Species::getInitialAmount()` for a star
 
 - A species that is the variable of an **assignment rule** is not integrated. Its value follows from the rule at every time point, so it is emitted as a local inside the RHS and given no slot. Handing it one leaves the solver carrying a copy that never updates while the rule recomputes a different value beside it.
 - A species with **no rate rule** — a boundary condition, or one in no reaction — keeps its slot with a zero derivative, so it still appears in the solution.
-- **Algebraic rules** cannot be written as explicit ODEs and are emitted as comments.
+- A species an **algebraic rule** fixes keeps its slot too, but the row becomes a constraint instead of a derivative. See below.
 
 Iterating over rules instead is the bug this avoids, and `writeFileR`, `writeFileMrgsolve` and `writeFileNlmixr2` all had it: they emitted one derivative per *rule* while listing states per *species*. On `sbmlmutlicompartment.xml` (4 species, 3 rate rules) the generated R referenced an undefined `dX_dt`; on `sbmlalgebraicrules.xml` an algebraic rule has no variable at all, so the same loop produced `d_dt = ...`. Both files are now covered by tests that evaluate the generated RHS, so a regression fails the suite rather than the user's solver.
+
+### Algebraic rules become a DAE
+
+An algebraic rule is a constraint `0 = f(...)`, not a derivative, so a model carrying one is a DAE. deSolve, MATLAB and Julia can each solve one; mrgsolve, rxode2 and ubiquity integrate ODEs only and emit the rule as a comment plus an R warning — the warning matters because the alternative is a solver that runs and quietly returns a trajectory ignoring the constraint.
+
+Which states are constrained is the awkward part. **SBML does not record which variable a given algebraic rule determines, and libSBML exposes no matching for it.** What `algebraicStates()` can work out is the candidate set: a species that is not constant and has neither a rate rule nor an assignment rule is undetermined, and the specification requires the algebraic rules to determine exactly those. `daeIsSquare()` then insists the two counts agree — one rule per undetermined state — and anything else falls back to comments and a warning rather than guessing. On `sbmlalgebraicrules.xml` that gives `E` and `ES` (both `boundaryCondition="true"`, `constant="false"`) against two rules; `E_total` is `constant="true"` and so is not a candidate.
+
+Which rule lands in which constrained row does **not** matter. The residuals are one simultaneous system, so permuting its components leaves the solution unchanged — only the Jacobian's sparsity shifts. What does matter is *which states* get a constraint row, and that is what the candidate set decides.
+
+The three DAE targets spell it differently:
+
+- **deSolve** switches shape entirely: `massBalances` becomes a residual function of `(time, states, derivs, params)` for `daspk`, not a derivative function of `(time, states, params)` for `ode`. Integrated rows read `derivs[["S"]] - (f)`, constrained rows the rule itself. `daspk` also needs y' at t=0 consistent with the residuals, so the writer emits `InitialDerivatives` by evaluating the same rate-rule expressions inside `with(as.list(c(InitialAmounts, parameters)), ...)` — compartment volumes are file-level globals and resolve through `with`'s enclosing frame.
+- **MATLAB and Julia** keep the derivative-function shape and use a singular mass matrix instead: `M*y' = f`, with a zero row wherever a constraint sits, so that row reads `0 = f_i`. MATLAB needs `odeset('Mass', M, 'MassSingular', 'yes')`; Julia needs `ODEFunction(...; mass_matrix = M)` *and* a solver that accepts one, so the header says `solve(prob, Rodas5())` rather than the bare `solve(prob)` — the default solver choice will not take a mass matrix.
+
+`sbmlalgebraicrules.xml` is a quasi-steady-state enzyme model, and it has a property worth keeping in the test: `S + P` is conserved *only* when `k1_on*E*S == (k1_off + k2)*ES` holds, because that is exactly what makes `dS/dt + dP/dt` cancel. So checking `S + P == 1` along the trajectory tests that the constraint is genuinely being enforced, not merely written down. Note that `S + ES + P` is *not* conserved here — `E` and `ES` are boundary species, exempt from reaction-driven mass balance.
 
 ### The MATLAB and Julia writers
 

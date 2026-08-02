@@ -17,12 +17,16 @@ test_that("Conversion works on SBML test suite cases", {
         expect_invisible(convertReactions(xml_file, out_r, format = "R"))
         expect_true(file.exists(out_r))
 
-        # Test mrgsolve
-        expect_invisible(convertReactions(xml_file, out_mrg, format = "mrgsolve"))
+        # Test mrgsolve.  These three targets integrate ODEs only, so a model
+        # with algebraic rules warns by design; the warning is asserted in
+        # test-convert.R rather than here.
+        suppressWarnings(
+            expect_invisible(convertReactions(xml_file, out_mrg, format = "mrgsolve")))
         expect_true(file.exists(out_mrg))
 
         # Test nlmixr2/rxode
-        expect_invisible(convertReactions(xml_file, out_rx, format = "nlmixr2"))
+        suppressWarnings(
+            expect_invisible(convertReactions(xml_file, out_rx, format = "nlmixr2")))
         expect_true(file.exists(out_rx))
 
         # Test MATLAB
@@ -34,7 +38,7 @@ test_that("Conversion works on SBML test suite cases", {
         expect_true(file.exists(out_jl))
 
         # Test ubiquity.  Models using constructs ubiquity cannot express warn
-        # by design, so the warning is suppressed rather than asserted here.
+        # by design, as above.
         suppressWarnings(
             expect_invisible(convertReactions(xml_file, out_ub, format = "ubiquity")))
         expect_true(file.exists(out_ub))

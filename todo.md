@@ -21,14 +21,29 @@ condition needs dividing by the compartment volume.
 
 ## Unsupported SBML constructs
 
-### Algebraic rules
+### Algebraic rules in the three ODE-only targets
 
-Every writer now emits them as a comment rather than a malformed derivative,
-so the generated code runs — but the constraint is not enforced. On
-`inst/examples/sbmlalgebraicrules.xml` the species it determines are left with
-a zero derivative, which is wrong rather than merely incomplete. Solving these
-properly needs a DAE integrator (`deSolve::daspk`, MATLAB `ode15i`, Julia's
-`DAEProblem`); ubiquity has no equivalent at all.
+deSolve, MATLAB and Julia now emit a DAE and enforce the constraint. mrgsolve,
+rxode2 and ubiquity integrate ODEs only, so they still write the rule out as a
+comment, leave the species it constrains at a zero derivative, and warn. There
+is no fix short of solving the constraint symbolically for its variable and
+emitting that as an assignment, which only works for the cases where such a
+solution exists and is unique.
+
+Two related gaps in what *is* implemented:
+
+- The DAE is only emitted when the number of algebraic rules equals the number
+  of undetermined states (`daeIsSquare()`). SBML records no matching between
+  rules and the variables they determine, and libSBML exposes none, so a model
+  where the counts differ falls back to comments and a warning. A real
+  bipartite matching over the variables each rule references would widen this.
+- Consistent initial conditions are assumed, not checked.
+  `inst/examples/sbmlalgebraicrules.xml` happens to start on the constraint
+  manifold. A model that does not will have `daspk` fail at t = 0, and
+  `ode15s` reject the initial state; neither error mentions the SBML model.
+  `daspk`'s `estini` can estimate them, but it requires the algebraic
+  equations to come last in the residual vector, which the current row order
+  does not guarantee.
 
 ### `delay`
 

@@ -119,19 +119,30 @@ test_that("every state gets a derivative and every derivative a state", {
         # an algebraic rule has no variable, so it must not become `d_dt = ...`
         expect_false(any(grepl("^\\s*d_dt\\s*=", lines)))
 
-        defined  <- sub("^\\s*d(.*)_dt\\s*=.*$", "\\1",
-                        grep("^\\s*d.*_dt\\s*=", lines, value = TRUE))
-        returned <- sub("^\\s*d(.*)_dt\\s*,?\\s*$", "\\1",
-                        grep("^\\s*d.*_dt\\s*,?\\s*$", lines, value = TRUE))
-        expect_setequal(defined, returned)
-
-        # and the RHS evaluates: an undefined derivative errors here
         env <- new.env()
         env$library <- function(...) invisible(NULL)   # deSolve need not be installed
         source(out, local = env)
-        d <- env$massBalances(0, env$InitialAmounts, env$parameters)[[1]]
-        expect_length(d, length(env$InitialAmounts))
-        expect_false(any(is.na(d)))
+
+        # A model with algebraic rules becomes a daspk residual function of
+        # (time, states, derivs, params); everything else stays an ode()
+        # derivative function.  Either way one equation per state, and it has
+        # to evaluate -- an undefined derivative errors right here.
+        v <- if (length(formals(env$massBalances)) == 4L) {
+            env$massBalances(0, env$InitialAmounts,
+                             env$InitialDerivatives, env$parameters)[[1]]
+        } else {
+            env$massBalances(0, env$InitialAmounts, env$parameters)[[1]]
+        }
+        expect_length(v, length(env$InitialAmounts))
+        expect_false(any(is.na(v)))
+
+        # a definition carries an `=`, an entry in the returned vector does not
+        sym      <- "(res_[A-Za-z0-9_]+|d[A-Za-z0-9_]+_dt)"
+        defined  <- sub(paste0("^\\s*", sym, "\\s*=.*$"), "\\1",
+                        grep(paste0("^\\s*", sym, "\\s*="), lines, value = TRUE))
+        returned <- sub(paste0("^\\s*", sym, "\\s*,?\\s*$"), "\\1",
+                        grep(paste0("^\\s*", sym, "\\s*,?\\s*$"), lines, value = TRUE))
+        expect_setequal(defined, returned)
     }
 })
 
@@ -177,4 +188,86 @@ test_that("assignment-rule species are locals, not states", {
     lines_rx <- readLines(out_rx)
     expect_true(any(grepl("^\\s*S1 <- ", lines_rx)))
     expect_false(any(grepl("d/dt\\(S1\\)", lines_rx)))
+})
+
+test_that("algebraic rules become a DAE for the targets that can solve one", {
+    sbml_file <- system.file("examples", "sbmlalgebraicrules.xml", package = "r2sbml")
+    if (sbml_file == "") sbml_file <- "../../inst/examples/sbmlalgebraicrules.xml"
+
+    # E and ES are non-constant with no rate rule, and there are exactly two
+    # algebraic rules, so the system is square: 5 states, 2 of them algebraic.
+    out_r <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(sbml_file, out_r, format = "R"))
+    lines <- readLines(out_r)
+    # a residual function for daspk, not a derivative function for ode
+    expect_true(any(grepl("massBalances <- function\\(time, states, derivs, params\\)", lines)))
+    expect_true(any(grepl("^\\s*res_E = k1_on \\* E \\* S - \\(k1_off \\+ k2\\) \\* ES", lines)))
+    expect_true(any(grepl("^\\s*res_ES = E \\+ ES - E_total", lines)))
+    # an integrated state keeps dy - f(), so the rate rules are still there
+    expect_true(any(grepl("^\\s*res_S = derivs\\[\\[\"S\"\\]\\] - \\(", lines)))
+    expect_true(any(grepl("^InitialDerivatives <- with\\(", lines)))
+
+    # MATLAB: singular mass matrix, zero row for each algebraically fixed state
+    out_m <- tempfile(fileext = ".m")
+    expect_no_warning(convertReactions(sbml_file, out_m, format = "MATLAB"))
+    lines_m <- readLines(out_m)
+    expect_true(any(grepl("^\\s*M = eye\\(5\\);", lines_m)))
+    expect_true(any(grepl("^\\s*M\\(1, 1\\) = 0;", lines_m)))   # E
+    expect_true(any(grepl("^\\s*M\\(3, 3\\) = 0;", lines_m)))   # ES
+    expect_true(any(grepl("'MassSingular', 'yes'", lines_m)))
+    expect_true(any(grepl("ode15s\\(@massBalances, tspan, y0, opts\\)", lines_m)))
+
+    # Julia: mass matrix on the ODEFunction, and a solver that accepts one
+    out_jl <- tempfile(fileext = ".jl")
+    expect_no_warning(convertReactions(sbml_file, out_jl, format = "Julia"))
+    lines_jl <- readLines(out_jl)
+    expect_true(any(grepl("^M = zeros\\(5, 5\\)", lines_jl)))
+    expect_true(any(grepl("mass_matrix = M", lines_jl)))
+    expect_true(any(grepl("Rodas5\\(\\)", lines_jl)))
+    expect_false(any(grepl("^M\\[1, 1\\]", lines_jl)))          # E is algebraic
+    expect_true(any(grepl("^M\\[2, 2\\] = 1.0", lines_jl)))     # S is integrated
+})
+
+test_that("targets that cannot express a DAE say so", {
+    sbml_file <- system.file("examples", "sbmlalgebraicrules.xml", package = "r2sbml")
+    if (sbml_file == "") sbml_file <- "../../inst/examples/sbmlalgebraicrules.xml"
+
+    for (fmt in c("mrgsolve", "nlmixr2", "ubiquity")) {
+        expect_warning(convertReactions(sbml_file, tempfile(), format = fmt),
+                       "algebraic rule")
+    }
+
+    # and a model without algebraic rules must not warn in any target
+    simple <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+    if (simple == "") simple <- "../../inst/examples/sbmlsimple.xml"
+    for (fmt in c("R", "mrgsolve", "nlmixr2", "MATLAB", "Julia", "ubiquity")) {
+        expect_no_warning(convertReactions(simple, tempfile(), format = fmt))
+    }
+})
+
+test_that("the generated DAE solves and honours its constraints", {
+    skip_if_not_installed("deSolve")
+
+    sbml_file <- system.file("examples", "sbmlalgebraicrules.xml", package = "r2sbml")
+    if (sbml_file == "") sbml_file <- "../../inst/examples/sbmlalgebraicrules.xml"
+
+    out <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(sbml_file, out, format = "R"))
+
+    env <- new.env()
+    source(out, local = env)
+    sol <- deSolve::daspk(y = env$InitialAmounts, dy = env$InitialDerivatives,
+                          times = seq(0, 10, by = 1), res = env$massBalances,
+                          parms = env$parameters)
+    d <- as.data.frame(sol)
+    expect_equal(nrow(d), 11L)
+    expect_false(any(is.na(d)))
+
+    # both algebraic rules hold along the whole trajectory
+    expect_lt(max(abs(d$E + d$ES - d$E_total)), 1e-6)
+    expect_lt(max(abs(1 * d$E * d$S - (0.5 + 0.5) * d$ES)), 1e-5)
+
+    # S + P is conserved only *because* the first constraint is enforced:
+    # dS/dt + dP/dt cancels exactly when k1_on*E*S == (k1_off + k2)*ES
+    expect_lt(max(abs(d$S + d$P - 1)), 1e-5)
 })

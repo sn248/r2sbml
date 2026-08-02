@@ -126,7 +126,7 @@ Each target gets its own spelling of the mathematics: `a^b` for R, rxode2, MATLA
 ## Limitations
 
 - **Delays are not translated.** SBML's `delay` csymbol passes through unchanged, so a model using it will not run in any target. `inst/examples/sbmldelay.xml` is the example that shows this; the ubiquity writer warns about it explicitly, the others do not.
-- **Algebraic rules** cannot be written as explicit ODEs. Every writer emits them as a comment and carries on, so the generated code runs but does not enforce the constraint — for `inst/examples/sbmlalgebraicrules.xml` that leaves the species it constrains held constant.
+- **Algebraic rules** make the model a DAE. The deSolve, MATLAB and Julia writers emit one — a `daspk` residual function for deSolve, a singular mass matrix for the other two — so the constraint is enforced. mrgsolve, rxode2 and ubiquity integrate ODEs only: there the rule is written out as a comment, the species it constrains is left at a zero derivative, and `convertReactions()` raises a warning saying so. A model whose algebraic rules do not determine exactly the undetermined variables also falls back to comments, with a warning.
 - **Species without a rate rule** — boundary conditions, or species in no reaction — keep their place in the state vector with a zero derivative, so they still appear in the solution.
 - **Events are not exported.** They can be inspected with `getEventMath()` but appear in generated code only as a count in the header comment.
 - Generated code is a starting point, not a finished script: check initial conditions, units and the time span before trusting a simulation.
