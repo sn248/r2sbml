@@ -1,0 +1,27 @@
+<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
+<url><loc>https://sn248.github.io/r2sbml/404.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/articles/index.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/articles/limitations.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/articles/r2sbml.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/authors.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/index.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/convertReactions.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/echoSBML.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/getCmtNames.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/getCmtSizes.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/getEventMath.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/getFunctionDefinition.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/getModel.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/getNumSpecies.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/getParameterTable.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/getReactionMath.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/getReactionTable.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/getRuleMath.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/getSpeciesIC.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/getSpeciesNames.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/getSpeciesTable.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/index.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/printSBML.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/todo.html</loc></url>
+</urlset>
+
