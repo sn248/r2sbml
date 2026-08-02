@@ -72,13 +72,6 @@
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="query-function-quirks">Query-function quirks<a class="anchor" aria-label="anchor" href="#query-function-quirks"></a></h2>
-<ul><li>
-<strong>Empty-component errors carry no useful message.</strong> The explanatory line goes to <code>Rcout</code> and the condition message is only <code>"Stopping!"</code>, so a caller cannot tell “no rules” from “no parameters” without capturing stdout.</li>
-<li>
-<strong><code><a href="reference/getModel.html">getModel()</a></code> and <code><a href="reference/convertReactions.html">convertReactions()</a></code> disagree on what counts as fatal.</strong> <code><a href="reference/getModel.html">getModel()</a></code> stops when <code>getNumErrors()</code> is non-zero — every diagnostic, whatever its severity — while <code><a href="reference/convertReactions.html">convertReactions()</a></code> stops only on <code>getNumErrors(LIBSBML_SEV_ERROR)</code>. After a bare <code>readSBMLFromFile()</code> the two usually coincide, since the reader mostly emits severity-error diagnostics, so no example distinguishes them. A file that read with only a warning would be rejected by <code><a href="reference/getModel.html">getModel()</a></code> and accepted by <code><a href="reference/convertReactions.html">convertReactions()</a></code>.</li>
-</ul></div>
-<div class="section level2">
 <h2 id="not-action-items-recorded-so-they-are-not-rediscovered">Not action items, recorded so they are not rediscovered<a class="anchor" aria-label="anchor" href="#not-action-items-recorded-so-they-are-not-rediscovered"></a></h2>
 <ul><li>
 <strong>libSBML 5.21.1</strong> exists but is tagged prerelease and its only change is a fix to the Python bindings in the pip package. It touches none of the eight files patched by <code>tools/cmake_call.sh</code>, so upgrading is safe but pointless. Bumping the version means regenerating the bundled archive with <code>tools/strip_libsbml_tarball.sh</code> <em>and</em> re-checking every patch, since one that no longer matches fails silently.</li>

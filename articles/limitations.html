@@ -314,7 +314,7 @@ The constraint is genuinely enforced:</p>
 <span>                                  times <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span>, by <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>, res <span class="op">=</span> <span class="va">env</span><span class="op">$</span><span class="va">massBalances</span>,</span>
 <span>                                  parms <span class="op">=</span> <span class="va">env</span><span class="op">$</span><span class="va">parameters</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">E</span> <span class="op">+</span> <span class="va">d</span><span class="op">$</span><span class="va">ES</span> <span class="op">-</span> <span class="va">d</span><span class="op">$</span><span class="va">E_total</span><span class="op">)</span><span class="op">)</span>    <span class="co"># constraint residual, ~1e-13</span></span>
-<span><span class="co">#&gt; [1] 1.511014e-13</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 8.104628e-14</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="where-it-is-not">Where it is not<a class="anchor" aria-label="anchor" href="#where-it-is-not"></a>
@@ -591,17 +591,16 @@ and <code>Name</code> in separate columns, if you need to know whether a
 label was actually present.</p>
 </div>
 <div class="section level3">
-<h3 id="absent-components-raise-an-error-whose-message-is-uninformative">Absent components raise an error whose message is uninformative<a class="anchor" aria-label="anchor" href="#absent-components-raise-an-error-whose-message-is-uninformative"></a>
+<h3 id="absent-components-raise-an-error">Absent components raise an error<a class="anchor" aria-label="anchor" href="#absent-components-raise-an-error"></a>
 </h3>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/getRuleMath.html">getRuleMath</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span>     <span class="co"># sbmlsimple.xml has no rules</span></span>
-<span><span class="co">#&gt; No Rules present in the model.</span></span>
 <span><span class="co">#&gt; <span style="color: #BBBB00; font-weight: bold;">Error</span><span style="font-weight: bold;">:</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> Stopping!</span></span></code></pre></div>
-<p>The useful line goes to the console; the condition message is only
-<code>"Stopping!"</code>. Code that catches the error cannot distinguish
-“no rules” from “no parameters” from any other empty-component case
-without also capturing stdout.</p>
+<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> No Rules present in the model.</span></span></code></pre></div>
+<p>This is by design: a query for a component the model does not have is
+an error, not a zero-row result. The message names the component, so a
+caller catching it can tell “no rules” from “no parameters” without
+capturing stdout.</p>
 </div>
 </div>
 <div class="section level2">

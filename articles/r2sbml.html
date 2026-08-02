@@ -124,10 +124,12 @@ pointer:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">class</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "externalptr"</span></span></code></pre></div>
 <p><code><a href="../reference/getModel.html">getModel()</a></code> prints a short header as a side effect — the
-file it read, the number of diagnostics libSBML reported, and the
-Level/Version of the document. If there were any, it prints them and
-stops with <code>"Stopping!"</code> rather than handing back a pointer
-you cannot trust.</p>
+file it read, how many SBML errors it found, and the Level/Version of
+the document. Errors are fatal: it prints them and stops, naming the
+file, rather than handing back a pointer you cannot trust. Warnings and
+informational diagnostics are not fatal — they are reported as an R
+warning and the model still loads, which is the same rule
+<code><a href="../reference/convertReactions.html">convertReactions()</a></code> applies.</p>
 <p>Reading is not validation. libSBML reports parse-level and structural
 problems as it reads, but <code><a href="../reference/getModel.html">getModel()</a></code> does not run a
 consistency check, so a file that loads cleanly can still be
@@ -284,13 +286,10 @@ does not return a zero-row data frame or a zero-length vector:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># sbmlsimple.xml has no rules at all</span></span>
 <span><span class="fu"><a href="../reference/getRuleMath.html">getRuleMath</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
-<span><span class="co">#&gt; No Rules present in the model.</span></span>
 <span><span class="co">#&gt; <span style="color: #BBBB00; font-weight: bold;">Error</span><span style="font-weight: bold;">:</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> Stopping!</span></span></code></pre></div>
-<p>Note where the information is: the explanatory line goes to the
-console, while the condition message itself is only
-<code>"Stopping!"</code>. If you are looping over many models, wrap the
-call:</p>
+<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> No Rules present in the model.</span></span></code></pre></div>
+<p>The error names the component that was missing, so a caller can tell
+the cases apart. If you are looping over many models, wrap the call:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">safely</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">expr</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="va">expr</span>, error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span><span class="va">files</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"examples"</span>, package <span class="op">=</span> <span class="st">"r2sbml"</span><span class="op">)</span>,</span>
@@ -613,7 +612,7 @@ and does not compile for doubles, so powers are written
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/readLines.html" class="external-link">readLines</a></span><span class="op">(</span><span class="va">out_m</span><span class="op">)</span>, sep <span class="op">=</span> <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; % Automatically generated MATLAB model file by r2sbml</span></span>
 <span><span class="co">#&gt; %</span></span>
-<span><span class="co">#&gt; % Save as file2a498a75f9a.m, then solve with:  [t, y] = file2a498a75f9a();</span></span>
+<span><span class="co">#&gt; % Save as file295f64e07ce6.m, then solve with:  [t, y] = file295f64e07ce6();</span></span>
 <span><span class="co">#&gt; % Columns of y are, in order: E, S, P, ES</span></span>
 <span><span class="co">#&gt; %</span></span>
 <span><span class="co">#&gt; % Model Summary</span></span>
@@ -623,7 +622,7 @@ and does not compile for doubles, so powers are written
 <span><span class="co">#&gt; %               rules: 4</span></span>
 <span><span class="co">#&gt; %              events: 0</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; function [t, y] = file2a498a75f9a(tspan, y0)</span></span>
+<span><span class="co">#&gt; function [t, y] = file295f64e07ce6(tspan, y0)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     if nargin &lt; 1 || isempty(tspan)</span></span>
 <span><span class="co">#&gt;         tspan = [0 10];</span></span>
@@ -878,7 +877,7 @@ consistent with the residuals:</p>
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">sol</span><span class="op">)</span></span>
 <span><span class="co"># both algebraic rules hold along the whole trajectory</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">E</span> <span class="op">+</span> <span class="va">d</span><span class="op">$</span><span class="va">ES</span> <span class="op">-</span> <span class="va">d</span><span class="op">$</span><span class="va">E_total</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 1.511014e-13</span></span>
+<span><span class="co">#&gt; [1] 8.104628e-14</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fl">1</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">E</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">S</span> <span class="op">-</span> <span class="op">(</span><span class="fl">0.5</span> <span class="op">+</span> <span class="fl">0.5</span><span class="op">)</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">ES</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 4.561434e-07</span></span></code></pre></div>
 <p>MATLAB and Julia keep the ordinary derivative shape and use a

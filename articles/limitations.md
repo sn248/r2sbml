@@ -92,7 +92,7 @@ d <- as.data.frame(deSolve::daspk(y = env$InitialAmounts, dy = env$InitialDeriva
                                   times = seq(0, 10, by = 2), res = env$massBalances,
                                   parms = env$parameters))
 max(abs(d$E + d$ES - d$E_total))    # constraint residual, ~1e-13
-#> [1] 1.511014e-13
+#> [1] 8.104628e-14
 ```
 
 ### Where it is not
@@ -396,19 +396,18 @@ None of the ten examples sets a `name`, so both come back as ids. Use
 which keeps `ID` and `Name` in separate columns, if you need to know
 whether a label was actually present.
 
-### Absent components raise an error whose message is uninformative
+### Absent components raise an error
 
 ``` r
 
 getRuleMath(model)     # sbmlsimple.xml has no rules
-#> No Rules present in the model.
 #> Error:
-#> ! Stopping!
+#> ! No Rules present in the model.
 ```
 
-The useful line goes to the console; the condition message is only
-`"Stopping!"`. Code that catches the error cannot distinguish “no rules”
-from “no parameters” from any other empty-component case without also
+This is by design: a query for a component the model does not have is an
+error, not a zero-row result. The message names the component, so a
+caller catching it can tell “no rules” from “no parameters” without
 capturing stdout.
 
 ## Things that are correct but easy to misread

@@ -66,10 +66,14 @@ class(model)
 ```
 
 [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md)
-prints a short header as a side effect — the file it read, the number of
-diagnostics libSBML reported, and the Level/Version of the document. If
-there were any, it prints them and stops with `"Stopping!"` rather than
-handing back a pointer you cannot trust.
+prints a short header as a side effect — the file it read, how many SBML
+errors it found, and the Level/Version of the document. Errors are
+fatal: it prints them and stops, naming the file, rather than handing
+back a pointer you cannot trust. Warnings and informational diagnostics
+are not fatal — they are reported as an R warning and the model still
+loads, which is the same rule
+[`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md)
+applies.
 
 Reading is not validation. libSBML reports parse-level and structural
 problems as it reads, but
@@ -196,14 +200,12 @@ not return a zero-row data frame or a zero-length vector:
 
 # sbmlsimple.xml has no rules at all
 getRuleMath(model)
-#> No Rules present in the model.
 #> Error:
-#> ! Stopping!
+#> ! No Rules present in the model.
 ```
 
-Note where the information is: the explanatory line goes to the console,
-while the condition message itself is only `"Stopping!"`. If you are
-looping over many models, wrap the call:
+The error names the component that was missing, so a caller can tell the
+cases apart. If you are looping over many models, wrap the call:
 
 ``` r
 
@@ -508,7 +510,7 @@ convertReactions(sbml_file, out_m, format = "MATLAB")
 cat(readLines(out_m), sep = "\n")
 #> % Automatically generated MATLAB model file by r2sbml
 #> %
-#> % Save as file2a498a75f9a.m, then solve with:  [t, y] = file2a498a75f9a();
+#> % Save as file295f64e07ce6.m, then solve with:  [t, y] = file295f64e07ce6();
 #> % Columns of y are, in order: E, S, P, ES
 #> %
 #> % Model Summary
@@ -518,7 +520,7 @@ cat(readLines(out_m), sep = "\n")
 #> %               rules: 4
 #> %              events: 0
 #> 
-#> function [t, y] = file2a498a75f9a(tspan, y0)
+#> function [t, y] = file295f64e07ce6(tspan, y0)
 #> 
 #>     if nargin < 1 || isempty(tspan)
 #>         tspan = [0 10];
@@ -788,7 +790,7 @@ round(sol, 6)
 d <- as.data.frame(sol)
 # both algebraic rules hold along the whole trajectory
 max(abs(d$E + d$ES - d$E_total))
-#> [1] 1.511014e-13
+#> [1] 8.104628e-14
 max(abs(1 * d$E * d$S - (0.5 + 0.5) * d$ES))
 #> [1] 4.561434e-07
 ```
