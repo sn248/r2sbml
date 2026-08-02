@@ -29,6 +29,24 @@ Rcpp::compileAttributes()                         # after adding/changing any [[
 
 CI (`.github/workflows/R-CMD-check.yaml`) runs `R CMD check --as-cran` on Linux/macOS/Windows with `error-on: warning`, so CRAN NOTEs about the bundled libsbml sources are build failures.
 
+### Vignettes
+
+Two, in `vignettes/`: `r2sbml.Rmd` (how to use the package) and `limitations.Rmd` (what it does not do). Both evaluate their code live, so every output shown is generated at build time and cannot drift from the implementation — that is deliberate, and the reason to prefer a live chunk over a pasted transcript when adding to them.
+
+Chunks needing deSolve are gated on `has_desolve <- requireNamespace("deSolve", quietly = TRUE)` via `eval = has_desolve`, since deSolve is only a `Suggests`. Verify that path by rendering with the user library redirected away from it — `R_LIBS_USER=<lib-without-deSolve>`, not `R_LIBS`, which prepends rather than replaces.
+
+`R CMD build` installs the package before building vignettes, so a vignette build recompiles libsbml from scratch and takes several minutes.
+
+### pkgdown site
+
+`_pkgdown.yml` configures the site; `.github/workflows/pkgdown.yaml` builds it on every push to master/main and deploys `docs/` to the `gh-pages` branch. `docs/` is gitignored and `.Rbuildignore`d — it is a build artefact, rebuilt by CI, never committed. Rebuild locally with `pkgdown::build_site()`, which needs the same cmake/libxml2/libbz2 toolchain as an install.
+
+The reference index in `_pkgdown.yml` lists functions in explicit groups. **Every exported function must appear in exactly one group** or pkgdown errors on an unindexed topic, so adding an `[[Rcpp::export]]` means adding it there too, after `compileAttributes()` → `document()`.
+
+One trap worth knowing: **pkgdown publishes every root-level `*.md` as a site page.** `package_mds()` globs the package root and its exclusion list is hardcoded to README/LICENCE/NEWS/the issue templates/cran-comments — there is no config key for anything else. So `CLAUDE.md` gets rendered to `docs/CLAUDE.html` and indexed in `search.json` (one entry per heading, 17 of them) and `sitemap.xml`, unlinked from the navbar but findable through site search. `tools/pkgdown_clean.R` deletes it and scrubs both indexes; the workflow runs it between the build and the deploy. Keep that step if you change the workflow. `todo.md` is deliberately left published — it is a real known-issues list and the limitations vignette points readers at it.
+
+The `path` values in `search.json` are absolute URLs when `url:` is set in `_pkgdown.yml` and root-relative when it is not, and some entries carry no `path` at all — hence the suffix match and the guard in the clean script.
+
 ## Architecture
 
 ### Two-phase API
@@ -84,7 +102,9 @@ Windows uses `configure.win` (writes `src/Makevars.win` directly, no autoconf) a
 
 ### Example SBML files (`inst/examples/`)
 
-Ten `.xml` files covering simple reactions, assignment rules, algebraic rules, function definitions, delay, events, multi-compartment, boundary conditions, and conversion factors. Both test files iterate over them. `inst/examples` is in `.Rbuildignore`, so tests fall back from `system.file("examples", ..., package = "r2sbml")` to `../../inst/examples/` when the package is not installed — keep both paths in any new test.
+Ten `.xml` files covering simple reactions, assignment rules, algebraic rules, function definitions, delay, events, multi-compartment, boundary conditions, and conversion factors. Both test files iterate over them.
+
+`inst/examples` **does** ship: no `.Rbuildignore` pattern matches it (`^inst/.DS_S*` does not), and `tar tzf` on a built tarball lists all ten. An earlier version of this file claimed the opposite. The tests' fallback from `system.file("examples", ..., package = "r2sbml")` to `../../inst/examples/` is therefore belt-and-braces for running against an uninstalled source tree, not a necessity — but keep both paths in any new test, since that is how the existing ones are written. The vignettes rely on `system.file()` alone, which is only safe *because* the examples ship.
 
 ## `convertReactions`
 

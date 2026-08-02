@@ -71,6 +71,34 @@ None of these is exercised by the example models, so all are untested:
   falls into the generic named-call path and is reported by name rather than
   being in the explicit list.
 
+## Query-function quirks
+
+Found while writing the vignettes, which had to document the actual behaviour.
+None affects `convertReactions()` — that path uses `speciesInitialValue()` and
+is unaffected.
+
+- **`getSpeciesIC()` reads `initialConcentration` only** (`src/speciesInfo.cpp`
+  line 78), so it returns `NaN` for every species in an amount-based model.
+  Four of the ten examples are amount-based, `sbmlsimple.xml` among them, so
+  `getSpeciesIC(getModel(ex("sbmlsimple.xml")))` is `NaN NaN NaN NaN`. The fix
+  is the one `speciesInitialValue()` already applies: take whichever attribute
+  is set. Whether it should also convert amount to concentration is a separate
+  question — a query function arguably ought to report the file, not the ODE.
+- **`getSpeciesNames()` returns the SBML `name` attribute**, which is optional
+  and set by none of the ten examples, so it returns empty strings. Meanwhile
+  `getCmtNames()` returns the compartment *id*. One of the two is misnamed;
+  `getSpeciesTable()` reports both `ID` and `Name` and is the honest one.
+- **Empty-component errors carry no useful message.** The explanatory line goes
+  to `Rcout` and the condition message is only `"Stopping!"`, so a caller
+  cannot tell "no rules" from "no parameters" without capturing stdout.
+- **`getModel()` and `convertReactions()` disagree on what counts as fatal.**
+  `getModel()` stops when `getNumErrors()` is non-zero — every diagnostic,
+  whatever its severity — while `convertReactions()` stops only on
+  `getNumErrors(LIBSBML_SEV_ERROR)`. After a bare `readSBMLFromFile()` the two
+  usually coincide, since the reader mostly emits severity-error diagnostics,
+  so no example distinguishes them. A file that read with only a warning would
+  be rejected by `getModel()` and accepted by `convertReactions()`.
+
 ## Not action items, recorded so they are not rediscovered
 
 - **libSBML 5.21.1** exists but is tagged prerelease and its only change is a
@@ -83,3 +111,11 @@ None of these is exercised by the example models, so all are untested:
   and a non-portable `-mno-omit-leaf-frame-pointer` flag that comes from
   Debian/Ubuntu R's own default `CFLAGS` rather than from this package. The
   second does not appear on the CI machines.
+- **A local check may add up to 4 more findings that are all environmental**,
+  not package problems. A missing `inconsolata.sty` (Debian/Ubuntu:
+  `texlive-fonts-extra`) fails the PDF manual, which produces one WARNING, one
+  ERROR ("PDF version of manual without index") *and* a NOTE about the
+  `r2sbml-manual.tex` it leaves behind; a missing `tidy` binary produces the
+  HTML-manual NOTE. Install those two or ignore the four findings. The vignette
+  checks — `files in 'vignettes'`, `unstated dependencies in vignettes`,
+  `package vignettes`, `re-building of vignette outputs` — all pass.

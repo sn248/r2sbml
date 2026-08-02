@@ -20,3 +20,7 @@
 ^test_paths\.R$
 ^dev$
 ^todo\.md$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^tools/pkgdown_clean\.R$

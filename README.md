@@ -33,6 +33,24 @@ remotes::install_github("sn248/r2sbml")
 
 The first build takes several minutes, because libSBML is compiled from source.
 
+To install with the vignettes built:
+
+```r
+remotes::install_github("sn248/r2sbml", build_vignettes = TRUE)
+```
+
+## Documentation
+
+Two vignettes cover the package in detail:
+
+```r
+vignette("r2sbml", package = "r2sbml")      # how to use it, worked end to end
+vignette("limitations", package = "r2sbml") # what it does not do, and why
+```
+
+The second is worth reading before trusting generated code on a model you did
+not write: it lists which limitations raise a warning and which are silent.
+
 ## Reading a model
 
 Most functions take a model pointer, which `getModel()` returns:

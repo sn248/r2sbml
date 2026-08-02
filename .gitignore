@@ -34,3 +34,6 @@ configure~
 GEMINI.md
 .positai
 .claude/
+
+# pkgdown site, built by CI and deployed to gh-pages
+docs/

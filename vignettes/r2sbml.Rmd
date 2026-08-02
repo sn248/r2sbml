@@ -1,0 +1,466 @@
+---
+title: "Getting started with r2sbml"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+vignette: >
+  %\VignetteIndexEntry{Getting started with r2sbml}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+has_desolve <- requireNamespace("deSolve", quietly = TRUE)
+```
+
+`r2sbml` is a thin R interface to [libSBML](https://sbml.org/software/libsbml/),
+built with Rcpp. It does two things:
+
+1. **Reads** an [SBML](https://sbml.org) model and lets you query its components
+   from R — species, compartments, parameters, reactions, rules, events and
+   function definitions.
+2. **Exports** the model's mass balances as ready-to-simulate code for six ODE
+   targets: deSolve, mrgsolve, rxode2/nlmixr2, MATLAB, Julia and ubiquity.
+
+It does *not* let you modify a model. There is no setter API and no way to write
+SBML back out; `r2sbml` reads and exports.
+
+libSBML itself is bundled with the package and compiled from source during
+installation, so nothing needs to be installed separately and the build
+downloads nothing. See the README for the compiler and header prerequisites.
+
+```{r library}
+library(r2sbml)
+```
+
+Ten small example models ship with the package and are used throughout this
+vignette:
+
+```{r examples}
+basename(list.files(system.file("examples", package = "r2sbml"), pattern = "[.]xml$"))
+```
+
+# Reading a model
+
+Everything except `convertReactions()` works in two phases. First `getModel()`
+reads the file, keeps the underlying `SBMLDocument` alive, and hands back an
+external pointer:
+
+```{r getmodel}
+sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+model <- getModel(sbml_file)
+class(model)
+```
+
+`getModel()` prints a short header as a side effect — the file it read, the
+number of diagnostics libSBML reported, and the Level/Version of the document.
+If there were any, it prints them and stops with `"Stopping!"` rather than
+handing back a pointer you cannot trust.
+
+Reading is not validation. libSBML reports parse-level and structural problems
+as it reads, but `getModel()` does not run a consistency check, so a file that
+loads cleanly can still be semantically questionable — inconsistent units, say.
+`r2sbml` never validates a model.
+
+Every query function then takes that pointer as its only argument.
+
+## Functions that return data
+
+```{r tables}
+getSpeciesTable(model)
+
+getReactionTable(model)
+```
+
+`getSpeciesTable()` reports both `InitialConcentration` and `InitialAmount`
+columns. An SBML species carries one or the other, never both, and the unset one
+reads back as `NaN` — so the `NaN` column above is telling you this model is
+amount-based, not that anything is wrong.
+
+Simpler accessors return plain vectors:
+
+```{r vectors}
+getCmtNames(model)
+getCmtSizes(model)
+getNumSpecies(model)
+```
+
+The full set of data-returning functions:
+
+| Function | Returns |
+| --- | --- |
+| `getSpeciesTable()`, `getParameterTable()`, `getReactionTable()` | a `data.frame` |
+| `getSpeciesNames()`, `getCmtNames()` | a character vector |
+| `getSpeciesIC()`, `getCmtSizes()` | a numeric vector |
+| `getNumSpecies()` | an integer |
+
+Two of these have sharp edges worth knowing about before you rely on them —
+`getSpeciesNames()` returns the SBML `name` attribute (usually empty) and
+`getSpeciesIC()` reads only `initialConcentration`. Both are covered in the
+companion vignette, `vignette("limitations", package = "r2sbml")`.
+
+## Functions that print
+
+A second family writes to the console and returns `0` invisibly. Assigning them
+gets you the `0`, not the text, so capture them instead:
+
+```{r printing}
+rules_model <- getModel(system.file("examples", "sbmlassignmentrules.xml",
+                                    package = "r2sbml"))
+getRuleMath(rules_model)
+```
+
+```{r capture}
+txt <- capture.output(getReactionMath(model))
+txt
+```
+
+| Function | Prints |
+| --- | --- |
+| `getRuleMath()` | assignment, rate and algebraic rules |
+| `getReactionMath()` | kinetic laws |
+| `getFunctionDefinition()` | function definitions |
+| `getEventMath()` | event triggers, delays and assignments |
+| `printSBML()`, `echoSBML()` | the document itself |
+
+`printSBML()` and `echoSBML()` are the exception to the two-phase rule: they take
+a *filename*, not a model pointer.
+
+## Absent components are an error, not an empty result
+
+A query for a component the model does not have raises an error. It does not
+return a zero-row data frame or a zero-length vector:
+
+```{r stopping, error = TRUE}
+# sbmlsimple.xml has no rules at all
+getRuleMath(model)
+```
+
+Note where the information is: the explanatory line goes to the console, while
+the condition message itself is only `"Stopping!"`. If you are looping over many
+models, wrap the call:
+
+```{r looping}
+safely <- function(expr) tryCatch(expr, error = function(e) NULL)
+files  <- list.files(system.file("examples", package = "r2sbml"),
+                     pattern = "[.]xml$", full.names = TRUE)
+
+has_rules <- vapply(files, function(f) {
+  !is.null(safely(capture.output(getRuleMath(getModel(f)))))
+}, logical(1))
+data.frame(model = basename(files), has_rules = unname(has_rules))
+```
+
+The same applies to `getParameterTable()` on a model whose parameters are all
+local to its kinetic laws — `sbmlsimple.xml` is exactly that case.
+
+# Exporting mass balances
+
+`convertReactions()` is the other half of the package, and the one function that
+does not take a model pointer. It reads the SBML file itself and writes a code
+file, returning `NULL` invisibly:
+
+```{r convert-basic}
+out_r <- tempfile(fileext = ".R")
+convertReactions(sbml_file, out_r, format = "R")
+```
+
+| `format` | Target |
+| --- | --- |
+| `"R"` or `"deSolve"` (default) | [deSolve](https://cran.r-project.org/package=deSolve) |
+| `"mrgsolve"` | [mrgsolve](https://mrgsolve.org) |
+| `"nlmixr2"` or `"rxode"` | [rxode2](https://nlmixr2.github.io/rxode2/) / nlmixr2 |
+| `"MATLAB"` or `"matlab"` | a function file for `ode15s` |
+| `"Julia"` or `"julia"` | an `ODEProblem` for DifferentialEquations.jl |
+| `"ubiquity"` or `"Ubiquity"` | a [ubiquity](https://r.ubiquity.tools) system file |
+
+An unrecognised format is an error, so a typo cannot leave you with an empty
+file that looks like a successful conversion:
+
+```{r bad-format, error = TRUE}
+convertReactions(sbml_file, tempfile(), format = "fortran")
+```
+
+## What happens before anything is written
+
+`convertReactions()` applies four libSBML converters in sequence:
+
+1. `replaceReactions` — every reaction becomes a rate rule
+2. `promoteLocalParameters` — parameters local to a kinetic law become global
+3. `expandInitialAssignments` — initial assignments are folded into values
+4. `expandFunctionDefinitions` — user-defined functions are inlined
+
+By the time a writer runs, the model is in rate-rule form with no local
+parameters and no function definitions left. That is why the generated code
+never contains a function definition, and why parameters that were buried inside
+a kinetic law appear as top-level constants.
+
+## The deSolve output
+
+```{r show-r}
+cat(readLines(out_r), sep = "\n")
+```
+
+Three things in that file are worth pointing out.
+
+**The state vector is decided deliberately.** It is not simply "one equation per
+rule". A species set by an *assignment rule* is computed inside the right-hand
+side and given no slot, because its value follows from the rule at every time
+point. A species with *no* rate rule — a boundary condition, or one in no
+reaction — keeps its slot with a zero derivative so it still appears in the
+solution.
+
+**Initial conditions are converted into the units the ODE integrates.** An SBML
+species symbol is a concentration unless `hasOnlySubstanceUnits` is set, and the
+rate rules are divided by the compartment volume to match. `sbmlsimple.xml`
+declares `initialAmount = 5e-21` in a `1e-14` compartment, so the generated
+initial condition is `5e-07`, not `5e-21`. The volume used is the species' own
+compartment's, so a multi-compartment model rescales species individually.
+
+**Compartment volumes are emitted as plain constants** when they are constant.
+If a compartment carries a rate rule instead, it joins the state vector and is
+integrated — see "Changing compartment volumes" below.
+
+You can run the result directly:
+
+```{r run-r, eval = has_desolve}
+library(deSolve)
+
+env <- new.env()
+source(out_r, local = env)
+
+solution <- ode(y     = env$InitialAmounts,
+                times = seq(0, 5, by = 1),
+                func  = env$massBalances,
+                parms = env$parameters)
+round(solution, 9)
+```
+
+```{r conservation, eval = has_desolve}
+# free + bound enzyme is conserved, and so is total substrate
+d <- as.data.frame(solution)
+range(d$E + d$ES)
+range(d$S + d$ES + d$P)
+```
+
+## The other five targets
+
+Each target gets its own spelling of the same mathematics.
+
+```{r mrgsolve}
+out_mrg <- tempfile(fileext = ".cpp")
+convertReactions(sbml_file, out_mrg, format = "mrgsolve")
+cat(readLines(out_mrg), sep = "\n")
+```
+
+mrgsolve model blocks are C++, where `^` is bitwise XOR and does not compile for
+doubles, so powers are written `pow(a, b)` for this target alone.
+
+```{r rxode}
+out_rx <- tempfile(fileext = ".R")
+convertReactions(sbml_file, out_rx, format = "nlmixr2")
+cat(readLines(out_rx), sep = "\n")
+```
+
+```{r matlab}
+out_m <- tempfile(fileext = ".m")
+convertReactions(sbml_file, out_m, format = "MATLAB")
+cat(readLines(out_m), sep = "\n")
+```
+
+MATLAB resolves a function by file name, so the generated function is named
+after the output path you gave. **Renaming the `.m` file breaks it** — regenerate
+instead of renaming.
+
+```{r julia}
+out_jl <- tempfile(fileext = ".jl")
+convertReactions(sbml_file, out_jl, format = "Julia")
+cat(readLines(out_jl), sep = "\n")
+```
+
+```{r ubiquity}
+out_ub <- tempfile(fileext = ".txt")
+convertReactions(sbml_file, out_ub, format = "ubiquity")
+cat(readLines(out_ub), sep = "\n")
+```
+
+ubiquity has no compartment concept of its own, so a compartment volume becomes
+an ordinary `<P>` constant that the rate expressions divide by. It also spells
+exponentiation, the transcendental functions and every comparison as bracketed
+prefix calls — `SIMINT_POWER[a][b]`, `SIMINT_LOGN[a]`, `SIMINT_GT[a][b]` — which
+is why its output looks so different from the rest.
+
+Parameter bounds are written `-inf inf` rather than the `eps inf` you may have
+seen in hand-written ubiquity systems: an SBML value may legitimately be zero or
+negative, and a lower bound above the value would be inconsistent. They matter
+only for estimation.
+
+# Model features that change the shape of the output
+
+## Assignment rules
+
+A species driven by an assignment rule is not integrated. It is recomputed
+inside the right-hand side, before the derivatives that read it:
+
+```{r assignment}
+assign_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
+out_assign  <- tempfile(fileext = ".R")
+convertReactions(assign_file, out_assign, format = "R")
+
+lines <- readLines(out_assign)
+cat(lines[grep("Assignment Rules", lines):length(lines)], sep = "\n")
+```
+
+`S1` and `S2` have no slot in the state vector and no derivative; they are
+locals. Giving them slots would leave the solver carrying copies that never
+update while the rules recompute different values beside them.
+
+## Algebraic rules make the model a DAE
+
+An algebraic rule is a constraint, `0 = f(...)`, not a derivative. Where the
+target can solve a differential-algebraic system, `r2sbml` emits one.
+
+For deSolve that changes the shape of the generated function entirely: it
+becomes a **residual** function for `daspk` of `(time, states, derivs, params)`,
+not a derivative function for `ode`:
+
+```{r algebraic}
+alg_file <- system.file("examples", "sbmlalgebraicrules.xml", package = "r2sbml")
+out_alg  <- tempfile(fileext = ".R")
+convertReactions(alg_file, out_alg, format = "R")
+
+lines <- readLines(out_alg)
+cat(lines[grep("Residuals:", lines)[1]:(grep("return\\(list\\(Residuals", lines))], sep = "\n")
+```
+
+The file also defines `InitialDerivatives`, because `daspk` needs `y'` at
+`t = 0` consistent with the residuals:
+
+```{r algebraic-solve, eval = has_desolve}
+env <- new.env()
+source(out_alg, local = env)
+
+sol <- deSolve::daspk(y     = env$InitialAmounts,
+                      dy    = env$InitialDerivatives,
+                      times = seq(0, 10, by = 2),
+                      res   = env$massBalances,
+                      parms = env$parameters)
+round(sol, 6)
+```
+
+```{r algebraic-check, eval = has_desolve}
+d <- as.data.frame(sol)
+# both algebraic rules hold along the whole trajectory
+max(abs(d$E + d$ES - d$E_total))
+max(abs(1 * d$E * d$S - (0.5 + 0.5) * d$ES))
+```
+
+MATLAB and Julia keep the ordinary derivative shape and use a **singular mass
+matrix** instead: `M * y' = f`, with a zero row wherever a constraint sits, so
+that row reads `0 = f_i`.
+
+```{r algebraic-matlab}
+out_alg_m <- tempfile(fileext = ".m")
+convertReactions(alg_file, out_alg_m, format = "MATLAB")
+lines <- readLines(out_alg_m)
+cat(grep("M = eye|M\\(|MassSingular|ode15s", lines, value = TRUE), sep = "\n")
+```
+
+Julia needs both the mass matrix *and* a solver that accepts one, so the
+generated header names `Rodas5()` rather than a bare `solve(prob)`:
+
+```{r algebraic-julia}
+out_alg_jl <- tempfile(fileext = ".jl")
+convertReactions(alg_file, out_alg_jl, format = "Julia")
+lines <- readLines(out_alg_jl)
+cat(grep("Solve with|^M |^M\\[|mass_matrix|ODEProblem", lines, value = TRUE), sep = "\n")
+```
+
+mrgsolve, rxode2 and ubiquity integrate ODEs only. For those, the rule is
+written out as a comment and `convertReactions()` warns — see the limitations
+vignette.
+
+## Changing compartment volumes
+
+If a compartment carries a rate rule, its volume is integrated alongside the
+species, and every species inside it picks up a dilution term. Since a species
+symbol is a concentration, `[S] = n/V`, the derivative is
+
+$$\frac{d[S]}{dt} \;=\; \frac{1}{V}\frac{dn}{dt} \;-\; \frac{[S]}{V}\frac{dV}{dt}$$
+
+and libSBML's converter supplies only the first term. `r2sbml` adds the second.
+
+The example models all have constant compartments, so here is a small model
+written out by hand — a species sitting in a compartment that grows at a
+constant rate, with no reactions at all:
+
+```{r growing-model}
+growing <- tempfile(fileext = ".xml")
+writeLines('<?xml version="1.0" encoding="UTF-8" ?>
+<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2">
+<model substanceUnits="mole" volumeUnits="litre" timeUnits="second" extentUnits="mole">
+<listOfCompartments>
+<compartment id="c" size="1" spatialDimensions="3" constant="false"/>
+</listOfCompartments>
+<listOfSpecies>
+<species id="A" compartment="c" initialConcentration="2" boundaryCondition="false"
+hasOnlySubstanceUnits="false" constant="false"/>
+</listOfSpecies>
+<listOfParameters>
+<parameter id="g" value="1" constant="true"/>
+</listOfParameters>
+<listOfRules>
+<rateRule variable="c">
+<math xmlns="http://www.w3.org/1998/Math/MathML"><ci>g</ci></math>
+</rateRule>
+</listOfRules>
+</model>
+</sbml>', growing)
+
+out_grow <- tempfile(fileext = ".R")
+convertReactions(growing, out_grow, format = "R")
+lines <- readLines(out_grow)
+cat(grep("InitialAmounts|^ +[Ac] =|_dt|states\\[", lines, value = TRUE), sep = "\n")
+```
+
+`c` is a state, not a constant, and `A` has a non-zero derivative despite taking
+part in no reaction — its concentration falls because its container is growing.
+The exact solution is `[A](t) = 2 / (1 + t)`, with the amount `A * c` fixed at 2:
+
+```{r growing-solve, eval = has_desolve}
+env <- new.env()
+source(out_grow, local = env)
+
+times <- c(0, 1, 3, 7)
+d <- as.data.frame(deSolve::ode(y = env$InitialAmounts, times = times,
+                                func = env$massBalances, parms = env$parameters,
+                                rtol = 1e-10, atol = 1e-10))
+data.frame(time = times, A = d$A, exact = 2 / (1 + times), amount = d$A * d$c)
+```
+
+# Practical notes
+
+**Write to `tempfile()` in examples and tests.** `convertReactions()` overwrites
+its output path without asking.
+
+**Expect console output.** `convertReactions()` prints `Conversion completed.`
+and the number of ODEs; `getModel()` prints its header. Wrap calls in
+`invisible(capture.output(...))` if that noise is unwelcome.
+
+**Watch for warnings.** Several model features cannot be expressed in every
+target. Where that is true, `convertReactions()` raises an R warning rather than
+silently emitting code that runs but computes the wrong thing. The next vignette
+lists every such case, and — just as importantly — the cases where no warning is
+raised.
+
+# Where to go next
+
+```r
+vignette("limitations", package = "r2sbml")
+```
+
+covers what `r2sbml` does not do: unsupported SBML constructs, the per-target
+capability matrix, which limitations are announced and which are silent, and the
+known quirks of the query functions.

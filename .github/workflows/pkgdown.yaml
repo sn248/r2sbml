@@ -1,0 +1,59 @@
+on:
+  push:
+    branches: [master, main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+name: pkgdown
+
+permissions:
+  contents: write
+
+jobs:
+  pkgdown:
+    runs-on: ubuntu-latest
+    # Only deploy from the canonical repository, so forks do not try to publish.
+    if: github.event_name != 'push' || github.repository == 'sn248/r2sbml'
+    concurrency:
+      group: pkgdown-${{ github.ref }}
+      cancel-in-progress: true
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # libSBML is compiled from source during installation, so the site build
+      # needs the same toolchain as R-CMD-check.  Expect several minutes.
+      - name: Install system dependencies
+        run: sudo apt-get update -y && sudo apt-get install -y cmake libxml2-dev libbz2-dev
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::pkgdown, local::.
+          needs: website
+
+      - name: Build site
+        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+        shell: Rscript {0}
+
+      # pkgdown renders every root-level *.md as a site page and its exclusion
+      # list is hardcoded, so CLAUDE.md would be published as documentation.
+      - name: Drop internal pages from the site
+        run: Rscript tools/pkgdown_clean.R
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: JamesIves/github-pages-deploy-action@v4.5.0
+        with:
+          clean: false
+          branch: gh-pages
+          folder: docs
