@@ -32,15 +32,13 @@ Rcpp::StringVector getSpeciesNames (SEXP input_model) {
 
   if (model == 0)
   {
-    Rcpp::Rcout << "No model present." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No model present.");
   }
 
   int numSpecies = model->getNumSpecies();
   if (numSpecies == 0)
   {
-    Rcpp::Rcout << "No species present." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No species present.");
   }
 
   for(int i = 0; i < numSpecies; i++){
@@ -86,15 +84,13 @@ Rcpp::NumericVector getSpeciesIC (SEXP input_model) {
 
   if (model == 0)
   {
-    Rcpp::Rcout << "No model present." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No model present.");
   }
 
   int numSpecies = model->getNumSpecies();
   if (numSpecies == 0)
   {
-    Rcpp::Rcout << "No species present." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No species present.");
   }
 
   for(int i = 0; i < numSpecies; i++){
@@ -126,15 +122,13 @@ Rcpp::DataFrame getSpeciesTable (SEXP input_model) {
 
   if (model == 0)
   {
-    Rcpp::Rcout << "No model present." << std::endl;
-    Rcpp::stop("Stopping!");
+    Rcpp::stop("No model present.");
   }
 
   int numSpecies = model->getNumSpecies();
   if (numSpecies == 0)
   {
-    Rcpp::Rcout << "No species present." << std::endl;
-    Rcpp::stop("Stopping!");
+    Rcpp::stop("No species present.");
   }
 
   Rcpp::NumericVector speciesNum;       // Species Number

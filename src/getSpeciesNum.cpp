@@ -21,8 +21,7 @@ int getNumSpecies (SEXP input_model) {
 
   if (model == 0)
   {
-    Rcpp::Rcout << "No model present." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No model present.");
   }
 
   return model->getNumSpecies();

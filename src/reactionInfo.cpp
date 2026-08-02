@@ -31,12 +31,12 @@ Rcpp::DataFrame getReactionTable (SEXP input_model) {
 
   if (model == 0)
   {
-    Rcpp::stop("Stopping, no model present!");
+    Rcpp::stop("No model present.");
   }
 
   int numReactions = model->getNumReactions();
   if (numReactions == 0){
-    Rcpp::stop("Stopping, no reactions present in the model!");
+    Rcpp::stop("No reactions present in the model.");
   }
 
   char *formula;

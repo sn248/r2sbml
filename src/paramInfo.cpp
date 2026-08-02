@@ -28,12 +28,12 @@ Rcpp::DataFrame getParameterTable (SEXP input_model) {
 
   if (model == 0)
   {
-    Rcpp::stop("Stopping, no model present!");
+    Rcpp::stop("No model present.");
   }
 
   int numParams = model->getNumParameters();
   if (numParams == 0){
-    Rcpp::stop("Stopping, no parameters present in the model!");
+    Rcpp::stop("No parameters present in the model.");
   }
 
   NumericVector paramNum;

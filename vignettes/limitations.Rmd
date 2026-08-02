@@ -344,16 +344,15 @@ None of the ten examples sets a `name`, so both come back as ids. Use
 `getSpeciesTable()`, which keeps `ID` and `Name` in separate columns, if you
 need to know whether a label was actually present.
 
-## Absent components raise an error whose message is uninformative
+## Absent components raise an error
 
 ```{r stopping, error = TRUE}
 getRuleMath(model)     # sbmlsimple.xml has no rules
 ```
 
-The useful line goes to the console; the condition message is only
-`"Stopping!"`. Code that catches the error cannot distinguish "no rules" from
-"no parameters" from any other empty-component case without also capturing
-stdout.
+This is by design: a query for a component the model does not have is an error,
+not a zero-row result. The message names the component, so a caller catching it
+can tell "no rules" from "no parameters" without capturing stdout.
 
 # Things that are correct but easy to misread
 

@@ -71,19 +71,6 @@ None of these is exercised by the example models, so all are untested:
   falls into the generic named-call path and is reported by name rather than
   being in the explicit list.
 
-## Query-function quirks
-
-- **Empty-component errors carry no useful message.** The explanatory line goes
-  to `Rcout` and the condition message is only `"Stopping!"`, so a caller
-  cannot tell "no rules" from "no parameters" without capturing stdout.
-- **`getModel()` and `convertReactions()` disagree on what counts as fatal.**
-  `getModel()` stops when `getNumErrors()` is non-zero — every diagnostic,
-  whatever its severity — while `convertReactions()` stops only on
-  `getNumErrors(LIBSBML_SEV_ERROR)`. After a bare `readSBMLFromFile()` the two
-  usually coincide, since the reader mostly emits severity-error diagnostics,
-  so no example distinguishes them. A file that read with only a warning would
-  be rejected by `getModel()` and accepted by `convertReactions()`.
-
 ## Not action items, recorded so they are not rediscovered
 
 - **libSBML 5.21.1** exists but is tagged prerelease and its only change is a

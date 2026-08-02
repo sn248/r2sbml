@@ -101,3 +101,37 @@ test_that("the vector accessors do not print", {
     expect_silent(getSpeciesIC(model))
     expect_silent(getCmtNames(model))
 })
+
+test_that("an absent component names itself in the error message", {
+    # the explanation used to go to stdout while the condition carried only
+    # "Stopping!", so a caller could not tell the cases apart
+    model <- getModel(example_file("sbmlsimple.xml"))
+
+    expect_error(getRuleMath(model),          "No Rules present")
+    expect_error(getParameterTable(model),    "No parameters present")
+    expect_error(getFunctionDefinition(model), "No Function definitions present")
+
+    events <- getModel(example_file("sbmlfunctiondefinition.xml"))
+    expect_error(getEventMath(events), "No Events present")
+
+    # and the old opaque message is gone rather than merely prefixed
+    msg <- tryCatch(getRuleMath(model), error = conditionMessage)
+    expect_false(grepl("Stopping", msg, fixed = TRUE))
+})
+
+test_that("getModel and convertReactions agree on which files are readable", {
+    broken <- tempfile(fileext = ".xml")
+    writeLines("this is not xml at all <<<>>>", broken)
+
+    # both refuse, and both say which file and why
+    expect_error(getModel(broken), "Cannot read")
+    expect_error(getModel(broken), "model was not loaded")
+    expect_error(convertReactions(broken, tempfile()), "Cannot read")
+    expect_error(convertReactions(broken, tempfile()), "Nothing was written")
+
+    # and both accept a clean file
+    good <- example_file("sbmlsimple.xml")
+    expect_s3_class(tryCatch({getModel(good); structure(list(), class = "ok")},
+                             error = function(e) e), "ok")
+    expect_invisible(convertReactions(good, tempfile(), format = "R"))
+})

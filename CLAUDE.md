@@ -61,6 +61,10 @@ The two return styles matter when writing tests:
 
 Query functions `Rcpp::stop()` on an empty model *or an empty component list* — e.g. `getRuleMath` on a model with no rules errors rather than returning empty. Any test looping over `inst/examples/` must account for that.
 
+The condition message names the component (`"No Rules present in the model."`), so `expect_error()` can match on it and a caller can tell the cases apart. These used to print the explanation to `Rcout` and raise the bare message `"Stopping!"`; do not reintroduce that split — put the text in the `stop()` call, not a preceding `Rcout <<`.
+
+**Severity handling is shared between `getModel()` and `convertReactions()`** and must stay that way: both refuse a file only for error- *and* fatal-severity diagnostics, and `getModel()` downgrades anything lesser to an R warning rather than refusing the file. The subtlety is that `getNumErrors(severity)` counts that severity **exactly**, not cumulatively, so `getNumErrors(LIBSBML_SEV_ERROR)` alone silently ignores `LIBSBML_SEV_FATAL` — both call sites add the two. In practice libSBML's reader reports even unparseable input at error severity, so the fatal count is usually 0; that is why the omission never showed up.
+
 ### C++ layer (`src/`)
 
 One `.cpp` file per topic, each function exported with `// [[Rcpp::export]]`:

@@ -282,14 +282,20 @@ static void warnAssignmentRuleCompartment(Model* model, const std::string& targe
    SBMLReader reader;
    SBMLDocument* document  = reader.readSBMLFromFile(inputFile);
 
-   unsigned int  errors    = document->getNumErrors(LIBSBML_SEV_ERROR);
+   // getNumErrors(severity) counts that severity exactly, so a fatal-severity
+   // diagnostic is not included in the error-severity count and has to be
+   // asked for separately.  getModel() applies the same rule.
+   unsigned int  errors    = document->getNumErrors(LIBSBML_SEV_ERROR) +
+                             document->getNumErrors(LIBSBML_SEV_FATAL);
 
    // stop in case of errors
    if (errors > 0)
    {
      Rcpp::Rcerr << "Encountered the following SBML errors:" << endl;
      document->printErrors(Rcpp::Rcerr);
-     Rcpp::stop("Conversion skipped.  Please correct the problems above first.");
+     Rcpp::stop("Cannot read '" + inputFile + "': libSBML reported " +
+                std::to_string(errors) +
+                " SBML error(s), listed above.  Nothing was written.");
    }
 
    // create conversion object that identifies the function definition converter

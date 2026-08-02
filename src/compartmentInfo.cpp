@@ -31,8 +31,7 @@ Rcpp::StringVector getCmtNames (SEXP input_model) {
 
   if (model == 0)
   {
-    Rcpp::Rcout << "No model present." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No model present.");
   }
 
   int numCmt = model->getNumCompartments();
@@ -62,8 +61,7 @@ Rcpp::NumericVector getCmtSizes (SEXP input_model) {
 
   if (model == 0)
   {
-    Rcpp::Rcout << "No model present." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No model present.");
   }
 
   int numCmt = model->getNumCompartments();

@@ -67,16 +67,14 @@ int getRuleMath (SEXP input_model) {
 
   if (model == 0)
   {
-    Rcpp::Rcout << "No model present." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No model present.");
   }
 
   // Printing Rule Math
   int numRules = model->getNumRules();
   if (numRules == 0)
   {
-    Rcpp::Rcout << "No Rules present in the model." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No Rules present in the model.");
   }
 
   for(int n = 0; n < numRules; n++)
@@ -119,15 +117,13 @@ int getReactionMath (SEXP input_model) {
 
   if (model == 0)
   {
-    Rcpp::Rcout << "No model present." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No model present.");
   }
 
   int numReactions = model->getNumReactions();
   if (numReactions == 0)
   {
-    Rcpp::Rcout << "No Reactions present in the model." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No Reactions present in the model.");
   }
 
   // Print Reaction Math
@@ -167,8 +163,7 @@ int getFunctionDefinition (SEXP input_model) {
   int numFunctionDefinitions = model->getNumFunctionDefinitions();
   if (numFunctionDefinitions == 0)
   {
-    Rcpp::Rcout << "No Function definitions present in the model." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No Function definitions present in the model.");
   }
 
   for(int n = 0; n < numFunctionDefinitions; n++)
@@ -238,16 +233,14 @@ int getEventMath (SEXP input_model) {
   Model* model = Rcpp::XPtr<Model>(input_model);
   if (model == 0)
   {
-    Rcpp::Rcout << "No model present." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No model present.");
   }
 
   int numEvents = model->getNumEvents();
 
   if (numEvents == 0)
   {
-    Rcpp::Rcout << "No Events present in the model." << std::endl;
-    stop("Stopping!");
+    Rcpp::stop("No Events present in the model.");
   }
 
   for(int n = 0; n < numEvents; n++)
