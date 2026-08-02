@@ -5,25 +5,6 @@ confirmed before being acted on.
 
 ## Correctness
 
-### Retrofit `integratedSpecies()` to the three original writers
-
-`writeFileMatlab`, `writeFileJulia` and `writeFileUbiquity` decide explicitly
-which species form the state vector. `writeFileR`, `writeFileMrgsolve` and
-`writeFileNlmixr2` do not, and get two cases wrong:
-
-- **Species with no rate rule.** `writeFileR` emits one `d<var>_dt` per *rule*
-  but builds its return vector from *species*. On `inst/examples/sbmlmutlicompartment.xml`
-  (4 species, 3 rate rules) the generated R references `dX_dt`, which is never
-  defined. X is a boundary species.
-- **Algebraic rules.** They have no variable, so the same loop emits
-  `d_dt = ...` — twice, on `inst/examples/sbmlalgebraicrules.xml` — and the
-  return vector then references `dE_dt`, `dES_dt` and `dE_total_dt`, none of
-  which exist.
-
-Both files therefore generate code that does not run. The fix is the one the
-newer writers already use: state = species minus assignment-rule variables,
-zero derivative for species with no rate rule, algebraic rules as comments.
-
 ### Confirm the initial-value units are consistent with the rate rules
 
 After `replaceReactions`, the rate rules divide by compartment volume
@@ -39,6 +20,15 @@ anything: if the states really are concentrations, an amount-valued initial
 condition needs dividing by the compartment volume.
 
 ## Unsupported SBML constructs
+
+### Algebraic rules
+
+Every writer now emits them as a comment rather than a malformed derivative,
+so the generated code runs — but the constraint is not enforced. On
+`inst/examples/sbmlalgebraicrules.xml` the species it determines are left with
+a zero derivative, which is wrong rather than merely incomplete. Solving these
+properly needs a DAE integrator (`deSolve::daspk`, MATLAB `ode15i`, Julia's
+`DAEProblem`); ubiquity has no equivalent at all.
 
 ### `delay`
 

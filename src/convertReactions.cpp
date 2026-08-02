@@ -78,6 +78,54 @@ static double speciesInitialValue(const Species* species)
    return 0.0;
 }
 
+// Index of the rate rule governing species @p speciesId, or -1 when the
+// species has none.  After the replaceReactions conversion every reaction has
+// become a rate rule, so a species without one is held constant -- a boundary
+// condition, or a species taking part in no reaction.
+static int rateRuleForSpecies(Model* model, const std::string& speciesId)
+{
+   for (unsigned int i = 0; i < model->getNumRules(); i++)
+   {
+     const Rule* r = model->getRule(i);
+     if (r->isRate() && r->getVariable() == speciesId) return (int)i;
+   }
+   return -1;
+}
+
+// True when @p speciesId is the variable of an assignment rule.  Such a
+// species is not integrated: its value follows from the rule at every time
+// point, so it is emitted as a local inside the RHS rather than given a slot
+// in the state vector.  Giving it one would leave the solver carrying a stale
+// copy that never updates.
+static bool hasAssignmentRule(Model* model, const std::string& speciesId)
+{
+   for (unsigned int i = 0; i < model->getNumRules(); i++)
+   {
+     const Rule* r = model->getRule(i);
+     if (r->isAssignment() && r->getVariable() == speciesId) return true;
+   }
+   return false;
+}
+
+// Indices of the species that form the state vector, in model order.
+//
+// Every writer uses this to decide what it is integrating.  Walking the rules
+// instead gets two cases wrong: a species with no rate rule never gets a
+// derivative, and an algebraic rule has no variable at all, so it yields a
+// derivative with an empty name.
+static std::vector<int> integratedSpecies(Model* model)
+{
+   std::vector<int> states;
+   for (unsigned int i = 0; i < model->getNumSpecies(); i++)
+   {
+     if (!hasAssignmentRule(model, model->getSpecies(i)->getIdAttribute()))
+     {
+       states.push_back((int)i);
+     }
+   }
+   return states;
+}
+
 //'convertReactions
 //'@param infile input file name
 //'@param outfile output file name
@@ -218,6 +266,9 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    std::ofstream out(outfilename);
    Model* model = document->getModel();
 
+   const std::vector<int> states = integratedSpecies(model);
+   const int numStates = (int)states.size();
+
    // auto now = std::chrono::system_clock::now();
    out << "## Automatically generated model file by r2sbml at " << endl;
 
@@ -262,14 +313,10 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
 
    out <<"## Initial Amounts" << endl;
    out << "InitialAmounts <- c(" << endl;
-   int numIAs = model->getNumSpecies();
-   for (int i = 0; i < numIAs; i++){
-      if (i != numIAs-1){
-        out << "         " << model->getSpecies(i)->getIdAttribute() << " = " << speciesInitialValue(model->getSpecies(i)) << "," << endl;
-      }
-      if (i == numIAs-1) {
-        out << "         " << model->getSpecies(i)->getIdAttribute() << " = " << speciesInitialValue(model->getSpecies(i)) << endl;
-      }
+   for (int i = 0; i < numStates; i++){
+      const Species* s = model->getSpecies(states[i]);
+      out << "         " << s->getIdAttribute() << " = " << speciesInitialValue(s)
+          << (i + 1 < numStates ? "," : "") << endl;
    }
 
   out << "                    )" << endl;
@@ -313,8 +360,8 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    out << "massBalances <- function(time, states, params){" << endl << endl;
 
    out << "   ## Get States Names " << endl;
-   for (int i = 0; i<numIAs; i++){
-        out << "   " << model->getSpecies(i)->getIdAttribute() << " = states[[\"" << model->getSpecies(i)->getIdAttribute() << "\"]]" << endl;
+   for (int i = 0; i < numStates; i++){
+        out << "   " << model->getSpecies(states[i])->getIdAttribute() << " = states[[\"" << model->getSpecies(states[i])->getIdAttribute() << "\"]]" << endl;
    }
 
    out << endl;
@@ -324,32 +371,47 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    }
 
    int numODEs = model->getNumRules();
-   // for (int i = 0; i < numODEs ; i++){
-   //    if(i != numODEs - 1){
-   //    out << "                 " << model->getRule(i)->getFormula() << "," << endl;
-   //    } else {
-   //    out << "                 " << model->getRule(i)->getFormula() << endl;
-   //    }
-   // }
-   // out << "                 )" << endl;
+
+   // Assignment rules come after the state unpacking, since they may read
+   // states, and before the derivatives, which may read them in turn.
+   bool anyAssignment = false;
+   for (int i = 0; i < numODEs; i++){
+     const Rule* r = model->getRule(i);
+     if (r->isAssignment()){
+       if (!anyAssignment){ out << endl << "   ## Assignment Rules" << endl; anyAssignment = true; }
+       out << "   " << r->getVariable() << " = "
+           << r2sbml::formulaToInfix(r->getMath()) << endl;
+     }
+   }
 
    out << endl;
    out << "   ## Mass Balances" << endl;
+   for (int i = 0; i < numStates; i++){
+     const std::string id = model->getSpecies(states[i])->getIdAttribute();
+     int rule = rateRuleForSpecies(model, id);
+     if (rule >= 0){
+       out << "   d" << id << "_dt = "
+           << r2sbml::formulaToInfix(model->getRule(rule)->getMath()) << endl;
+     } else {
+       out << "   d" << id << "_dt = 0  ## " << id
+           << " has no rate rule and is held constant" << endl;
+     }
+   }
+
    for (int i = 0; i < numODEs; i++){
-     out << "   d" << model->getRule(i)->getVariable() << "_dt = "
-         << r2sbml::formulaToInfix(model->getRule(i)->getMath()) << endl;
+     const Rule* r = model->getRule(i);
+     if (r->isAlgebraic()){
+       out << "   ## Algebraic rule, not expressible as an explicit ODE: 0 = "
+           << r2sbml::formulaToInfix(r->getMath()) << endl;
+     }
    }
 
    out << endl;
    out << "   ## Make a list of Mass Balances" << endl;
    out << "   MassBalances <- c(" << endl;
-   for (int i = 0; i<numIAs; i++){
-     if (i != numIAs-1){
-        out << "     d" << model->getSpecies(i)->getIdAttribute() << "_dt" << " ," <<endl;
-     }
-     if (i == numIAs-1){
-        out << "     d" << model->getSpecies(i)->getIdAttribute() << "_dt" <<endl;
-     }
+   for (int i = 0; i < numStates; i++){
+      out << "     d" << model->getSpecies(states[i])->getIdAttribute() << "_dt"
+          << (i + 1 < numStates ? " ," : "") << endl;
    }
    out << "   )" << endl;
    out << "   return(list(MassBalances))" << endl;
@@ -374,6 +436,9 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
    std::ofstream out(outfilename);
    Model* model = document->getModel();
 
+   const std::vector<int> states = integratedSpecies(model);
+   const int numStates = (int)states.size();
+
    out << "## Automatically generated mrgsolve model file by r2sbml\n" << endl;
    out << "$PROB\n" << endl;
    out << "$PARAM\n";
@@ -384,14 +449,14 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
    }
 
    out << "\n$CMT\n";
-   int numIAs = model->getNumSpecies();
-   for (int i = 0; i < numIAs; i++){
-        out << model->getSpecies(i)->getIdAttribute() << "\n";
+   for (int i = 0; i < numStates; i++){
+        out << model->getSpecies(states[i])->getIdAttribute() << "\n";
    }
 
    out << "\n$MAIN\n";
-   for (int i = 0; i < numIAs; i++){
-        out << model->getSpecies(i)->getIdAttribute() << "_0 = " << speciesInitialValue(model->getSpecies(i)) << ";\n";
+   for (int i = 0; i < numStates; i++){
+        out << model->getSpecies(states[i])->getIdAttribute() << "_0 = "
+            << speciesInitialValue(model->getSpecies(states[i])) << ";\n";
    }
 
    int numCmt = model->getNumCompartments();
@@ -401,10 +466,36 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
 
    out << "\n$ODE\n";
    int numODEs = model->getNumRules();
+
+   // Assignment rules read states, so they are locals inside $ODE rather than
+   // compartments.  They have to precede the derivatives, which read them.
    for (int i = 0; i < numODEs; i++){
+     const Rule* r = model->getRule(i);
+     if (r->isAssignment()){
+       out << "double " << r->getVariable() << " = "
+           << r2sbml::formulaToInfixC(r->getMath()) << ";\n";
+     }
+   }
+
+   for (int i = 0; i < numStates; i++){
+     const std::string id = model->getSpecies(states[i])->getIdAttribute();
+     int rule = rateRuleForSpecies(model, id);
      // mrgsolve model blocks are C++, so powers have to be pow() calls.
-     out << "dxdt_" << model->getRule(i)->getVariable() << " = "
-         << r2sbml::formulaToInfixC(model->getRule(i)->getMath()) << ";\n";
+     if (rule >= 0){
+       out << "dxdt_" << id << " = "
+           << r2sbml::formulaToInfixC(model->getRule(rule)->getMath()) << ";\n";
+     } else {
+       out << "dxdt_" << id << " = 0; // " << id
+           << " has no rate rule and is held constant\n";
+     }
+   }
+
+   for (int i = 0; i < numODEs; i++){
+     const Rule* r = model->getRule(i);
+     if (r->isAlgebraic()){
+       out << "// Algebraic rule, not expressible as an explicit ODE: 0 = "
+           << r2sbml::formulaToInfixC(r->getMath()) << "\n";
+     }
    }
 
    out.close();
@@ -416,6 +507,9 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
 {
    std::ofstream out(outfilename);
    Model* model = document->getModel();
+
+   const std::vector<int> states = integratedSpecies(model);
+   const int numStates = (int)states.size();
 
    out << "## Automatically generated nlmixr2/rxode model file by r2sbml\n" << endl;
    out << "model <- function() {\n";
@@ -434,16 +528,42 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
         out << "    " << model->getCompartment(i)->getId() << " <- " << model->getCompartment(i)->getVolume() << "\n";
    }
 
-   int numIAs = model->getNumSpecies();
-   for (int i = 0; i < numIAs; i++){
-        out << "    " << model->getSpecies(i)->getIdAttribute() << "(0) <- " << speciesInitialValue(model->getSpecies(i)) << "\n";
+   for (int i = 0; i < numStates; i++){
+        out << "    " << model->getSpecies(states[i])->getIdAttribute() << "(0) <- "
+            << speciesInitialValue(model->getSpecies(states[i])) << "\n";
    }
 
    out << "\n";
    int numODEs = model->getNumRules();
+
+   // Assignment rules read states, so they are plain assignments evaluated
+   // ahead of the derivatives that read them.
    for (int i = 0; i < numODEs; i++){
-     out << "    d/dt(" << model->getRule(i)->getVariable() << ") <- "
-         << r2sbml::formulaToInfix(model->getRule(i)->getMath()) << "\n";
+     const Rule* r = model->getRule(i);
+     if (r->isAssignment()){
+       out << "    " << r->getVariable() << " <- "
+           << r2sbml::formulaToInfix(r->getMath()) << "\n";
+     }
+   }
+
+   for (int i = 0; i < numStates; i++){
+     const std::string id = model->getSpecies(states[i])->getIdAttribute();
+     int rule = rateRuleForSpecies(model, id);
+     if (rule >= 0){
+       out << "    d/dt(" << id << ") <- "
+           << r2sbml::formulaToInfix(model->getRule(rule)->getMath()) << "\n";
+     } else {
+       out << "    d/dt(" << id << ") <- 0 # " << id
+           << " has no rate rule and is held constant\n";
+     }
+   }
+
+   for (int i = 0; i < numODEs; i++){
+     const Rule* r = model->getRule(i);
+     if (r->isAlgebraic()){
+       out << "    # Algebraic rule, not expressible as an explicit ODE: 0 = "
+           << r2sbml::formulaToInfix(r->getMath()) << "\n";
+     }
    }
 
    out << "  })\n";
@@ -453,49 +573,6 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
    return 0;
 }
 
-
-// Index of the rate rule governing species @p speciesId, or -1 when the
-// species has none.  After the replaceReactions conversion every reaction has
-// become a rate rule, so a species without one is held constant -- a boundary
-// condition, or a species taking part in no reaction.
-static int rateRuleForSpecies(Model* model, const std::string& speciesId)
-{
-   for (unsigned int i = 0; i < model->getNumRules(); i++)
-   {
-     const Rule* r = model->getRule(i);
-     if (r->isRate() && r->getVariable() == speciesId) return (int)i;
-   }
-   return -1;
-}
-
-// True when @p speciesId is the variable of an assignment rule.  Such a
-// species is not integrated: its value follows from the rule at every time
-// point, so it is emitted as a local inside the RHS rather than given a slot
-// in the state vector.  Giving it one would leave the solver carrying a stale
-// copy that never updates.
-static bool hasAssignmentRule(Model* model, const std::string& speciesId)
-{
-   for (unsigned int i = 0; i < model->getNumRules(); i++)
-   {
-     const Rule* r = model->getRule(i);
-     if (r->isAssignment() && r->getVariable() == speciesId) return true;
-   }
-   return false;
-}
-
-// Indices of the species that form the state vector, in model order.
-static std::vector<int> integratedSpecies(Model* model)
-{
-   std::vector<int> states;
-   for (unsigned int i = 0; i < model->getNumSpecies(); i++)
-   {
-     if (!hasAssignmentRule(model, model->getSpecies(i)->getIdAttribute()))
-     {
-       states.push_back((int)i);
-     }
-   }
-   return states;
-}
 
 // MATLAB resolves a function by file name, so the leading function in a file
 // has to be named after it.  Derive that name from the output path and force

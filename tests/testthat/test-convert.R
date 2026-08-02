@@ -102,3 +102,79 @@ test_that("initial values are numeric for concentration-based models", {
         expect_false(any(grepl("\\bnan\\b", readLines(out))))
     }
 })
+
+test_that("every state gets a derivative and every derivative a state", {
+    # The deSolve, mrgsolve and rxode2 writers used to emit one derivative per
+    # *rule* while listing states per *species*.  Two cases came apart:
+    # sbmlmutlicompartment has a boundary species with no rate rule, and
+    # sbmlalgebraicrules has rules with no variable at all.
+    for (model in c("sbmlmutlicompartment.xml", "sbmlalgebraicrules.xml")) {
+        sbml_file <- system.file("examples", model, package = "r2sbml")
+        if (sbml_file == "") sbml_file <- file.path("../../inst/examples", model)
+
+        out <- tempfile(fileext = ".R")
+        expect_invisible(convertReactions(sbml_file, out, format = "R"))
+        lines <- readLines(out)
+
+        # an algebraic rule has no variable, so it must not become `d_dt = ...`
+        expect_false(any(grepl("^\\s*d_dt\\s*=", lines)))
+
+        defined  <- sub("^\\s*d(.*)_dt\\s*=.*$", "\\1",
+                        grep("^\\s*d.*_dt\\s*=", lines, value = TRUE))
+        returned <- sub("^\\s*d(.*)_dt\\s*,?\\s*$", "\\1",
+                        grep("^\\s*d.*_dt\\s*,?\\s*$", lines, value = TRUE))
+        expect_setequal(defined, returned)
+
+        # and the RHS evaluates: an undefined derivative errors here
+        env <- new.env()
+        env$library <- function(...) invisible(NULL)   # deSolve need not be installed
+        source(out, local = env)
+        d <- env$massBalances(0, env$InitialAmounts, env$parameters)[[1]]
+        expect_length(d, length(env$InitialAmounts))
+        expect_false(any(is.na(d)))
+    }
+})
+
+test_that("a species with no rate rule is held constant, not left undefined", {
+    sbml_file <- system.file("examples", "sbmlmutlicompartment.xml", package = "r2sbml")
+    if (sbml_file == "") sbml_file <- "../../inst/examples/sbmlmutlicompartment.xml"
+
+    # X is a boundary species: it keeps its slot, with a zero derivative.
+    out_r <- tempfile(fileext = ".R")
+    expect_invisible(convertReactions(sbml_file, out_r, format = "R"))
+    expect_true(any(grepl("^\\s*dX_dt = 0\\b", readLines(out_r))))
+
+    out_mrg <- tempfile(fileext = ".cpp")
+    expect_invisible(convertReactions(sbml_file, out_mrg, format = "mrgsolve"))
+    expect_true(any(grepl("^dxdt_X = 0;", readLines(out_mrg))))
+
+    out_rx <- tempfile(fileext = ".R")
+    expect_invisible(convertReactions(sbml_file, out_rx, format = "nlmixr2"))
+    expect_true(any(grepl("^\\s*d/dt\\(X\\) <- 0\\b", readLines(out_rx))))
+})
+
+test_that("assignment-rule species are locals, not states", {
+    sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
+    if (sbml_file == "") sbml_file <- "../../inst/examples/sbmlassignmentrules.xml"
+
+    # S1 and S2 follow from their rules at every time point, so they are
+    # computed inside the RHS and get neither a slot nor a derivative.
+    out_r <- tempfile(fileext = ".R")
+    expect_invisible(convertReactions(sbml_file, out_r, format = "R"))
+    lines <- readLines(out_r)
+    expect_true(any(grepl("^\\s*S1 = T / \\(1 \\+ Keq\\)", lines)))
+    expect_false(any(grepl("dS1_dt", lines)))
+    expect_false(any(grepl("^\\s*S1 = states\\[", lines)))
+
+    out_mrg <- tempfile(fileext = ".cpp")
+    expect_invisible(convertReactions(sbml_file, out_mrg, format = "mrgsolve"))
+    lines_mrg <- readLines(out_mrg)
+    expect_true(any(grepl("^double S1 = ", lines_mrg)))
+    expect_false(any(grepl("dxdt_S1", lines_mrg)))
+
+    out_rx <- tempfile(fileext = ".R")
+    expect_invisible(convertReactions(sbml_file, out_rx, format = "nlmixr2"))
+    lines_rx <- readLines(out_rx)
+    expect_true(any(grepl("^\\s*S1 <- ", lines_rx)))
+    expect_false(any(grepl("d/dt\\(S1\\)", lines_rx)))
+})

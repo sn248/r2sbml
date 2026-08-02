@@ -94,17 +94,21 @@ It applies four libsbml converters in sequence before emitting anything — `rep
 
 Use `speciesInitialValue()` rather than `Species::getInitialAmount()` for a starting value. A species carries `initialAmount` *or* `initialConcentration`, never both, and the unset one reads back as NaN — which `operator<<` prints as the literal `nan`, a number in none of the six target languages. Six of the ten example models are concentration-based, so this affected most output.
 
-### The MATLAB and Julia writers
+### What the state vector is: `integratedSpecies()`
 
-These two index into a state vector rather than naming derivatives, so they have to decide explicitly what the states *are*; `integratedSpecies()` is that decision and the older writers have no equivalent:
+**Every** writer decides what it integrates through `integratedSpecies()`, and none of them walks the rule list to do it. The three rules it encodes:
 
 - A species that is the variable of an **assignment rule** is not integrated. Its value follows from the rule at every time point, so it is emitted as a local inside the RHS and given no slot. Handing it one leaves the solver carrying a copy that never updates while the rule recomputes a different value beside it.
 - A species with **no rate rule** — a boundary condition, or one in no reaction — keeps its slot with a zero derivative, so it still appears in the solution.
 - **Algebraic rules** cannot be written as explicit ODEs and are emitted as comments.
 
-Watch the older writers for the bug this avoids: `writeFileR` emits one `d<var>_dt` per *rule* and then builds its return vector from *species*, so on a model where those differ (`sbmlmutlicompartment.xml`, 4 species and 3 rate rules) the generated R references an undefined `dX_dt`.
+Iterating over rules instead is the bug this avoids, and `writeFileR`, `writeFileMrgsolve` and `writeFileNlmixr2` all had it: they emitted one derivative per *rule* while listing states per *species*. On `sbmlmutlicompartment.xml` (4 species, 3 rate rules) the generated R referenced an undefined `dX_dt`; on `sbmlalgebraicrules.xml` an algebraic rule has no variable at all, so the same loop produced `d_dt = ...`. Both files are now covered by tests that evaluate the generated RHS, so a regression fails the suite rather than the user's solver.
 
-Two smaller target constraints. MATLAB resolves a function by file name, so `matlabFunctionName()` derives the function's name from the output path — renaming a generated `.m` file breaks it. And SBML's csymbol for time serialises as `time`, which the MATLAB RHS gets for free by naming its argument `time`, while the Julia RHS receives `t` and needs the `time = t` alias the writer emits.
+### The MATLAB and Julia writers
+
+Two smaller target constraints apply only to these two, which index into the state vector rather than naming derivatives.
+
+MATLAB resolves a function by file name, so `matlabFunctionName()` derives the function's name from the output path — renaming a generated `.m` file breaks it. And SBML's csymbol for time serialises as `time`, which the MATLAB RHS gets for free by naming its argument `time`, while the Julia RHS receives `t` and needs the `time = t` alias the writer emits.
 
 ### The ubiquity writer
 
