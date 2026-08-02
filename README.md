@@ -123,6 +123,8 @@ massBalances <- function(time, states, params){
 
 Each target gets its own spelling of the mathematics: `a^b` for R, rxode2, MATLAB and Julia; `pow(a, b)` for mrgsolve, whose model blocks are C++; and `SIMINT_POWER[a][b]` for ubiquity.
 
+Initial conditions are converted into whatever units the ODE integrates. An SBML species symbol is a concentration unless `hasOnlySubstanceUnits` is set, and the rate rules are divided by the compartment volume to match, so a species declared with an `initialAmount` starts at `amount / volume`. For `sbmlsimple.xml` that turns an `initialAmount` of `5e-21` in a `1e-14` compartment into `5e-07`. The volume is the species' own compartment's, so a multi-compartment model rescales species individually.
+
 ## Limitations
 
 - **Delays are not translated.** SBML's `delay` csymbol passes through unchanged, so a model using it will not run in any target. `inst/examples/sbmldelay.xml` is the example that shows this; the ubiquity writer warns about it explicitly, the others do not.

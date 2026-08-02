@@ -92,7 +92,15 @@ The one function that does not take a model pointer. `convertReactions(infile, o
 
 It applies four libsbml converters in sequence before emitting anything — `replaceReactions`, `promoteLocalParameters`, `expandInitialAssignments`, `expandFunctionDefinitions` — so the model reaching the writers is always rate-rule form with no local parameters or function definitions left. That is why the writers only ever walk rules and parameters. Each format has its own `writeFile*` helper (`writeFileR`, `writeFileMrgsolve`, `writeFileNlmixr2`, `writeFileMatlab`, `writeFileJulia`, `writeFileUbiquity`), forward-declared at the top of the file.
 
-Use `speciesInitialValue()` rather than `Species::getInitialAmount()` for a starting value. A species carries `initialAmount` *or* `initialConcentration`, never both, and the unset one reads back as NaN — which `operator<<` prints as the literal `nan`, a number in none of the six target languages. Six of the ten example models are concentration-based, so this affected most output.
+Use `speciesInitialValue()` rather than `Species::getInitialAmount()` for a starting value. It handles two separate traps.
+
+First, a species carries `initialAmount` *or* `initialConcentration`, never both, and the unset one reads back as NaN — which `operator<<` prints as the literal `nan`, a number in none of the six target languages. Six of the ten example models are concentration-based, so this affected most output.
+
+Second, and less visible: **the attribute that is set is not necessarily in the units the ODE integrates.** Unless `hasOnlySubstanceUnits` is true, an SBML species symbol denotes a concentration, and `replaceReactions` divides the rate rule by the compartment volume to match — you can see the `/ comp` in any generated RHS. So the state is a concentration, and an `initialAmount` has to be divided by the volume before it can be used as the initial condition. `sbmlsimple.xml` sets `initialAmount = 5e-21` in a `1e-14` compartment: the right starting value is `5e-07`, a factor of 1e14 away. The conversion runs the other way too — a `hasOnlySubstanceUnits` species given an `initialConcentration` needs multiplying by the volume, and libSBML correctly leaves *its* rate rule undivided.
+
+The volume comes from the species' own compartment, so a multi-compartment model rescales per species: in `sbmlmutlicompartment.xml` only `Y2` (cytoplasm, size 5) moves, while `Y1n` (nucleus, size 1) does not. Compartments with `spatialDimensions="0"`, an unset size, or a size of 0 convert through a volume of 1 — there is nothing meaningful to divide by, and 0 would only produce an inf.
+
+This class of bug is silent: the generated code runs, and simply integrates from the wrong place. The regression test therefore checks a purpose-built decay model against its closed-form solution (`decay_model()` in `test-convert.R`) rather than against a golden output file.
 
 ### What the state vector is: `integratedSpecies()`
 

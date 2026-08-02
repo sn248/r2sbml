@@ -3,22 +3,6 @@
 Known gaps and follow-up work. Each item notes how it was found, so it can be
 confirmed before being acted on.
 
-## Correctness
-
-### Confirm the initial-value units are consistent with the rate rules
-
-After `replaceReactions`, the rate rules divide by compartment volume
-(`... / comp`), which implies the state variable is a *concentration*. But
-`speciesInitialValue()` returns `initialAmount` when that is the attribute
-set. For `sbmlsimple.xml`, `initialAmount = 5e-21` with `comp = 1e-14`, so the
-concentration would be `5e-7` — a factor of `1e14` apart.
-
-This is unverified, and it affects every writer equally, so it is a question
-about the conversion as a whole rather than a bug in one target. Worth
-settling with a model whose analytic solution is known before changing
-anything: if the states really are concentrations, an amount-valued initial
-condition needs dividing by the compartment volume.
-
 ## Unsupported SBML constructs
 
 ### Algebraic rules in the three ODE-only targets
@@ -44,6 +28,16 @@ Two related gaps in what *is* implemented:
   `daspk`'s `estini` can estimate them, but it requires the algebraic
   equations to come last in the residual vector, which the current row order
   does not guarantee.
+
+### Compartments whose volume is not constant
+
+`speciesInitialValue()` divides an amount-valued initial condition by the
+compartment size, which is right at t = 0. If the compartment is not
+`constant`, two further things are wrong that nothing currently handles: the
+volume in the rate expressions is emitted as a fixed number rather than a
+state, and d(concentration)/dt in a changing volume carries a dilution term
+that `replaceReactions` does not add for us. Every example model has
+`constant="true"` compartments, so none of this is exercised.
 
 ### `delay`
 

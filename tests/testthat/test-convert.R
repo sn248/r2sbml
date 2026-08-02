@@ -271,3 +271,117 @@ test_that("the generated DAE solves and honours its constraints", {
     # dS/dt + dP/dt cancels exactly when k1_on*E*S == (k1_off + k2)*ES
     expect_lt(max(abs(d$S + d$P - 1)), 1e-5)
 })
+
+# A one-species first-order decay in a compartment of volume 4, written out so
+# the expected trajectory is known exactly.  `amount` picks which attribute
+# carries the initial value and whether the species is in substance units.
+decay_model <- function(amount = TRUE) {
+    species <- if (amount) {
+        'initialAmount="8" hasOnlySubstanceUnits="false"'
+    } else {
+        'initialConcentration="3" hasOnlySubstanceUnits="true"'
+    }
+    # in substance units the kinetic law is already an amount rate, so it must
+    # not carry the extra factor of c that the concentration form needs
+    law <- if (amount) "<ci>k</ci><ci>A</ci><ci>c</ci>" else "<ci>k</ci><ci>A</ci>"
+    xml <- sprintf('<?xml version="1.0" encoding="UTF-8" ?>
+<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2">
+<model substanceUnits="mole" volumeUnits="litre" timeUnits="second" extentUnits="mole">
+<listOfCompartments>
+<compartment id="c" size="4" spatialDimensions="3" constant="true"/>
+</listOfCompartments>
+<listOfSpecies>
+<species id="A" compartment="c" %s boundaryCondition="false" constant="false"/>
+</listOfSpecies>
+<listOfParameters>
+<parameter id="k" value="0.5" constant="true"/>
+</listOfParameters>
+<listOfReactions>
+<reaction id="decay" reversible="false">
+<listOfReactants>
+<speciesReference species="A" stoichiometry="1" constant="true"/>
+</listOfReactants>
+<kineticLaw>
+<math xmlns="http://www.w3.org/1998/Math/MathML">
+<apply><times/>%s</apply>
+</math>
+</kineticLaw>
+</reaction>
+</listOfReactions>
+</model>
+</sbml>', species, law)
+    f <- tempfile(fileext = ".xml")
+    writeLines(xml, f)
+    f
+}
+
+test_that("an amount-valued initial condition is converted to a concentration", {
+    # replaceReactions divides the rate rule by the compartment volume, so the
+    # state is a concentration; an initialAmount has to be divided to match.
+    sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+    if (sbml_file == "") sbml_file <- "../../inst/examples/sbmlsimple.xml"
+
+    # E: initialAmount 5e-21 in a 1e-14 compartment -> 5e-07, not 5e-21
+    out <- tempfile(fileext = ".R")
+    expect_invisible(convertReactions(sbml_file, out, format = "R"))
+    env <- new.env()
+    env$library <- function(...) invisible(NULL)
+    source(out, local = env)
+    expect_equal(unname(env$InitialAmounts[["E"]]), 5e-07)
+    expect_equal(unname(env$InitialAmounts[["S"]]), 1e-06)
+
+    # every writer shares the helper, so none of them may still show the amount
+    for (fmt in c("R", "mrgsolve", "nlmixr2", "MATLAB", "Julia", "ubiquity")) {
+        o <- tempfile()
+        expect_invisible(convertReactions(sbml_file, o, format = fmt))
+        expect_false(any(grepl("5e-21", readLines(o), fixed = TRUE)))
+    }
+
+    # per-compartment, not per-model: Y2 is in cytoplasm (size 5), Y1n in
+    # nucleus (size 1), so only Y2 is rescaled
+    multi <- system.file("examples", "sbmlmutlicompartment.xml", package = "r2sbml")
+    if (multi == "") multi <- "../../inst/examples/sbmlmutlicompartment.xml"
+    out2 <- tempfile(fileext = ".R")
+    expect_invisible(convertReactions(multi, out2, format = "R"))
+    env2 <- new.env()
+    env2$library <- function(...) invisible(NULL)
+    source(out2, local = env2)
+    expect_equal(unname(env2$InitialAmounts[["Y2"]]), 0.2)
+    expect_equal(unname(env2$InitialAmounts[["Y1n"]]), 1)
+})
+
+test_that("a hasOnlySubstanceUnits species keeps its amount", {
+    # the mirror image: the state is an amount, so an initialConcentration has
+    # to be multiplied by the volume, and the rate rule is not divided by it
+    out <- tempfile(fileext = ".R")
+    expect_invisible(convertReactions(decay_model(amount = FALSE), out, format = "R"))
+    env <- new.env()
+    env$library <- function(...) invisible(NULL)
+    source(out, local = env)
+    expect_equal(unname(env$InitialAmounts[["A"]]), 12)          # 3 * 4
+    expect_true(any(grepl("dA_dt = -1 \\* \\(k \\* A\\)$", readLines(out))))
+})
+
+test_that("the generated model reproduces a known analytic solution", {
+    skip_if_not_installed("deSolve")
+
+    # [A](t) = ([A]0) * exp(-k t), with [A]0 = 8 amount / 4 volume = 2
+    out <- tempfile(fileext = ".R")
+    expect_invisible(convertReactions(decay_model(amount = TRUE), out, format = "R"))
+    env <- new.env()
+    source(out, local = env)
+
+    times <- c(0, 1, 2, 4, 8)
+    sol <- deSolve::ode(y = env$InitialAmounts, times = times,
+                        func = env$massBalances, parms = env$parameters)
+    expect_equal(as.numeric(sol[, "A"]), 2 * exp(-0.5 * times), tolerance = 1e-5)
+
+    # the same model in substance units: A(t) = 12 * exp(-k t)
+    out2 <- tempfile(fileext = ".R")
+    expect_invisible(convertReactions(decay_model(amount = FALSE), out2, format = "R"))
+    env2 <- new.env()
+    source(out2, local = env2)
+    sol2 <- deSolve::ode(y = env2$InitialAmounts, times = times,
+                         func = env2$massBalances, parms = env2$parameters)
+    expect_equal(as.numeric(sol2[, "A"]), 12 * exp(-0.5 * times), tolerance = 1e-5)
+})

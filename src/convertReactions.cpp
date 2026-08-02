@@ -65,16 +65,48 @@ int writeFileMatlab(SBMLDocument*, std::string);
 int writeFileJulia(SBMLDocument*, std::string);
 int writeFileUbiquity(SBMLDocument*, std::string);
 
-// Starting value for a species.
+// Starting value for a species, in the units the generated ODE integrates.
 //
 // A species carries initialAmount or initialConcentration, not both, and the
 // unset one reads back as NaN.  Asking only for the amount therefore printed
 // the literal `nan` for every concentration-based model -- which is not a
 // number in R, C++ or rxode2 -- so take whichever attribute is actually set.
-static double speciesInitialValue(const Species* species)
+//
+// Taking it unchanged is still wrong, though.  Unless hasOnlySubstanceUnits is
+// set, an SBML species symbol denotes a *concentration*, and replaceReactions
+// duly divides the rate rule by the compartment volume.  So the state being
+// integrated is a concentration and an amount-valued initial condition has to
+// be divided by that volume to match -- on sbmlsimple.xml (amount 5e-21 in a
+// 1e-14 compartment) that is a factor of 1e14.  The reverse conversion applies
+// to a hasOnlySubstanceUnits species given a concentration.
+//
+// Nothing about this is visible in the generated code: the model simply starts
+// in the wrong place and integrates smoothly away from it.
+static double speciesInitialValue(const Model* model, const Species* species)
 {
-   if (species->isSetInitialAmount())        return species->getInitialAmount();
-   if (species->isSetInitialConcentration()) return species->getInitialConcentration();
+   const Compartment* c = model->getCompartment(species->getCompartment());
+
+   // A zero-dimensional compartment has no volume to convert through, and a
+   // size of 0 would only turn the conversion into an inf or a NaN.
+   double volume = 1.0;
+   if (c != NULL && c->getSpatialDimensions() > 0 &&
+       c->isSetSize() && c->getSize() != 0.0)
+   {
+     volume = c->getSize();
+   }
+
+   const bool wantsAmount = species->getHasOnlySubstanceUnits();
+
+   if (species->isSetInitialConcentration())
+   {
+     const double conc = species->getInitialConcentration();
+     return wantsAmount ? conc * volume : conc;
+   }
+   if (species->isSetInitialAmount())
+   {
+     const double amount = species->getInitialAmount();
+     return wantsAmount ? amount : amount / volume;
+   }
    return 0.0;
 }
 
@@ -383,7 +415,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    out << "InitialAmounts <- c(" << endl;
    for (int i = 0; i < numStates; i++){
       const Species* s = model->getSpecies(states[i]);
-      out << "         " << s->getIdAttribute() << " = " << speciesInitialValue(s)
+      out << "         " << s->getIdAttribute() << " = " << speciesInitialValue(model, s)
           << (i + 1 < numStates ? "," : "") << endl;
    }
 
@@ -411,7 +443,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    out << endl;
 
    // for (int i = 0; i < numIAs-1; i++) {
-   //      out << model->getSpecies(i)->getIdAttribute() << " = " << speciesInitialValue(model->getSpecies(i)) << endl; // " # (" <<  model->getSpecies(i)->getUnits() << ")" << endl;
+   //      out << model->getSpecies(i)->getIdAttribute() << " = " << speciesInitialValue(model, model->getSpecies(i)) << endl; // " # (" <<  model->getSpecies(i)->getUnits() << ")" << endl;
    // }
 
 
@@ -592,7 +624,7 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
    out << "\n$MAIN\n";
    for (int i = 0; i < numStates; i++){
         out << model->getSpecies(states[i])->getIdAttribute() << "_0 = "
-            << speciesInitialValue(model->getSpecies(states[i])) << ";\n";
+            << speciesInitialValue(model, model->getSpecies(states[i])) << ";\n";
    }
 
    int numCmt = model->getNumCompartments();
@@ -666,7 +698,7 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
 
    for (int i = 0; i < numStates; i++){
         out << "    " << model->getSpecies(states[i])->getIdAttribute() << "(0) <- "
-            << speciesInitialValue(model->getSpecies(states[i])) << "\n";
+            << speciesInitialValue(model, model->getSpecies(states[i])) << "\n";
    }
 
    out << "\n";
@@ -793,7 +825,7 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    out << "    if nargin < 2 || isempty(y0)\n";
    out << "        y0 = [ ...\n";
    for (int i = 0; i < numStates; i++){
-     out << "            " << speciesInitialValue(model->getSpecies(states[i]))
+     out << "            " << speciesInitialValue(model, model->getSpecies(states[i]))
          << "; % " << model->getSpecies(states[i])->getIdAttribute() << "\n";
    }
    out << "        ];\n";
@@ -1000,7 +1032,7 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    // whole numbers still gets a floating point state vector.
    out << "u0 = Float64[";
    for (int i = 0; i < numStates; i++){
-     out << speciesInitialValue(model->getSpecies(states[i]))
+     out << speciesInitialValue(model, model->getSpecies(states[i]))
          << (i + 1 < numStates ? ", " : "");
    }
    out << "]\n";
@@ -1112,7 +1144,7 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
    out << "# Initial conditions\n";
    for (int i = 0; i < numStates; i++){
      out << "<I> " << model->getSpecies(states[i])->getIdAttribute() << " = "
-         << speciesInitialValue(model->getSpecies(states[i])) << "\n";
+         << speciesInitialValue(model, model->getSpecies(states[i])) << "\n";
    }
    out << "\n";
 
