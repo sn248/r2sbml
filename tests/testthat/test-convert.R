@@ -15,12 +15,17 @@ test_that("convertReactions formats work", {
     expect_true(any(grepl("\\$PROB", lines_mrg)))
     expect_true(any(grepl("\\$PARAM", lines_mrg)))
 
-    # nlmixr2 / rxode
+    # nlmixr2 / rxode2
     out_file_rx <- tempfile(fileext = ".R")
     expect_invisible(convertReactions(sbml_file, out_file_rx, format = "nlmixr2"))
     lines_rx <- readLines(out_file_rx)
     expect_true(any(grepl("model <- function", lines_rx)))
     expect_true(any(grepl("ini\\(\\{", lines_rx)))
+
+    # "rxode2" is an alias for the same writer
+    out_file_rx2 <- tempfile(fileext = ".R")
+    expect_invisible(convertReactions(sbml_file, out_file_rx2, format = "rxode2"))
+    expect_identical(readLines(out_file_rx2), lines_rx)
 
     # MATLAB
     out_file_m <- tempfile(fileext = ".m")

@@ -34,7 +34,7 @@ getCmtSizes <- function(input_model) {
 #'@param infile input file name
 #'@param outfile output file name
 #'@param format output code format, one of 'R'/'deSolve' (default), 'mrgsolve',
-#' 'nlmixr2' (or 'rxode'), 'MATLAB', 'Julia' or 'ubiquity'.  An unrecognised format is an error.
+#' 'nlmixr2' (or 'rxode2'), 'MATLAB', 'Julia' or 'ubiquity'.  An unrecognised format is an error.
 #'@examples
 #'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 #'out_file <- tempfile(fileext = ".R")

@@ -12,7 +12,7 @@ convertReactions(infile, outfile, format = "R")
 \item{outfile}{output file name}
 
 \item{format}{output code format, one of 'R'/'deSolve' (default), 'mrgsolve',
-'nlmixr2' (or 'rxode'), 'MATLAB', 'Julia' or 'ubiquity'.  An unrecognised format is an error.}
+'nlmixr2' (or 'rxode2'), 'MATLAB', 'Julia' or 'ubiquity'.  An unrecognised format is an error.}
 }
 \value{
 NULL invisibly

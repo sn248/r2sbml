@@ -112,7 +112,7 @@ Ten `.xml` files covering simple reactions, assignment rules, algebraic rules, f
 
 ## `convertReactions`
 
-The one function that does not take a model pointer. `convertReactions(infile, outfile, format = "R")` reads the SBML file itself and writes ready-to-simulate code, returning `NULL` invisibly (tests assert this with `expect_invisible`). Formats: `"R"`/`"deSolve"`, `"mrgsolve"`, `"nlmixr2"`/`"rxode"`, `"MATLAB"`, `"Julia"` and `"ubiquity"` (the last three also accept the other case). An unrecognised format raises an error — it used to leave an empty file behind, which looked like success.
+The one function that does not take a model pointer. `convertReactions(infile, outfile, format = "R")` reads the SBML file itself and writes ready-to-simulate code, returning `NULL` invisibly (tests assert this with `expect_invisible`). Formats: `"R"`/`"deSolve"`, `"mrgsolve"`, `"nlmixr2"`/`"rxode2"`, `"MATLAB"`, `"Julia"` and `"ubiquity"` (the last three also accept the other case). An unrecognised format raises an error — it used to leave an empty file behind, which looked like success.
 
 It applies four libsbml converters in sequence before emitting anything — `replaceReactions`, `promoteLocalParameters`, `expandInitialAssignments`, `expandFunctionDefinitions` — so the model reaching the writers is always rate-rule form with no local parameters or function definitions left. That is why the writers only ever walk rules and parameters. Each format has its own `writeFile*` helper (`writeFileR`, `writeFileMrgsolve`, `writeFileNlmixr2`, `writeFileMatlab`, `writeFileJulia`, `writeFileUbiquity`), forward-declared at the top of the file.
 

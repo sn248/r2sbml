@@ -252,7 +252,7 @@ static void warnAssignmentRuleCompartment(Model* model, const std::string& targe
 //'@param infile input file name
 //'@param outfile output file name
 //'@param format output code format, one of 'R'/'deSolve' (default), 'mrgsolve',
-//' 'nlmixr2' (or 'rxode'), 'MATLAB', 'Julia' or 'ubiquity'.  An unrecognised format is an error.
+//' 'nlmixr2' (or 'rxode2'), 'MATLAB', 'Julia' or 'ubiquity'.  An unrecognised format is an error.
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'out_file <- tempfile(fileext = ".R")
@@ -364,7 +364,7 @@ static void warnAssignmentRuleCompartment(Model* model, const std::string& targe
    else if (format.compare("mrgsolve") == 0)  {
       writeFileMrgsolve(document, outputFile);
    }
-   else if (format.compare("nlmixr2") == 0 || format.compare("rxode") == 0)  {
+   else if (format.compare("nlmixr2") == 0 || format.compare("rxode2") == 0)  {
       writeFileNlmixr2(document, outputFile);
    }
    else if (format.compare("MATLAB") == 0 || format.compare("matlab") == 0)  {
@@ -380,7 +380,7 @@ static void warnAssignmentRuleCompartment(Model* model, const std::string& targe
       // Without this an unrecognised format quietly leaves an empty file
       // behind, which looks like a successful conversion.
       Rcpp::stop("Unknown format '" + format + "'. Use one of 'R'/'deSolve', "
-                 "'mrgsolve', 'nlmixr2'/'rxode', 'MATLAB', 'Julia' or 'ubiquity'.");
+                 "'mrgsolve', 'nlmixr2'/'rxode2', 'MATLAB', 'Julia' or 'ubiquity'.");
    }
 
    // SBMLWriter writer;

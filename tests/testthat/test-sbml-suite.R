@@ -24,7 +24,7 @@ test_that("Conversion works on SBML test suite cases", {
             expect_invisible(convertReactions(xml_file, out_mrg, format = "mrgsolve")))
         expect_true(file.exists(out_mrg))
 
-        # Test nlmixr2/rxode
+        # Test nlmixr2/rxode2
         suppressWarnings(
             expect_invisible(convertReactions(xml_file, out_rx, format = "nlmixr2")))
         expect_true(file.exists(out_rx))
