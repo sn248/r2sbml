@@ -126,6 +126,12 @@ fi
 #
 # -Wno-deprecated-non-prototype (clang): K&R-style prototypes; C-only concept.
 # -Wno-old-style-definition (GCC): K&R function definitions; C-only.
+# -Wno-strict-prototypes (GCC/clang): C-only.  CRAN's Windows check machines
+#   add -Wstrict-prototypes to CFLAGS, and libsbml declares a handful of
+#   no-argument C functions as `f ()` rather than `f (void)` —
+#   getLibSBML*Version() in common/libsbml-version.h.cmake, util_epsilon() in
+#   util/util.h, and the zlib-derived `OF(())` declarations in compress/zip.c.
+#   R CMD check counts these as "significant warnings" and fails the run.
 # -Wno-format-truncation/-overflow/-stringop-overflow (GCC): C/C++ both fine,
 #   but unknown on clang → GCC shared flags.
 # -Wno-overloaded-virtual (clang/GCC): C++ only; libsbml's XMLErrorLog
@@ -140,11 +146,11 @@ fi
 #   cannot occur.  R CMD check counts this as a "significant warning", so on
 #   Windows (Rtools45/GCC 14.3) it fails the run under error-on: warning.
 if echo "${CC}" | grep -qi clang || ${CC%% *} --version 2>&1 | grep -qi clang; then
-    EXTRA_C_WARN_FLAGS="-Wno-tautological-constant-out-of-range-compare -Wno-tautological-undefined-compare -Wno-switch -Wno-deprecated-non-prototype"
+    EXTRA_C_WARN_FLAGS="-Wno-tautological-constant-out-of-range-compare -Wno-tautological-undefined-compare -Wno-switch -Wno-deprecated-non-prototype -Wno-strict-prototypes"
     EXTRA_CXX_WARN_FLAGS="-Wno-tautological-constant-out-of-range-compare -Wno-tautological-undefined-compare -Wno-switch -Wno-overloaded-virtual"
     EXTRA_WARN_FLAGS=""
 else
-    EXTRA_C_WARN_FLAGS="-Wno-format-truncation -Wno-format-overflow -Wno-stringop-overflow -Wno-old-style-definition"
+    EXTRA_C_WARN_FLAGS="-Wno-format-truncation -Wno-format-overflow -Wno-stringop-overflow -Wno-old-style-definition -Wno-strict-prototypes"
     EXTRA_CXX_WARN_FLAGS="-Wno-format-truncation -Wno-format-overflow -Wno-stringop-overflow -Wno-overloaded-virtual -Wno-reorder -Wno-parentheses -Wno-switch -Wno-array-bounds"
     EXTRA_WARN_FLAGS=""
 fi

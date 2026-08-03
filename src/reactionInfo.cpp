@@ -39,7 +39,6 @@ Rcpp::DataFrame getReactionTable (SEXP input_model) {
     Rcpp::stop("No reactions present in the model.");
   }
 
-  char *formula;
   const KineticLaw* kl;
   Rcpp::NumericVector reactionNum;
   Rcpp::StringVector reactionID;
@@ -61,7 +60,6 @@ Rcpp::DataFrame getReactionTable (SEXP input_model) {
       kl = reaction->getKineticLaw();
       if ( kl->isSetMath() )
       {
-        // Rcpp::Rcout << "Reaction " << i+1 << ", formula: " << formula << std::endl;
         rateLaw.push_back(r2sbml::formulaToInfix( kl->getMath() ));
       }
     }
