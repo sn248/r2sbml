@@ -510,7 +510,7 @@ convertReactions(sbml_file, out_m, format = "MATLAB")
 cat(readLines(out_m), sep = "\n")
 #> % Automatically generated MATLAB model file by r2sbml
 #> %
-#> % Save as file2a09caf54d.m, then solve with:  [t, y] = file2a09caf54d();
+#> % Save as file2a1b2d092278.m, then solve with:  [t, y] = file2a1b2d092278();
 #> % Columns of y are, in order: E, S, P, ES
 #> %
 #> % Model Summary
@@ -520,7 +520,7 @@ cat(readLines(out_m), sep = "\n")
 #> %               rules: 4
 #> %              events: 0
 #> 
-#> function [t, y] = file2a09caf54d(tspan, y0)
+#> function [t, y] = file2a1b2d092278(tspan, y0)
 #> 
 #>     if nargin < 1 || isempty(tspan)
 #>         tspan = [0 10];

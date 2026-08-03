@@ -309,8 +309,8 @@ semantically invalid — inconsistent units, an overdetermined system, a
 species referenced before it is defined.
 
 If you need validation, run it through libSBML’s own validator or the
-[online SBML validator](https://sbml.org/validator/) first. `r2sbml`
-assumes the model it is given is a correct one.
+[online SBML validator](https://sbml.org/facilities/validator/) first.
+`r2sbml` assumes the model it is given is a correct one.
 
 ## Quirks of the query functions
 
