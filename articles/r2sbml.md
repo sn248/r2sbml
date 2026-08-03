@@ -254,7 +254,7 @@ convertReactions(sbml_file, out_r, format = "R")
 |----|----|
 | `"R"` or `"deSolve"` (default) | [deSolve](https://cran.r-project.org/package=deSolve) |
 | `"mrgsolve"` | [mrgsolve](https://mrgsolve.org) |
-| `"nlmixr2"` or `"rxode"` | [rxode2](https://nlmixr2.github.io/rxode2/) / nlmixr2 |
+| `"nlmixr2"` or `"rxode2"` | [rxode2](https://nlmixr2.github.io/rxode2/) / nlmixr2 |
 | `"MATLAB"` or `"matlab"` | a function file for `ode15s` |
 | `"Julia"` or `"julia"` | an `ODEProblem` for DifferentialEquations.jl |
 | `"ubiquity"` or `"Ubiquity"` | a [ubiquity](https://r.ubiquity.tools) system file |
@@ -268,7 +268,7 @@ convertReactions(sbml_file, tempfile(), format = "fortran")
 #> Conversion completed.
 #> Number of ODEs - 4
 #> Error:
-#> ! Unknown format 'fortran'. Use one of 'R'/'deSolve', 'mrgsolve', 'nlmixr2'/'rxode', 'MATLAB', 'Julia' or 'ubiquity'.
+#> ! Unknown format 'fortran'. Use one of 'R'/'deSolve', 'mrgsolve', 'nlmixr2'/'rxode2', 'MATLAB', 'Julia' or 'ubiquity'.
 ```
 
 ### What happens before anything is written
@@ -510,7 +510,7 @@ convertReactions(sbml_file, out_m, format = "MATLAB")
 cat(readLines(out_m), sep = "\n")
 #> % Automatically generated MATLAB model file by r2sbml
 #> %
-#> % Save as file2a1b2d092278.m, then solve with:  [t, y] = file2a1b2d092278();
+#> % Save as file2a05386e582.m, then solve with:  [t, y] = file2a05386e582();
 #> % Columns of y are, in order: E, S, P, ES
 #> %
 #> % Model Summary
@@ -520,7 +520,7 @@ cat(readLines(out_m), sep = "\n")
 #> %               rules: 4
 #> %              events: 0
 #> 
-#> function [t, y] = file2a1b2d092278(tspan, y0)
+#> function [t, y] = file2a05386e582(tspan, y0)
 #> 
 #>     if nargin < 1 || isempty(tspan)
 #>         tspan = [0 10];

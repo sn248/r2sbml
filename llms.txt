@@ -138,7 +138,7 @@ sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 
 convertReactions(sbml_file, "model.R",   format = "R")         # deSolve
 convertReactions(sbml_file, "model.cpp", format = "mrgsolve")
-convertReactions(sbml_file, "model.R",   format = "nlmixr2")   # or "rxode"
+convertReactions(sbml_file, "model.R",   format = "nlmixr2")   # or "rxode2"
 convertReactions(sbml_file, "model.m",   format = "MATLAB")
 convertReactions(sbml_file, "model.jl",  format = "Julia")
 convertReactions(sbml_file, "system.txt", format = "ubiquity")
@@ -148,7 +148,7 @@ convertReactions(sbml_file, "system.txt", format = "ubiquity")
 |----|----|
 | `"R"` or `"deSolve"` (default) | [deSolve](https://cran.r-project.org/package=deSolve) |
 | `"mrgsolve"` | [mrgsolve](https://mrgsolve.org) |
-| `"nlmixr2"` or `"rxode"` | [rxode2](https://nlmixr2.github.io/rxode2/) / nlmixr2 |
+| `"nlmixr2"` or `"rxode2"` | [rxode2](https://nlmixr2.github.io/rxode2/) / nlmixr2 |
 | `"MATLAB"` | a function file for `ode15s` |
 | `"Julia"` | an `ODEProblem` for [DifferentialEquations.jl](https://docs.sciml.ai/DiffEqDocs/stable/) |
 | `"ubiquity"` | a [ubiquity](https://r.ubiquity.tools) system file |
