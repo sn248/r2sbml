@@ -5,7 +5,7 @@ Version: 0.1.0
 Authors@R: c(
     person(given = "Satyaprakash", family = "Nayak",
            role = c("aut", "cre", "cph"),
-           email = "sn248@cornell.edu"),
+           email = "satyaprakash.nayak@gmail.com"),
     person(given = "Sarah M.", family = "Keating", role = "ctb",
            comment = "Author of 'libSBML' and of the example code adapted in src/convertReactions.cpp and src/getMath.cpp"),
     person(given = "Frank T.", family = "Bergmann", role = "ctb",
