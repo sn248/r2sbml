@@ -92,7 +92,7 @@ d <- as.data.frame(deSolve::daspk(y = env$InitialAmounts, dy = env$InitialDeriva
                                   times = seq(0, 10, by = 2), res = env$massBalances,
                                   parms = env$parameters))
 max(abs(d$E + d$ES - d$E_total))    # constraint residual, ~1e-13
-#> [1] 8.104628e-14
+#> [1] 1.511014e-13
 ```
 
 ### Where it is not

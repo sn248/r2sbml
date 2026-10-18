@@ -510,7 +510,7 @@ convertReactions(sbml_file, out_m, format = "MATLAB")
 cat(readLines(out_m), sep = "\n")
 #> % Automatically generated MATLAB model file by r2sbml
 #> %
-#> % Save as file290d44d1fe6e.m, then solve with:  [t, y] = file290d44d1fe6e();
+#> % Save as file29454acd6a48.m, then solve with:  [t, y] = file29454acd6a48();
 #> % Columns of y are, in order: E, S, P, ES
 #> %
 #> % Model Summary
@@ -520,7 +520,7 @@ cat(readLines(out_m), sep = "\n")
 #> %               rules: 4
 #> %              events: 0
 #> 
-#> function [t, y] = file290d44d1fe6e(tspan, y0)
+#> function [t, y] = file29454acd6a48(tspan, y0)
 #> 
 #>     if nargin < 1 || isempty(tspan)
 #>         tspan = [0 10];
@@ -790,7 +790,7 @@ round(sol, 6)
 d <- as.data.frame(sol)
 # both algebraic rules hold along the whole trajectory
 max(abs(d$E + d$ES - d$E_total))
-#> [1] 8.104628e-14
+#> [1] 1.511014e-13
 max(abs(1 * d$E * d$S - (0.5 + 0.5) * d$ES))
 #> [1] 4.561434e-07
 ```
