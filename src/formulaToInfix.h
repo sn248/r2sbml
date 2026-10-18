@@ -640,9 +640,6 @@ inline void ubiquityUnsupportedNode(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNod
   {
     case AST_FUNCTION_FACTORIAL: found.push_back("factorial"); break;
     case AST_FUNCTION_DELAY:     found.push_back("delay");     break;
-    case AST_LOGICAL_OR:         found.push_back("or");        break;
-    case AST_LOGICAL_NOT:        found.push_back("not");       break;
-    case AST_LOGICAL_XOR:        found.push_back("xor");       break;
     case AST_FUNCTION:
     {
       // A named call libsbml did not recognise; delay arrives here too when
@@ -692,7 +689,7 @@ inline std::string formulaToUbiquity(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNo
   return out;
 }
 
-inline std::string formulaToUbiquityNode(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n)
+inline std::string formulaToUbiquityBare(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n)
 {
   if (n == NULL) return std::string();
 
@@ -711,10 +708,26 @@ inline std::string formulaToUbiquityNode(const LIBSBML_CPP_NAMESPACE_QUALIFIER A
     case AST_RELATIONAL_GT:     binary = "SIMINT_GT";     break;
     case AST_RELATIONAL_GEQ:    binary = "SIMINT_GE";     break;
     case AST_RELATIONAL_EQ:     binary = "SIMINT_EQ";     break;
+    // SIMINT_NE, SIMINT_OR and SIMINT_NOT are missing from ubiquity's
+    // language documentation, but build_system.pl translates them for every
+    // output it writes.
+    case AST_RELATIONAL_NEQ:    binary = "SIMINT_NE";     break;
     case AST_LOGICAL_AND:       binary = "SIMINT_AND";    break;
+    case AST_LOGICAL_OR:        binary = "SIMINT_OR";     break;
+    case AST_LOGICAL_NOT:       unary  = "SIMINT_NOT";    break;
     case AST_FUNCTION_EXP:      unary  = "SIMINT_EXP";    break;
     case AST_FUNCTION_LN:       unary  = "SIMINT_LOGN";   break;
     default: break;
+  }
+
+  // ubiquity has no xor; expandMathML() has made every one binary, and it is
+  // (a && !b) || (!a && b).
+  if (n->getType() == AST_LOGICAL_XOR && kids == 2)
+  {
+    const std::string a = formulaToUbiquityNode(n->getChild(0));
+    const std::string b = formulaToUbiquityNode(n->getChild(1));
+    return "SIMINT_OR[SIMINT_AND[" + a + "][SIMINT_NOT[" + b + "]]]"
+           "[SIMINT_AND[SIMINT_NOT[" + a + "]][" + b + "]]";
   }
 
   // expandMathML() has rewritten every log but base 10 and every root but the
@@ -831,6 +844,19 @@ inline std::string formulaToUbiquityNode(const LIBSBML_CPP_NAMESPACE_QUALIFIER A
     acc += formulaToUbiquityNode(n->getChild(i));
   }
   return acc + ")";
+}
+
+/**
+ * ubiquity expands SIMINT_GE[a][b] to `(a) >= (b)` -- and every other
+ * relational and logical operator likewise -- with no parentheses around the
+ * whole, so `2*SIMINT_GE[x][0]` became `2*(x) >= (0)`, i.e. (2x) >= 0, in both
+ * the R and the C model.  Each such operator is therefore written inside
+ * parentheses of its own.
+ */
+inline std::string formulaToUbiquityNode(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n)
+{
+  const std::string s = formulaToUbiquityBare(n);
+  return n != NULL && (n->isRelational() || n->isLogical()) ? "(" + s + ")" : s;
 }
 
 } // namespace r2sbml

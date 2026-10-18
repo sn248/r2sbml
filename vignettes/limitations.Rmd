@@ -81,8 +81,8 @@ The other five targets share the same model preparation and the same
 expression rewriting, so most of what the suite checks applies to them too —
 but they are verified only on purpose-built probe models, against closed-form
 solutions: mrgsolve and rxode2 compiled and run, MATLAB under Octave, Julia
-with `DifferentialEquations.jl`, and ubiquity by reading the generated system
-file. None of them is run against the full suite.
+with `DifferentialEquations.jl`, and ubiquity built with `build_system()` and
+run on both its C and R engines. None of them is run against the full suite.
 
 # Scope: reading and exporting only
 
@@ -325,8 +325,9 @@ C++ and Julia it is untested, and Julia's `factorial` accepts only an integer.
 `a - b * floor(a/b)`. No test case has a negative operand, so whether that
 matches the intended truncation towards zero is unchecked.
 
-**ubiquity** has no spelling for `factorial`, `delay`, `or`, `not` or `xor`. They are written out as plain calls, and the writer puts a `# WARNING`
-block in the file as well as raising an R warning. That matters more for
+**ubiquity** has no spelling for `factorial` or `delay`. They are written out
+as plain calls, and the writer puts a `# WARNING` block in the file as well as
+raising an R warning. That matters more for
 ubiquity than elsewhere: `build_system()` accepts the file, and the failure
 surfaces much later as a C compile error naming a shared object, with nothing
 pointing back at the model.

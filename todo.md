@@ -68,11 +68,10 @@ rewritten by `expandMathML()`. What is left:
 - The MATLAB `!` -> `~` and `!=` -> `~=` rewrite in `formulaToInfixMatlab()`
   is reasoned-correct but unexercised: no example model contains a logical
   operator.
-- `ubiquityUnsupported()` lists the constructs named in the ubiquity
-  documentation. Anything else — the trigonometric functions in particular —
-  falls into the generic named-call path and is reported by name rather than
-  being in the explicit list. ubiquity does have `SIMINT_OR`, `SIMINT_NOT` and
-  `SIMINT_NE`, so `or`, `not` and `!=` could be translated rather than flagged.
+- `ubiquityUnsupported()` lists `factorial` and `delay`, which ubiquity has no
+  spelling for. Anything else it does not know falls into the generic
+  named-call path and is reported by name rather than being in the explicit
+  list.
 
 ### Smaller target-specific gaps
 
@@ -126,6 +125,15 @@ The remaining 4 failures, each its own cause:
 - 01486: `object 'y' not found`; not yet diagnosed.
 
 ## Not action items, recorded so they are not rediscovered
+
+- **ubiquity's relational and logical templates have no outer parentheses**
+  (ubiquity 2.1.0, `ubinc/perl/build_system.pl`, the `$patterns->{GE}` and
+  following entries): `SIMINT_GE[a][b]` expands to `(a) >= (b)`, so
+  `2*SIMINT_GE[x][0]` means `(2x) >= 0`. Worth reporting upstream; r2sbml
+  wraps every such operator in parentheses of its own
+  (`formulaToUbiquityNode()`), so it does not depend on a fix. Its
+  `build_system()` also needs `distribution = "package"` to find its own
+  build script when called from another package's tests.
 
 - **libSBML 5.21.1** exists but is tagged prerelease and its only change is a
   fix to the Python bindings in the pip package. It touches none of the eight

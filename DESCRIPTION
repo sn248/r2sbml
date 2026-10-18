@@ -70,7 +70,8 @@ Suggests:
     mrgsolve,
     rmarkdown,
     rxode2,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    ubiquity
 VignetteBuilder: knitr
 LinkingTo:
     Rcpp

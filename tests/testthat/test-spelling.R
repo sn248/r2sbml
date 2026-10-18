@@ -108,8 +108,8 @@ test_that("piecewise becomes a conditional each target can run", {
     expect_length(def, 1)
     expect_length(use, 1)
     expect_true(def < use)
-    expect_true(any(grepl("^<IF:r2sbml_pw1:COND> SIMINT_GT\\[A\\]\\[2\\.0\\]; 1\\.0$", u)))
-    expect_true(any(grepl("^<IF:r2sbml_pw1:COND> SIMINT_LT\\[A\\]\\[0\\.0\\]; 2\\.0$", u)))
+    expect_true(any(grepl("^<IF:r2sbml_pw1:COND> \\(SIMINT_GT\\[A\\]\\[2\\.0\\]\\); 1\\.0$", u)))
+    expect_true(any(grepl("^<IF:r2sbml_pw1:COND> \\(SIMINT_LT\\[A\\]\\[0\\.0\\]\\); 2\\.0$", u)))
     expect_true(any(grepl("^<IF:r2sbml_pw1:ELSE> 3\\.0$", u)))
 })
 
@@ -289,7 +289,7 @@ l3v2_functions <- list(
     r2 = list(l3v2_apply("root", "<degree><cn>2</cn></degree>", "<ci>A</ci>"),
               function(A) sqrt(A)))
 
-# ubiquity has no or/not/xor, so the logical ones are kept apart
+# the logical ones, kept apart because the closed-form runs below need them
 l3v2_logic <- list(
     im = list(l3v2_if(l3v2_apply("implies", l3v2_gt(0.5), l3v2_gt(0.7))),
               function(A) as.numeric(A <= 0.5 | A > 0.7)),
@@ -362,8 +362,89 @@ test_that("implies, n-ary xor and a bare comparison are spelled for every target
     expect_false(any(grepl("xor\\(", out$mrgsolve)))
     expect_true(any(grepl("xor\\(xor\\(", out$MATLAB)))
     expect_true(any(grepl("xor\\(xor\\(", out$Julia)))
-    expect_warning(convertReactions(m, tempfile(fileext = ".txt"), format = "ubiquity"),
-                   "no equivalent for: not, or, xor")
+    u <- tempfile(fileext = ".txt")
+    expect_no_warning(convertReactions(m, u, format = "ubiquity"))
+    u <- readLines(u)
+    expect_false(any(grepl("\\b(xor|or|not|implies)\\(", u)))
+    expect_true(any(grepl("SIMINT_OR\\[", u)))
+    expect_true(any(grepl("SIMINT_NOT\\[", u)))
+})
+
+# ubiquity's build_system() cannot run everywhere, so its SIMINT_*[a][b]
+# spellings are checked by rewriting them as R calls, defined as
+# build_system.pl's own R ("rproject") translations, and evaluating them.
+ubiquity_as_r <- function(expr) {
+    expr <- gsub("\\]\\[", ", ", expr)
+    expr <- gsub("(SIMINT_[A-Z0-9]+)\\[", "\\1(", expr)
+    gsub("\\]", ")", expr)
+}
+ubiquity_env <- function(A) list2env(list(
+    A = A,
+    SIMINT_GT = function(a, b) a > b, SIMINT_LT = function(a, b) a < b,
+    SIMINT_GE = function(a, b) a >= b, SIMINT_LE = function(a, b) a <= b,
+    SIMINT_EQ = function(a, b) a == b, SIMINT_NE = function(a, b) a != b,
+    SIMINT_AND = function(a, b) a && b, SIMINT_OR = function(a, b) a || b,
+    SIMINT_NOT = function(a) !(a), SIMINT_POWER = function(a, b) a^b,
+    SIMINT_EXP = exp, SIMINT_LOGN = log, SIMINT_LOG10 = log10))
+
+test_that("the Level 3 Version 2 math builds and runs in ubiquity", {
+    # The R-call check below cannot see how ubiquity itself expands SIMINT_*:
+    # its relational templates carry no outer parentheses, so 2*SIMINT_GE[x][0]
+    # became (2x) >= 0 until each was wrapped.  Only a real build shows that.
+    skip_on_cran()
+    skip_if_not_installed("ubiquity")
+    skip_if(Sys.which("perl") == "", "build_system() needs perl")
+    rules <- c(l3v2_functions, l3v2_logic)
+    d <- tempfile(); dir.create(file.path(d, "tmp"), recursive = TRUE); dir.create(file.path(d, "out"))
+    expect_no_warning(convertReactions(l3v2_model(rules), file.path(d, "system.txt"),
+                                       format = "ubiquity"))
+    old <- setwd(d); on.exit(setwd(old), add = TRUE)
+    # the system loader build_system() generates calls ubiquity unqualified
+    if (!"package:ubiquity" %in% search()) {
+        suppressPackageStartupMessages(library(ubiquity))
+        on.exit(detach("package:ubiquity"), add = TRUE)
+    }
+    invisible(capture.output(suppressMessages(
+        cfg <- ubiquity::build_system(system_file = "system.txt", distribution = "package",
+                                      output_directory = file.path(d, "out"),
+                                      temporary_directory = file.path(d, "tmp")))))
+    cfg <- ubiquity::system_set_option(cfg, group = "simulation", option = "output_times",
+                                       value = l3v2_times)
+    for (engine in c("c-file", "r-file")) {
+        cfg <- ubiquity::system_set_option(cfg, group = "simulation",
+                                           option = "integrate_with", value = engine)
+        s <- ubiquity::run_simulation_ubiquity(ubiquity::system_fetch_parameters(cfg), cfg)$simout
+        for (n in names(rules)) {
+            expect_equal(s[[n]], rules[[n]][[2]](s$A), tolerance = 1e-6,
+                         info = sprintf("%s, %s", n, engine))
+        }
+        expect_equal(s$A, exp(-s$time), tolerance = 1e-6, info = engine)
+    }
+})
+
+test_that("ubiquity spells or, not, xor and != with its SIMINT operators", {
+    gt <- function(x) l3v2_gt(x)
+    rules <- list(
+        o  = list(l3v2_apply("or", gt(0.8), l3v2_apply("lt", "<ci>A</ci>", "<cn>0.5</cn>")),
+                  function(A) A > 0.8 | A < 0.5),
+        nt = list(l3v2_apply("not", gt(0.5)), function(A) !(A > 0.5)),
+        x3 = list(l3v2_apply("xor", gt(0.2), gt(0.5), gt(0.8)),
+                  function(A) xor(xor(A > 0.2, A > 0.5), A > 0.8)),
+        ne = list(l3v2_apply("neq", l3v2_apply("floor", l3v2_apply("times", "<cn>5</cn><ci>A</ci>")),
+                             "<cn>2</cn>"),
+                  function(A) floor(5 * A) != 2))
+    u <- tempfile(fileext = ".txt")
+    expect_no_warning(convertReactions(l3v2_model(rules), u, format = "ubiquity"))
+    u <- readLines(u)
+    for (n in names(rules)) {
+        line <- grep(sprintf("^<Ad> %s = ", n), u, value = TRUE)
+        expect_length(line, 1)
+        expr <- parse(text = ubiquity_as_r(sub("^<Ad> [^=]+= ", "", line)))
+        for (A in c(0.1, 0.3, 0.45, 0.6, 0.7, 0.9)) {
+            expect_equal(as.logical(eval(expr, ubiquity_env(A))), rules[[n]][[2]](A),
+                         info = sprintf("%s at A = %g", n, A))
+        }
+    }
 })
 
 test_that("the Level 3 Version 2 math reproduces its closed forms in deSolve", {
