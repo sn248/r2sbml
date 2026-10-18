@@ -2,8 +2,7 @@
 % Please edit documentation in R/RcppExports.R
 \name{getSpeciesNames}
 \alias{getSpeciesNames}
-\title{getSpeciesNames
-Names of the species in a model}
+\title{Names of the species in a model}
 \usage{
 getSpeciesNames(input_model)
 }

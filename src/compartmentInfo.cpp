@@ -9,7 +9,6 @@ using namespace Rcpp;
 
 LIBSBML_CPP_NAMESPACE_USE
 
-//'getCmtNames
 //'Names of the compartments in a model
 //'
 //'Returns the `name` where one is set and falls back to the `id` otherwise,
@@ -45,9 +44,11 @@ Rcpp::StringVector getCmtNames (SEXP input_model) {
 }
 
 
-//'getCmtSizes
-//'Outputs the Sizes of Compartments
+//'Sizes of the compartments in a model
+//'
+//'Reports each compartment's declared size, as the file states it.
 //'@param input_model input should be an SBML Model
+//'@return a numeric vector, one entry per compartment, in model order
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)
@@ -68,7 +69,6 @@ Rcpp::NumericVector getCmtSizes (SEXP input_model) {
   for(int i = 0; i < numCmt; i++){
     // cmtNames.push_back(model->getCompartment(i)->getId());
     cmtSizes.push_back(model->getCompartment(i)->getSize());
-    Rcpp::Rcout << cmtSizes[i] << std::endl;
   }
 
   return cmtSizes;

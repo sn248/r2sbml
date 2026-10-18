@@ -2,17 +2,20 @@
 % Please edit documentation in R/RcppExports.R
 \name{getModel}
 \alias{getModel}
-\title{getModel
-Outputs an external pointer to the Model from SBML file}
+\title{Read an SBML model}
 \usage{
 getModel(filename)
 }
 \arguments{
 \item{filename}{input file name, should end with .xml}
 }
+\value{
+an external pointer to the model, to pass to the other functions
+}
 \description{
-getModel
-Outputs an external pointer to the Model from SBML file
+Reads an SBML file and keeps the parsed document alive for the other
+query functions. A file with error- or fatal-severity diagnostics is an
+error; lesser diagnostics are raised as warnings.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")

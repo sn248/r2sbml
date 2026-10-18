@@ -2,15 +2,20 @@
 % Please edit documentation in R/RcppExports.R
 \name{printSBML}
 \alias{printSBML}
-\title{printSBML}
+\title{Summarise an SBML file}
 \usage{
 printSBML(filename)
 }
 \arguments{
 \item{filename}{filename should be the name of the xml file}
 }
+\value{
+0 on success and 1 when the file has errors or no model; called for
+the printed summary
+}
 \description{
-printSBML
+Prints the file's SBML level and version and how many of each component
+its model has.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")

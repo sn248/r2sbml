@@ -2,17 +2,19 @@
 % Please edit documentation in R/RcppExports.R
 \name{getParameterTable}
 \alias{getParameterTable}
-\title{getParameterTable
-Outputs the Information Table for Paremeters}
+\title{Table of the parameters in a model}
 \usage{
 getParameterTable(input_model)
 }
 \arguments{
 \item{input_model}{input should be an SBML Model}
 }
+\value{
+a data frame with one row per parameter and columns \code{Number}, \code{ID},
+\code{Name}, \code{Value} and \code{Units}
+}
 \description{
-getParameterTable
-Outputs the Information Table for Paremeters
+Lists each global parameter with its declared value and units.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")

@@ -2,17 +2,20 @@
 % Please edit documentation in R/RcppExports.R
 \name{getSpeciesTable}
 \alias{getSpeciesTable}
-\title{getspeciesTable
-Outputs the Information Table for Species}
+\title{Table of the species in a model}
 \usage{
 getSpeciesTable(input_model)
 }
 \arguments{
 \item{input_model}{input should be an SBML Model}
 }
+\value{
+a data frame with one row per species and columns \code{Number}, \code{Name},
+\code{ID}, \code{InitialConcentration}, \code{InitialAmount}, \code{Compartment},
+\code{CompartmentVol}, \code{BoundaryCondition} and \code{Constant}
+}
 \description{
-getspeciesTable
-Outputs the Information Table for Species
+Lists each species with its initial value, compartment and flags.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")

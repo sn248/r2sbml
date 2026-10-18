@@ -2,17 +2,18 @@
 % Please edit documentation in R/RcppExports.R
 \name{getFunctionDefinition}
 \alias{getFunctionDefinition}
-\title{getFunctionDefinition
-Outputs Model which can be simulated}
+\title{Print the function definitions of a model}
 \usage{
 getFunctionDefinition(input_model)
 }
 \arguments{
 \item{input_model}{input should be an SBML Model}
 }
+\value{
+0; called for the printed output
+}
 \description{
-getFunctionDefinition
-Outputs Model which can be simulated
+Prints each function definition's arguments and body as infix math.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlfunctiondefinition.xml", package = "r2sbml")

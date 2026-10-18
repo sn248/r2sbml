@@ -2,15 +2,19 @@
 % Please edit documentation in R/RcppExports.R
 \name{echoSBML}
 \alias{echoSBML}
-\title{echoSBML}
+\title{Check an SBML file for errors}
 \usage{
 echoSBML(filename)
 }
 \arguments{
 \item{filename}{input file name}
 }
+\value{
+the number of diagnostics, as an integer
+}
 \description{
-echoSBML
+Reads the file and prints the number of diagnostics libSBML reports, then
+the diagnostics themselves.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")

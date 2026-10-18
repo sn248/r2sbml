@@ -1709,7 +1709,10 @@ static void solveLinearAlgebraicRules(Model* model)
    }
 }
 
-//'convertReactions
+//'Convert an SBML model to simulation code
+//'
+//'Writes the model's mass balances, rules and parameters as code for the
+//'chosen simulation tool, ready to simulate.
 //'@param infile input file name
 //'@param outfile output file name
 //'@param format output code format, one of 'R'/'deSolve' (default), 'mrgsolve',

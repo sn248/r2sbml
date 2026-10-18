@@ -5,8 +5,12 @@
 using namespace Rcpp;
 LIBSBML_CPP_NAMESPACE_USE
 
-//'echoSBML
+//'Check an SBML file for errors
+//'
+//'Reads the file and prints the number of diagnostics libSBML reports, then
+//'the diagnostics themselves.
 //'@param filename input file name
+//'@return the number of diagnostics, as an integer
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'echoSBML(sbml_file)

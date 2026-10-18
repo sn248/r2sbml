@@ -2,7 +2,7 @@
 % Please edit documentation in R/RcppExports.R
 \name{convertReactions}
 \alias{convertReactions}
-\title{convertReactions}
+\title{Convert an SBML model to simulation code}
 \usage{
 convertReactions(infile, outfile, format = "R")
 }
@@ -18,7 +18,8 @@ convertReactions(infile, outfile, format = "R")
 NULL invisibly
 }
 \description{
-convertReactions
+Writes the model's mass balances, rules and parameters as code for the
+chosen simulation tool, ready to simulate.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")

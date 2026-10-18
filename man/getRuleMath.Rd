@@ -2,17 +2,18 @@
 % Please edit documentation in R/RcppExports.R
 \name{getRuleMath}
 \alias{getRuleMath}
-\title{getRuleMath
-Outputs Model which can be simulated}
+\title{Print the rules of a model}
 \usage{
 getRuleMath(input_model)
 }
 \arguments{
 \item{input_model}{input should be an SBML Model}
 }
+\value{
+0; called for the printed output
+}
 \description{
-getRuleMath
-Outputs Model which can be simulated
+Prints each rule as infix math; an algebraic rule is printed as \code{f = 0}.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")

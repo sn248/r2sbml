@@ -9,7 +9,6 @@ using namespace Rcpp;
 
 LIBSBML_CPP_NAMESPACE_USE
 
-//'getSpeciesNames
 //'Names of the species in a model
 //'
 //'SBML separates `id`, which every species must have, from `name`, which is an
@@ -51,7 +50,6 @@ Rcpp::StringVector getSpeciesNames (SEXP input_model) {
 }
 
 
-//'getSpeciesIC
 //'Initial values of the species in a model
 //'
 //'A species carries `initialAmount` *or* `initialConcentration`, never both,
@@ -108,9 +106,13 @@ Rcpp::NumericVector getSpeciesIC (SEXP input_model) {
   return speciesIC;
 }
 
-//'getspeciesTable
-//'Outputs the Information Table for Species
+//'Table of the species in a model
+//'
+//'Lists each species with its initial value, compartment and flags.
 //'@param input_model input should be an SBML Model
+//'@return a data frame with one row per species and columns `Number`, `Name`,
+//'  `ID`, `InitialConcentration`, `InitialAmount`, `Compartment`,
+//'  `CompartmentVol`, `BoundaryCondition` and `Constant`
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)

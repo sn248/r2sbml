@@ -2,17 +2,18 @@
 % Please edit documentation in R/RcppExports.R
 \name{getCmtSizes}
 \alias{getCmtSizes}
-\title{getCmtSizes
-Outputs the Sizes of Compartments}
+\title{Sizes of the compartments in a model}
 \usage{
 getCmtSizes(input_model)
 }
 \arguments{
 \item{input_model}{input should be an SBML Model}
 }
+\value{
+a numeric vector, one entry per compartment, in model order
+}
 \description{
-getCmtSizes
-Outputs the Sizes of Compartments
+Reports each compartment's declared size, as the file states it.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")

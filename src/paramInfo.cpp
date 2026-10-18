@@ -14,9 +14,12 @@ using namespace Rcpp;
 
 LIBSBML_CPP_NAMESPACE_USE
 
-//'getParameterTable
-//'Outputs the Information Table for Paremeters
+//'Table of the parameters in a model
+//'
+//'Lists each global parameter with its declared value and units.
 //'@param input_model input should be an SBML Model
+//'@return a data frame with one row per parameter and columns `Number`, `ID`,
+//'  `Name`, `Value` and `Units`
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)

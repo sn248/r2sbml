@@ -2,17 +2,18 @@
 % Please edit documentation in R/RcppExports.R
 \name{getNumSpecies}
 \alias{getNumSpecies}
-\title{getSpeciesNum
-Outputs the number of Species in the model}
+\title{Number of species in a model}
 \usage{
 getNumSpecies(input_model)
 }
 \arguments{
 \item{input_model}{input should be an SBML model}
 }
+\value{
+an integer, the number of species
+}
 \description{
-getSpeciesNum
-Outputs the number of Species in the model
+Counts the species the model declares.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")

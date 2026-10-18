@@ -2,8 +2,7 @@
 % Please edit documentation in R/RcppExports.R
 \name{getCmtNames}
 \alias{getCmtNames}
-\title{getCmtNames
-Names of the compartments in a model}
+\title{Names of the compartments in a model}
 \usage{
 getCmtNames(input_model)
 }

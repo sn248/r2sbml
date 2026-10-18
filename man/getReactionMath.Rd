@@ -2,17 +2,18 @@
 % Please edit documentation in R/RcppExports.R
 \name{getReactionMath}
 \alias{getReactionMath}
-\title{getReactionMath
-Outputs Model which can be simulated}
+\title{Print the rate laws of a model}
 \usage{
 getReactionMath(input_model)
 }
 \arguments{
 \item{input_model}{input should be an SBML Model}
 }
+\value{
+0; called for the printed output
+}
 \description{
-getReactionMath
-Outputs Model which can be simulated
+Prints each reaction's kinetic law as infix math.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")

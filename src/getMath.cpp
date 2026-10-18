@@ -53,9 +53,11 @@ using namespace Rcpp;
 
 LIBSBML_CPP_NAMESPACE_USE
 
-//'getRuleMath
-//'Outputs Model which can be simulated
+//'Print the rules of a model
+//'
+//'Prints each rule as infix math; an algebraic rule is printed as `f = 0`.
 //'@param input_model input should be an SBML Model
+//'@return 0; called for the printed output
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlassignmentrules.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)
@@ -103,9 +105,11 @@ int getRuleMath (SEXP input_model) {
 }
 
 
-//'getReactionMath
-//'Outputs Model which can be simulated
+//'Print the rate laws of a model
+//'
+//'Prints each reaction's kinetic law as infix math.
 //'@param input_model input should be an SBML Model
+//'@return 0; called for the printed output
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)
@@ -147,9 +151,11 @@ int getReactionMath (SEXP input_model) {
 }
 
 
-//'getFunctionDefinition
-//'Outputs Model which can be simulated
+//'Print the function definitions of a model
+//'
+//'Prints each function definition's arguments and body as infix math.
 //'@param input_model input should be an SBML Model
+//'@return 0; called for the printed output
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlfunctiondefinition.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)
@@ -220,9 +226,11 @@ void printEventAssignmentMath (unsigned int n, const EventAssignment* ea)
   }
 }
 
-//'getEventMath
-//'Outputs Model which can be simulated
+//'Print the events of a model
+//'
+//'Prints each event's trigger and assignments as infix math.
 //'@param input_model input should be an SBML Model
+//'@return 0; called for the printed output
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlevent.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)

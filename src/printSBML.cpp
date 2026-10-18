@@ -6,8 +6,13 @@ using namespace std;
 using namespace Rcpp;
 LIBSBML_CPP_NAMESPACE_USE
 
-//'printSBML
+//'Summarise an SBML file
+//'
+//'Prints the file's SBML level and version and how many of each component
+//'its model has.
 //'@param filename filename should be the name of the xml file
+//'@return 0 on success and 1 when the file has errors or no model; called for
+//'  the printed summary
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'printSBML(sbml_file)

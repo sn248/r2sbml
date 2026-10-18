@@ -17,9 +17,12 @@ using namespace Rcpp;
 LIBSBML_CPP_NAMESPACE_USE
 
 
-//'getReactionTable
-//'Outputs the Information Table for Reactions
+//'Table of the reactions in a model
+//'
+//'Lists each reaction with its rate law written as infix math.
 //'@param input_model input should be an SBML Model
+//'@return a data frame with one row per reaction and columns `Number`, `ID`,
+//'  `Name`, `Reversible` and `RateLaw`
 //'@examples
 //'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
 //'model <- getModel(sbml_file)

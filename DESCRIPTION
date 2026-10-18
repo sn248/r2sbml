@@ -1,6 +1,6 @@
 Package: r2sbml
 Type: Package
-Title: A Lightweight R Interface to the 'libsbml' Library
+Title: Read 'SBML' Models and Convert Them to Simulation Code
 Version: 0.1.0
 Authors@R: c(
     person(given = "Satyaprakash", family = "Nayak",
@@ -52,14 +52,18 @@ Authors@R: c(
            comment = "Author of 'maddy', bundled with 'libSBML'"),
     person(given = "Tim", family = "Gromeyer", role = "cph",
            comment = "Author of 'html2md', bundled with 'libSBML'"))
-Description: Helps explore a model in 'SBML' format in R. Allows querying the
-    imported model for information regarding components such species, parameters,
-    reactions, rules, events and function definitions. Also allows exporting
-    model components along with mass-balances in different formats for
-    simulation. Modifications to the exported model in R is not supported.
+Description: Reads models in the Systems Biology Markup Language ('SBML')
+    (Hucka et al. (2003) <doi:10.1093/bioinformatics/btg015>) through the
+    bundled 'libSBML' library (Bornstein et al. (2008)
+    <doi:10.1093/bioinformatics/btn051>). Lists a model's species,
+    parameters, compartments, reactions, rules, events and function
+    definitions, and converts the model into ready-to-run simulation code
+    for 'deSolve', 'mrgsolve', 'rxode2', 'MATLAB', 'Julia' or 'ubiquity'.
+    Models are read, not modified.
 URL: https://sn248.github.io/r2sbml/, https://github.com/sn248/r2sbml
 BugReports: https://github.com/sn248/r2sbml/issues
 Encoding: UTF-8
+Language: en-GB
 License: GPL (>=2)
 Copyright: See file inst/COPYRIGHTS
 Imports:
@@ -78,4 +82,4 @@ LinkingTo:
 Biarch: TRUE
 SystemRequirements: cmake, libxml2, libbz2
 Roxygen: list(markdown = TRUE)
-Config/roxygen2/version: 8.0.0
+Config/roxygen2/version: 8.1.1

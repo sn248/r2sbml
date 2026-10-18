@@ -2,17 +2,19 @@
 % Please edit documentation in R/RcppExports.R
 \name{getReactionTable}
 \alias{getReactionTable}
-\title{getReactionTable
-Outputs the Information Table for Reactions}
+\title{Table of the reactions in a model}
 \usage{
 getReactionTable(input_model)
 }
 \arguments{
 \item{input_model}{input should be an SBML Model}
 }
+\value{
+a data frame with one row per reaction and columns \code{Number}, \code{ID},
+\code{Name}, \code{Reversible} and \code{RateLaw}
+}
 \description{
-getReactionTable
-Outputs the Information Table for Reactions
+Lists each reaction with its rate law written as infix math.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")

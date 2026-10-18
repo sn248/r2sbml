@@ -2,8 +2,7 @@
 % Please edit documentation in R/RcppExports.R
 \name{getSpeciesIC}
 \alias{getSpeciesIC}
-\title{getSpeciesIC
-Initial values of the species in a model}
+\title{Initial values of the species in a model}
 \usage{
 getSpeciesIC(input_model)
 }

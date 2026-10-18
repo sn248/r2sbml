@@ -2,17 +2,18 @@
 % Please edit documentation in R/RcppExports.R
 \name{getEventMath}
 \alias{getEventMath}
-\title{getEventMath
-Outputs Model which can be simulated}
+\title{Print the events of a model}
 \usage{
 getEventMath(input_model)
 }
 \arguments{
 \item{input_model}{input should be an SBML Model}
 }
+\value{
+0; called for the printed output
+}
 \description{
-getEventMath
-Outputs Model which can be simulated
+Prints each event's trigger and assignments as infix math.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlevent.xml", package = "r2sbml")
