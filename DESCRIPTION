@@ -20,16 +20,38 @@ Authors@R: c(
            comment = "Author of 'libSBML'"),
     person(given = "Ben", family = "Bornstein", role = "ctb",
            comment = "Author of 'libSBML'"),
+    person(given = "Jeroen", family = "Ooms", role = "ctb",
+           comment = "Windows build support"),
     person(given = "California Institute of Technology", role = "cph",
-           comment = "Copyright holder of 'libSBML', 2002-2018"),
+           comment = "Copyright holder of 'libSBML', 2002-2020"),
     person(given = "EMBL European Bioinformatics Institute", role = "cph",
            comment = "Copyright holder of 'libSBML', 2009-2018"),
     person(given = "University of Heidelberg", role = "cph",
-           comment = "Copyright holder of 'libSBML', 2013-2018"),
+           comment = "Copyright holder of 'libSBML', 2013-2020"),
+    person(given = "University College London", role = "cph",
+           comment = "Copyright holder of 'libSBML', 2020"),
     person(given = "Japan Science and Technology Agency", role = "cph",
            comment = "Copyright holder of 'libSBML', 2002-2005"),
     person(given = "Gilles", family = "Vollant", role = "cph",
-           comment = "Copyright holder of MiniZip 1.01e, bundled with 'libSBML'"))
+           comment = "Author of MiniZip, bundled with 'libSBML'"),
+    person(given = "Mathias", family = "Svensson", role = "cph",
+           comment = "Contributor to MiniZip, bundled with 'libSBML'"),
+    person(given = "Even", family = "Rouault", role = "cph",
+           comment = "Contributor to MiniZip, bundled with 'libSBML'"),
+    person(given = "Nathan", family = "Moinvaziri", role = "cph",
+           comment = "Contributor to MiniZip, bundled with 'libSBML'"),
+    person(given = "Terry", family = "Thorsen", role = "cph",
+           comment = "Contributor to MiniZip, bundled with 'libSBML'"),
+    person(given = "Info-ZIP", role = "cph",
+           comment = "Copyright holder of encryption code in MiniZip, bundled with 'libSBML'"),
+    person(given = "Ludwig", family = "Schwardt", role = "cph",
+           comment = "Author of the zlib iostream wrappers bundled with 'libSBML'"),
+    person(given = "Kevin", family = "Ruland", role = "cph",
+           comment = "Author of the zlib iostream wrappers bundled with 'libSBML'"),
+    person(given = "M. Petra", family = "Baranski", role = "cph",
+           comment = "Author of 'maddy', bundled with 'libSBML'"),
+    person(given = "Tim", family = "Gromeyer", role = "cph",
+           comment = "Author of 'html2md', bundled with 'libSBML'"))
 Description: Helps explore a model in 'SBML' format in R. Allows querying the
     imported model for information regarding components such species, parameters,
     reactions, rules, events and function definitions. Also allows exporting
@@ -39,6 +61,7 @@ URL: https://sn248.github.io/r2sbml/, https://github.com/sn248/r2sbml
 BugReports: https://github.com/sn248/r2sbml/issues
 Encoding: UTF-8
 License: GPL (>=2)
+Copyright: See file inst/COPYRIGHTS
 Imports:
     Rcpp (>= 0.12.6)
 Suggests:
