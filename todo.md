@@ -21,6 +21,12 @@ Two related gaps in what *is* implemented:
   rules and the variables they determine, and libSBML exposes none, so a model
   where the counts differ falls back to comments and a warning. A real
   bipartite matching over the variables each rule references would widen this.
+- Only species are candidates for what an algebraic rule determines
+  (`algebraicStates()`). A rule that fixes a non-constant parameter or
+  compartment is never matched, so the counts disagree and the model falls
+  back to comments and a warning. SBML Test Suite cases 00182, 00184, 00573
+  and 00576 are all of this shape: parameters only, with rate rules and one
+  algebraic rule.
 - Consistent initial conditions are assumed, not checked.
   `inst/examples/sbmlalgebraicrules.xml` happens to start on the constraint
   manifold. A model that does not will have `daspk` fail at t = 0, and
@@ -70,6 +76,77 @@ None of these is exercised by the example models, so all are untested:
   documentation. Anything else — the trigonometric functions in particular —
   falls into the generic named-call path and is reported by name rather than
   being in the explicit list.
+
+## Found by running the SBML Test Suite
+
+Found 2026-10-17 by converting the semantic cases of the SBML Test Suite
+(https://github.com/sbmlteam/sbml-test-suite, `cases/semantic/`) to deSolve
+with `convertReactions()`, simulating them with `ode()` (or `daspk()` for a
+DAE) and comparing against each case's `results.csv` within the tolerances in
+its `settings.txt`. Cases using events, `delay`, `rateOf`, fast reactions,
+`stoichiometryMath` or any SBML package were skipped, leaving 766; 494 passed.
+Making rate-rule parameters into states (they were frozen at their initial
+value) raised that to 526, with no case that passed before failing after.
+The numbers below are suite case ids, so each item can be reproduced from the
+case directory of the same name.
+
+### `nan` written as a value
+
+86 cases fail to source with `object 'nan' not found`. Two causes:
+
+- A compartment with no `size` (40 cases, e.g. 00048) is emitted as
+  `compartment = nan`. `speciesInitialValue()` already treats an unset size as
+  a volume of 1, but the compartment constant itself is written straight from
+  `getVolume()`.
+- A parameter with no `value` that an assignment rule sets (e.g. 00147,
+  00181) is written into the parameter list as `nan`, even though the RHS then
+  recomputes it. It should not be in the parameter list at all, any more than
+  an assignment-rule species is in the state vector.
+
+### Assignment-rule species are not observable
+
+An assignment-rule species is computed as a local inside the RHS and never
+returned, so its trajectory cannot be read from the solution (78 cases, e.g.
+00038). deSolve accepts extra outputs as further elements of the list
+`massBalances` returns, and the other targets have equivalents.
+
+### A model with no integrated species
+
+When every species is set by an assignment rule, or there are none,
+`InitialAmounts` is empty and `ode()` fails with "`y' must be numeric" (43
+cases, e.g. 00029). A model with parameters only makes the conversion itself
+fail (00950).
+
+### Initial values ignore initial assignments to the compartment
+
+Species starting values are converted through the compartment size the file
+declares, not the size an initial assignment or a constant assignment rule
+gives it (about 10 cases, e.g. 00143, 00471).
+
+### Rule-assigned stoichiometry is ignored
+
+A `speciesReference` whose stoichiometry is set by a rule keeps its declared
+value (4 cases, e.g. 00971).
+
+### Conversion factors
+
+Three model-level conversion-factor cases (00975 to 00977) integrate to the
+wrong values. Not yet diagnosed.
+
+### `ceil`
+
+The Level 3 writer spells the ceiling function `ceil`, which R does not have;
+R's is `ceiling` (3 cases, e.g. 00028). The other targets need checking too.
+`piecewise`, listed above, accounts for another 18 failures.
+
+### Running the suite as a test
+
+The harness that produced all of the above is not in the repo. A curated set
+of cases (each is three small files: the `-sbml-l3v2.xml`, `-results.csv` and
+`-settings.txt`) could ship under `tests/testthat/`, or a `skip_on_cran()` test
+or CI job could fetch the suite and fail on a drop in the pass count. The
+whole semantic set is about 10.8MB, too large to ship. The suite is LGPL 2.1,
+so shipping cases needs an entry in `inst/COPYRIGHTS`.
 
 ## Not action items, recorded so they are not rediscovered
 

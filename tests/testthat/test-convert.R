@@ -517,3 +517,88 @@ test_that("a growing compartment reproduces its analytic solution", {
                                      rtol = 1e-10, atol = 1e-10))
     expect_equal(d2$A, 2 * exp(-0.5 * times) / (1 + times), tolerance = 1e-7)
 })
+
+# First-order decay whose rate constant itself ramps: dk/dt = r.  So
+# k(t) = k0 + r t and [A] = A0 * exp(-(k0 t + r t^2 / 2)).  This is the shape of
+# SBML Test Suite case 00033, where the parameter's rate rule used to be
+# dropped and k stayed frozen at k0.
+ramping_rate_model <- function() {
+    xml <- '<?xml version="1.0" encoding="UTF-8" ?>
+<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2">
+<model substanceUnits="mole" volumeUnits="litre" timeUnits="second" extentUnits="mole">
+<listOfCompartments>
+<compartment id="c" size="1" spatialDimensions="3" constant="true"/>
+</listOfCompartments>
+<listOfSpecies>
+<species id="A" compartment="c" initialConcentration="2" boundaryCondition="false"
+hasOnlySubstanceUnits="false" constant="false"/>
+</listOfSpecies>
+<listOfParameters>
+<parameter id="k" value="0.5" constant="false"/>
+<parameter id="r" value="0.2" constant="true"/>
+</listOfParameters>
+<listOfRules>
+<rateRule variable="k"><math xmlns="http://www.w3.org/1998/Math/MathML">
+<ci>r</ci></math></rateRule>
+</listOfRules>
+<listOfReactions>
+<reaction id="decay" reversible="false">
+<listOfReactants><speciesReference species="A" stoichiometry="1" constant="true"/></listOfReactants>
+<kineticLaw><math xmlns="http://www.w3.org/1998/Math/MathML">
+<apply><times/><ci>k</ci><ci>A</ci><ci>c</ci></apply></math></kineticLaw>
+</reaction>
+</listOfReactions>
+</model>
+</sbml>'
+    f <- tempfile(fileext = ".xml")
+    writeLines(xml, f)
+    f
+}
+
+test_that("a parameter with a rate rule becomes a state, not a constant", {
+    out <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(ramping_rate_model(), out, format = "R"))
+    lines <- readLines(out)
+
+    # integrated: an initial value, an unpacking from states and a derivative
+    expect_true(any(grepl("^\\s*k = 0.5\\b.*parameter", lines)))
+    expect_true(any(grepl('^\\s*k = states\\[\\["k"\\]\\]', lines)))
+    expect_true(any(grepl("^\\s*dk_dt = r\\b", lines)))
+    # and no longer passed in as a constant, which would shadow the state
+    expect_false(any(grepl('k = params\\[\\["k"\\]\\]', lines)))
+    expect_true(any(grepl('r = params\\[\\["r"\\]\\]', lines)))
+
+    # every other target integrates it too, and drops it from its parameters
+    for (spec in list(c("mrgsolve", "^dxdt_k = r;",                 "^k = 0.5$"),
+                      c("nlmixr2",  "^\\s*d/dt\\(k\\) <- r\\b",     "^\\s*k <- 0.5$"),
+                      c("MATLAB",   "^\\s*dydt\\(2\\) = r;",        "^\\s*k = 0.5;$"),
+                      c("Julia",    "^\\s*du\\[2\\] = r\\b",        "^\\s*k = p\\["),
+                      c("ubiquity", "^<ODE:k> r",                   "^<P> k "))) {
+        o <- tempfile()
+        expect_no_warning(convertReactions(ramping_rate_model(), o, format = spec[1]))
+        l <- readLines(o)
+        expect_true(any(grepl(spec[2], l)), info = spec[1])
+        expect_false(any(grepl(spec[3], l)), info = spec[1])
+    }
+
+    # Julia's p holds only r now, so r is p[1]
+    o <- tempfile(fileext = ".jl")
+    convertReactions(ramping_rate_model(), o, format = "Julia")
+    l <- readLines(o)
+    expect_true(any(grepl("^\\s*r = p\\[1\\]", l)))
+    expect_true(any(grepl("^p = Float64\\[0.2\\]$", l)))
+})
+
+test_that("a ramping rate constant reproduces its analytic solution", {
+    skip_if_not_installed("deSolve")
+
+    times <- c(0, 1, 3, 7)
+    out <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(ramping_rate_model(), out, format = "R"))
+    env <- new.env(); source(out, local = env)
+    d <- as.data.frame(deSolve::ode(y = env$InitialAmounts, times = times,
+                                    func = env$massBalances, parms = env$parameters,
+                                    rtol = 1e-10, atol = 1e-10))
+    expect_equal(d$k, 0.5 + 0.2 * times, tolerance = 1e-8)
+    expect_equal(d$A, 2 * exp(-(0.5 * times + 0.1 * times^2)), tolerance = 1e-7)
+})
