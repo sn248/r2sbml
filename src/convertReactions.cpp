@@ -1362,23 +1362,17 @@ static void renameReservedIds(Model* model, const std::string& format)
    // Every writer emits assignment rules in list order, as statements, but
    // SBML lets a rule precede the ones it reads -- and restoreReactionRates()
    // appends its rules last.  Sort them so each comes after what it uses.
-   // The sorter fails on a rule with no math (01464, 01552), which Level 3
-   // Version 2 allows and gives no effect, so such a model is left unsorted.
-   bool allMath = true;
-   for (unsigned int i = 0; i < document->getModel()->getNumRules(); i++)
-     allMath = allMath && document->getModel()->getRule(i)->isSetMath();
-   if (allMath)
-   {
-     ConversionProperties sortProps;
-     sortProps.addOption("sortRules", true, "Sort rules by dependency");
-     success = document->convert(sortProps);
+   // The sorter fails on a rule with no math, but dropEmptyMath() has
+   // removed those.
+   ConversionProperties sortProps;
+   sortProps.addOption("sortRules", true, "Sort rules by dependency");
+   success = document->convert(sortProps);
 
-     if (success != LIBSBML_OPERATION_SUCCESS)
-     {
-       Rcpp::Rcerr << "Unable to perform conversion due to the following:" << endl;
-       document->printErrors(Rcpp::Rcerr);
-       Rcpp::stop("Conversion failed.");
-     }
+   if (success != LIBSBML_OPERATION_SUCCESS)
+   {
+     Rcpp::Rcerr << "Unable to perform conversion due to the following:" << endl;
+     document->printErrors(Rcpp::Rcerr);
+     Rcpp::stop("Conversion failed.");
    }
 
    renameReservedIds(document->getModel(), format);

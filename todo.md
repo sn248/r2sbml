@@ -26,10 +26,14 @@ Two related gaps in what *is* implemented:
   compartment is never matched, so the counts disagree and the model falls
   back to comments and a warning. SBML Test Suite cases 00182, 00184, 00573
   and 00576 are all of this shape: parameters only, with rate rules and one
-  algebraic rule. Another 19 (e.g. 00533, 00539, 00547) declare the
+  algebraic rule; 01479, 01484 and 01499-01503 add conversion factors.
+  Another 13 (00533-00548) declare the
   compartment or parameter with no size or value at all, leaving the
   algebraic rule as the only thing that defines it; those are written as
   `NaN` with a warning naming the variable (`warnUndefinedValues()`).
+- The candidate set can include a boundary species no algebraic rule mentions
+  (00552, 00553: {S2, S4} against one rule). Dropping candidates that no rule
+  names when the counts disagree would probably make these square.
 - Consistent initial conditions are assumed, not checked.
   `inst/examples/sbmlalgebraicrules.xml` happens to start on the constraint
   manifold. A model that does not will have `daspk` fail at t = 0, and
@@ -48,8 +52,8 @@ chain rule and all. All six writers warn in that case.
 
 Doing it properly means differentiating an AST with respect to time and the
 states it reads. That is a real piece of work, and worth it only if such
-models turn up — no example has one. The SBML Test Suite has 18 (e.g.
-00310-00318). Three of them (00310-00312) passed until assignment-rule
+models turn up — no example has one. The SBML Test Suite has 9
+(00310-00318). Three of them (00310-00312) passed until assignment-rule
 variables became solution columns: the comparison then used the true volume
 rather than the declared one, which had hidden the missing dilution.
 
@@ -73,20 +77,21 @@ comment. `getEventMath()` can inspect them from R.
 
 ### Miscellaneous maths with no target spelling
 
-None of these is exercised by the example models, so all are untested:
+The Level 3 Version 2 MathML (sec/csc/cot and hyperbolics, every `arc*`,
+`quotient`, `rem`, `implies`, `exponentiale`, `avogadro`, and
+plus/times/and/or/xor with zero, one or many operands) is now rewritten by
+`expandMathML()`. What is left:
 
 - Two-argument `log(b, x)`. The Level 3 writer emits `log(b, x)`, which is
   correct in Julia but reversed in R (`log(x, base)`) and invalid in MATLAB.
   `formulaToUbiquity()` already rewrites it as a ratio of `SIMINT_LOGN`.
-- `root(n, x)`, `exponentiale`, `factorial` in C++, and the `%` modulo
-  operator, whose spelling differs across R, C++ and MATLAB. (`piecewise`,
-  `ceiling`, infinity and booleans are now spelled per target by
-  `rewriteForDialect()`.)
-- n-ary `xor`: R's `xor()` takes exactly two arguments (00201, 00279).
-- The Level 3 Version 2 MathML functions -- `implies`, `quotient`, `rem`,
-  `sec`, `arccoth` and friends, n-ary `plus` written as a call -- and the
-  `avogadro` csymbol pass through unchanged and are not functions or names in
-  R (about 18 suite cases, e.g. 01277, 01278, 01279, 00957, 00959, 00961).
+- `root(n, x)`, `factorial` in C++, and the `%` modulo operator, whose
+  spelling differs across R, C++ and MATLAB.
+- `quotient` and `rem` follow libSBML's floor definition; no suite case has a
+  negative operand, so truncation towards zero cannot be ruled out.
+- 01282: libSBML's `expandInitialAssignments` evaluates `piecewise(0, 5, 1)`
+  as 1, treating the numeric condition 5 as false. That is libSBML's
+  evaluator, not a spelling.
 - The MATLAB `!` -> `~` and `!=` -> `~=` rewrite in `formulaToInfixMatlab()`
   is reasoned-correct but unexercised: no example model contains a logical
   operator.
@@ -102,16 +107,22 @@ None of these is exercised by the example models, so all are untested:
   avoids that.
 - ubiquity maps a `-inf` lower bound to `.Machine$double.xmin`, the smallest
   *positive* double. Harmless for simulation; wrong for estimation.
-- MATLAB: a species named `y` or `t` overwrites the generated function's own
-  outputs. The parent function's other locals are prefixed `r2sbml_` for
-  this reason, but `t` and `y` are its documented outputs.
+- The rxode2 list in `reservedNames()` holds only what was probed: rxode2
+  exports no list of its reserved names.
+- A renamed compartment shows its new name in deSolve too, since compartments
+  are top-level variables there; every other deSolve name keeps the SBML id.
+- An id that is not a valid name in the target at all, rather than a reserved
+  one, is not renamed: 01121's promoted local parameter `_J0_k1` starts with
+  an underscore, which R rejects.
+- `warnUndefinedValues()` reports "No value is defined" even for a NaN the
+  file assigns deliberately (00950).
 
 ## Found by running the SBML Test Suite
 
 Found 2026-10-17 by converting the semantic cases of the SBML Test Suite
 (https://github.com/sbmlteam/sbml-test-suite, `cases/semantic/`) to deSolve,
 simulating them and comparing against each case's `results.csv` within its
-tolerances. That run is now part of the tests: 81 passing cases ship in
+tolerances. That run is now part of the tests: 96 passing cases ship in
 `tests/testthat/sbml-test-suite/`, and the whole suite runs when
 `R2SBML_SBML_TEST_SUITE` points at `cases/semantic`, and in the
 `sbml-test-suite.yaml` CI job (pinned to suite commit d6dcd2c). Both fail
@@ -124,33 +135,29 @@ fixing piecewise/ceiling/infinity spellings, three silently wrong conversions
 (assignment-rule compartment volumes, rule-set stoichiometry, conversion
 factors) and returning assignment-rule variables as outputs, then 883 once a
 reaction id used in math denoted its rate and assignment rules were sorted
-into dependency order. The first
+into dependency order, then 962 after the Level 3 Version 2 maths, renaming
+reserved ids, chained relationals, and five more replaceReactions and harness
+fixes. The first
 harness put the scope at 766 because it read an empty `packagesPresent:`
 line as a package; the counts recorded with it in earlier commits (494, 526,
 581) are low for that reason, though each before/after comparison stands.
 
-The remaining 128 failures, by cause. The numbers are suite case ids, so each
+The remaining 49 failures, by cause. The numbers are suite case ids, so each
 can be reproduced from the case directory of the same name; run the full
 suite through the helper in `tests/testthat/helper-sbml-test-suite.R` to see
 the current detail for each.
 
-- Algebraic rules (about 30): see "Algebraic rules" above. 18 of them stop
-  the solver on a `NaN` written by `warnUndefinedValues()`.
-- Assignment-rule compartment dilution (18): see above.
-- A species reference used in math, or stoichiometry that varies in time
-  (12, e.g. 00974, 01449).
-- Level 3 Version 2 MathML functions and `avogadro` (about 18): see
-  "Miscellaneous maths".
-- A model with a rule that has no math is not sorted into dependency order,
-  because libSBML's `sortRules` converter fails on it; an out-of-order rule
-  there still emits code reading an undefined name. No suite case has both.
-- `Conversion failed.` (5, e.g. 00950, 01234, 01554, 01557). 00950
-  is `expandInitialAssignments` rejecting an initial assignment to
-  `inf`/`-inf`/`nan`; the others are not yet diagnosed.
-- Conversion factors in the remaining shapes (4, e.g. 01484, 01499-01501).
-- Generated R that does not parse (about 12, "unexpected '>'" or "'='"); not
-  yet diagnosed.
-- About 25 numeric mismatches not yet diagnosed individually.
+- Algebraic rules (29): see "Algebraic rules" above. 13 of them (00533-00548)
+  stop the solver on a `NaN` written by `warnUndefinedValues()`.
+- Assignment-rule compartment dilution (9, 00310-00318): see above.
+- Algebraic rules determining parameters, with conversion factors (7, 01479,
+  01484, 01499-01503).
+- 01121: an id that is not a valid R name (see "Smaller target-specific
+  gaps").
+- 01282: libSBML's piecewise evaluation (see "Miscellaneous maths").
+- 01323: a relative error of 3.5e-08 on `avogadro`-scaled values, just outside
+  the case's tolerance; not yet diagnosed.
+- 01486: `object 'y' not found`; not yet diagnosed.
 
 ## Not action items, recorded so they are not rediscovered
 
