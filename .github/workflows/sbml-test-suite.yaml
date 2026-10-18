@@ -27,10 +27,10 @@ jobs:
       NOT_CRAN: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check out the SBML Test Suite (semantic cases only)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: sbmlteam/sbml-test-suite
           ref: d6dcd2cc6408d5eb881638ac6ce7a05fd7d2e4d1   # 3.3.0, develop
