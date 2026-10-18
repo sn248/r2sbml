@@ -51,6 +51,7 @@
 #include <cmath>
 #include <limits>
 #include <map>
+#include <set>
 #include <chrono>
 #include <ctime>
 #include <sbml/SBMLTypes.h>
@@ -93,11 +94,12 @@ static double speciesInitialValue(const Model* model, const Species* species)
    const Compartment* c = model->getCompartment(species->getCompartment());
 
    // The volume at t = 0, which an assignment rule may set to something other
-   // than the declared size.  A zero-dimensional compartment has no volume to
-   // convert through, and a size of 0 would only turn the conversion into an
-   // inf or a NaN.
+   // than the declared size.  An unsized zero-dimensional compartment has no
+   // volume to convert through, and a size of 0 would only turn the conversion
+   // into an inf or a NaN.  A sized 0-D one converts through its size, as its
+   // reaction terms do (see exposeCompartmentSizes()).
    double volume = 1.0;
-   if (c != NULL && c->getSpatialDimensions() > 0)
+   if (c != NULL && (c->getSpatialDimensions() > 0 || c->isSetSize()))
    {
      const double size = initialCompartmentSize(model, c);
      if (std::isfinite(size) && size != 0.0) volume = size;
@@ -432,12 +434,21 @@ static bool compartmentIsVarying(Model* model, const std::string& id)
    return rateRuleFor(model, id) >= 0 || hasAssignmentRule(model, id);
 }
 
+// Species that carry a rate rule of their own in the file, as opposed to one
+// replaceReactions made from their reactions.  Recorded by convertReactions()
+// before converting, since afterwards the two look the same.
+static std::set<std::string> ownRateRuleSpecies;
+
 // The compartment whose changing volume dilutes @p species, or "" for none.
-// A hasOnlySubstanceUnits species integrates an amount, which dilution does
-// not touch, and a constant species does not move at all.
+// What is conserved, absent reactions, is the *amount*: so a species with no
+// rule is diluted even when constant or a boundary species (SBML Test Suite
+// cases 01117, 01118).  A hasOnlySubstanceUnits species integrates an amount,
+// which dilution does not touch, and a species' own rate rule gives d[S]/dt
+// outright, volume change included (01198, 01208).
 static std::string dilutingCompartment(Model* model, const Species* species)
 {
-   if (species->getConstant() || species->getHasOnlySubstanceUnits()) return "";
+   if (species->getHasOnlySubstanceUnits() ||
+       ownRateRuleSpecies.count(species->getIdAttribute())) return "";
    const std::string cid = species->getCompartment();
    return rateRuleFor(model, cid) >= 0 ? cid : "";
 }
@@ -773,6 +784,240 @@ static void restoreReactionRates(Model* model, ReactionRates& rates)
    }
 }
 
+// --- one species referenced more than once by a reaction ----------------------
+//
+// SBML allows a species to appear several times among a reaction's reactants
+// (or products), and the stoichiometries add.  replaceReactions looks each
+// reference up by species id (SBMLReactionConverter::determineStoichiometryNode
+// calls getReactant(speciesId)), so every repeat counts with the *first*
+// reference's stoichiometry: 1 + 2 came out as 1 + 1 (SBML Test Suite cases
+// 01421-01452).  So merge the repeats into the first reference beforehand.
+// Plain numbers are summed.  When a rule or initial assignment sets any part,
+// each such part becomes a parameter of its own id -- so that rule or
+// assignment still applies, and still means what it did -- and the merged
+// reference takes a fresh id and an assignment rule summing the parts.
+static void mergeRepeatedReferences(Model* model)
+{
+   for (unsigned int i = 0; i < model->getNumReactions(); i++)
+   {
+     Reaction* rn = model->getReaction(i);
+     for (unsigned int side = 0; side < 2; side++)
+     {
+       std::map<std::string, std::vector<unsigned int> > bySpecies;
+       std::vector<std::string> order;
+       const unsigned int n = side ? rn->getNumProducts() : rn->getNumReactants();
+       for (unsigned int j = 0; j < n; j++)
+       {
+         const SpeciesReference* sr = side ? rn->getProduct(j) : rn->getReactant(j);
+         if (!bySpecies.count(sr->getSpecies())) order.push_back(sr->getSpecies());
+         bySpecies[sr->getSpecies()].push_back(j);
+       }
+
+       std::vector<unsigned int> drop;
+       std::vector<std::pair<std::string, double> > parts;  // id, declared value
+       std::vector<bool> partVaries;
+       for (size_t k = 0; k < order.size(); k++)
+       {
+         const std::vector<unsigned int>& refs = bySpecies[order[k]];
+         if (refs.size() < 2) continue;
+
+         ASTNode sum(AST_PLUS);
+         double total = 0;
+         bool assigned = false;
+         for (size_t r = 0; r < refs.size(); r++)
+         {
+           SpeciesReference* sr = side ? rn->getProduct(refs[r]) : rn->getReactant(refs[r]);
+           const double declared = sr->isSetStoichiometry()
+               ? sr->getStoichiometry() : std::numeric_limits<double>::quiet_NaN();
+           const std::string id = sr->isSetId() ? sr->getId() : "";
+           const bool ruled = !id.empty() && model->getRule(id) != NULL;
+           if (ruled || (!id.empty() && model->getInitialAssignment(id) != NULL))
+           {
+             ASTNode* name = new ASTNode(AST_NAME);
+             name->setName(id.c_str());
+             sum.addChild(name);
+             parts.push_back(std::make_pair(id, declared));
+             partVaries.push_back(ruled);
+             assigned = true;
+           }
+           else
+           {
+             ASTNode* value = new ASTNode(AST_REAL);
+             value->setValue(declared);
+             sum.addChild(value);
+           }
+           total += declared;
+           if (r > 0) drop.push_back(refs[r]);
+         }
+
+         SpeciesReference* first = side ? rn->getProduct(refs[0]) : rn->getReactant(refs[0]);
+         if (assigned)
+         {
+           const std::string id = "r2sbml_" + rn->getIdAttribute() + "_" + order[k] +
+                                  (side ? "_products" : "_reactants");
+           first->setId(id);
+           first->setConstant(false);
+           AssignmentRule* rule = model->createAssignmentRule();
+           rule->setVariable(id);
+           rule->setMath(&sum);
+         }
+         else
+         {
+           first->setStoichiometry(total);
+         }
+       }
+
+       std::sort(drop.begin(), drop.end());
+       for (size_t d = drop.size(); d-- > 0; )
+       {
+         delete (side ? rn->removeProduct(drop[d]) : rn->removeReactant(drop[d]));
+       }
+       // Only now are the parts' ids free for the parameters to take.
+       for (size_t q = 0; q < parts.size(); q++)
+       {
+         Parameter* p = model->createParameter();
+         p->setId(parts[q].first);
+         p->setConstant(!partVaries[q]);
+         if (!std::isnan(parts[q].second)) p->setValue(parts[q].second);
+       }
+     }
+   }
+}
+
+// --- species-reference ids that other math reads ------------------------------
+//
+// A speciesReference id used in math denotes its stoichiometry.  When no rule
+// sets it, replaceReactions removes the reaction and leaves the name pointing
+// at nothing, which its own validation then rejects ("Conversion failed.",
+// SBML Test Suite cases 00974, 01121, 01498, 01566 and others).  So beforehand,
+// the reference takes a fresh id and a constant parameter takes over the old
+// one, with the stoichiometry as its value.  An initial assignment to the old
+// id now sets that parameter, and the reference gets one of its own reading
+// it, so the converter inlines the parameter's name.  Rule-set ids need none
+// of this: the converter makes a parameter for those itself.
+static void exposeReferencedStoichiometry(Model* model)
+{
+   for (unsigned int i = 0; i < model->getNumReactions(); i++)
+   {
+     Reaction* rn = model->getReaction(i);
+     for (unsigned int side = 0; side < 2; side++)
+     {
+       const unsigned int n = side ? rn->getNumProducts() : rn->getNumReactants();
+       for (unsigned int j = 0; j < n; j++)
+       {
+         SpeciesReference* sr = side ? rn->getProduct(j) : rn->getReactant(j);
+         if (!sr->isSetId()) continue;
+         const std::string id = sr->getId();
+         const Rule* rule = model->getRule(id);
+         if ((rule != NULL && rule->isSetMath()) || !mentionedInMath(model, id)) continue;
+
+         const std::string fresh = "r2sbml_sr_" + id;
+         sr->setId(fresh);
+         Parameter* p = model->createParameter();
+         p->setId(id);
+         p->setConstant(true);
+         if (sr->isSetStoichiometry()) p->setValue(sr->getStoichiometry());
+
+         if (model->getInitialAssignment(id) != NULL)
+         {
+           InitialAssignment* ia = model->createInitialAssignment();
+           ia->setSymbol(fresh);
+           ASTNode name(AST_NAME);
+           name.setName(id.c_str());
+           ia->setMath(&name);
+         }
+       }
+     }
+   }
+}
+
+// --- rules and initial assignments with no math -------------------------------
+//
+// Level 3 Version 2 lets either omit its math, and then it has no effect.  Left
+// in, every writer emitted `p = ` with nothing after it (SBML Test Suite cases
+// 01235, 01236, 01555, 01556), so they are removed before anything else.
+static void dropEmptyMath(Model* model)
+{
+   for (unsigned int i = model->getNumRules(); i-- > 0; )
+     if (!model->getRule(i)->isSetMath()) delete model->removeRule(i);
+   for (unsigned int i = model->getNumInitialAssignments(); i-- > 0; )
+     if (!model->getInitialAssignment(i)->isSetMath())
+       delete model->removeInitialAssignment(i);
+}
+
+// expandInitialAssignments only applies an assignment whose value is not NaN
+// (SBMLTransforms::expandInitialAssignment), and fails the whole conversion if
+// any is left over -- so an initial assignment to <notanumber/> could never
+// convert (SBML Test Suite case 00950).  Apply the literal ones by hand.
+static void applyNaNInitialAssignments(Model* model)
+{
+   for (unsigned int i = model->getNumInitialAssignments(); i-- > 0; )
+   {
+     const InitialAssignment* ia = model->getInitialAssignment(i);
+     const ASTNode* math = ia->getMath();
+     if (math == NULL || !math->isReal() || !std::isnan(math->getReal())) continue;
+
+     const double nan = std::numeric_limits<double>::quiet_NaN();
+     if (Parameter* p = model->getParameter(ia->getSymbol())) p->setValue(nan);
+     else if (Compartment* c = model->getCompartment(ia->getSymbol())) c->setSize(nan);
+     else continue;
+     delete model->removeInitialAssignment(i);
+   }
+}
+
+// --- when replaceReactions leaves out the division by the volume ---------------
+//
+// SBMLReactionConverter::useCompartmentSize() divides a reaction term by the
+// compartment size except for a zero-dimensional compartment, and for a
+// constant one of declared size 1 that the kinetic law does not name.  The
+// first is wrong whenever the compartment is sized: the suite reads a species
+// in it as size * concentration (01809).  The second is wrong when an initial
+// assignment gives the compartment another size.  So, while converting, each
+// such compartment is presented as three-dimensional and of unknown size.
+struct CompartmentPatch
+{
+   std::vector<std::pair<std::string, double> > dimensions;
+   std::vector<std::string>                     unitSize;
+};
+
+static CompartmentPatch exposeCompartmentSizes(Model* model)
+{
+   CompartmentPatch patch;
+   for (unsigned int i = 0; i < model->getNumCompartments(); i++)
+   {
+     Compartment* c = model->getCompartment(i);
+     const std::string id = c->getIdAttribute();
+     if (c->isSetSpatialDimensions() && c->getSpatialDimensionsAsDouble() == 0 &&
+         c->isSetSize())
+     {
+       patch.dimensions.push_back(std::make_pair(id, c->getSpatialDimensionsAsDouble()));
+       c->setSpatialDimensions(3.0);
+     }
+     const InitialAssignment* ia = model->getInitialAssignment(id);
+     if (c->isSetSize() && c->getSize() == 1.0 && ia != NULL)
+     {
+       patch.unitSize.push_back(id);
+       c->setSize(std::numeric_limits<double>::quiet_NaN());
+     }
+   }
+   return patch;
+}
+
+static void restoreCompartmentSizes(Model* model, const CompartmentPatch& patch)
+{
+   for (size_t k = 0; k < patch.dimensions.size(); k++)
+   {
+     Compartment* c = model->getCompartment(patch.dimensions[k].first);
+     if (c != NULL) c->setSpatialDimensions(patch.dimensions[k].second);
+   }
+   for (size_t k = 0; k < patch.unitSize.size(); k++)
+   {
+     // The converter may already have applied the initial assignment itself.
+     Compartment* c = model->getCompartment(patch.unitSize[k]);
+     if (c != NULL && std::isnan(c->getSize())) c->setSize(1.0);
+   }
+}
+
 //'convertReactions
 //'@param infile input file name
 //'@param outfile output file name
@@ -823,9 +1068,23 @@ static void restoreReactionRates(Model* model, ReactionRates& rates)
                 " SBML error(s), listed above.  Nothing was written.");
    }
 
-   // Three things replaceReactions gets wrong have to be set up beforehand: see
-   // exposeRuleStoichiometry(), reactionConversionFactors() and
-   // referencedReactionRates().
+   dropEmptyMath(document->getModel());
+
+   ownRateRuleSpecies.clear();
+   for (unsigned int i = 0; i < document->getModel()->getNumSpecies(); i++)
+   {
+     const std::string id = document->getModel()->getSpecies(i)->getIdAttribute();
+     const Rule* rr = document->getModel()->getRateRule(id);
+     if (rr != NULL && rr->isSetMath()) ownRateRuleSpecies.insert(id);
+   }
+
+   // Six things replaceReactions gets wrong have to be set up beforehand: see
+   // exposeReferencedStoichiometry(), mergeRepeatedReferences(),
+   // exposeCompartmentSizes(), exposeRuleStoichiometry(),
+   // reactionConversionFactors() and referencedReactionRates().
+   exposeReferencedStoichiometry(document->getModel());
+   mergeRepeatedReferences(document->getModel());
+   const CompartmentPatch compartments = exposeCompartmentSizes(document->getModel());
    StoichiometryPatch stoichiometry = exposeRuleStoichiometry(document->getModel());
    const std::vector<std::pair<std::string, std::string> > factors =
        reactionConversionFactors(document->getModel());
@@ -846,6 +1105,7 @@ static void restoreReactionRates(Model* model, ReactionRates& rates)
      Rcpp::stop("Conversion failed.");
    }
 
+   restoreCompartmentSizes(document->getModel(), compartments);
    restoreRuleStoichiometry(document->getModel(), stoichiometry);
    applyConversionFactors(document->getModel(), factors);
    restoreReactionRates(document->getModel(), rates);
@@ -864,6 +1124,7 @@ static void restoreReactionRates(Model* model, ReactionRates& rates)
    }
 
    // expand Initial Assignments
+   applyNaNInitialAssignments(document->getModel());
    props.addOption("expandInitialAssignments", true,
                    "Expanding Initial Assignments");
    // convert
