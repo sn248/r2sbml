@@ -297,7 +297,39 @@ static std::vector<RateState> integratedRateStates(Model* model)
                         model->getRule(rule)->getMath(), "parameter"});
      }
    }
+
+   // A model whose every variable follows an assignment rule integrates
+   // nothing, and an empty state vector is not something any of the six
+   // solvers accepts (deSolve: "`y' must be numeric").  Its trajectory is still
+   // well defined -- the rules evaluated over time -- so give the solver one
+   // inert state to step and let the observed variables carry the answer.
+   if (extra.empty() && integratedSpecies(model).empty())
+   {
+     static ASTNode* zero = NULL;
+     if (zero == NULL)
+     {
+       zero = new ASTNode(AST_INTEGER);
+       zero->setValue(0);
+     }
+     extra.push_back({"r2sbml_placeholder", 0.0, zero,
+                      "placeholder state, not in the SBML model"});
+   }
    return extra;
+}
+
+// The variables assignment rules set, in rule order: species, parameters,
+// compartments, even stoichiometry ids.  Each is computed as a local inside
+// the RHS, so none is in the solver's state vector, and without being
+// returned explicitly its trajectory cannot be read from the solution.
+static std::vector<std::string> observedVariables(Model* model)
+{
+   std::vector<std::string> vars;
+   for (unsigned int i = 0; i < model->getNumRules(); i++)
+   {
+     const Rule* r = model->getRule(i);
+     if (r->isAssignment()) vars.push_back(r->getVariable());
+   }
+   return vars;
 }
 
 // Indices of the parameters that stay constant parameters.  One with a rate
@@ -870,6 +902,22 @@ static void warnAlgebraicUnsolved(const std::string& target, size_t nRules,
                  "generated code runs but does not honour the constraint.");
 }
 
+// The deSolve extra-output vector, `c(X = X, ...)`, for the variables
+// assignment rules set; "" when there are none.  ode() and daspk() both take a
+// list whose later elements are extra outputs, and give each one a column of
+// the solution beside the states.
+static std::string deSolveOutputs(Model* model)
+{
+   const std::vector<std::string> vars = observedVariables(model);
+   if (vars.empty()) return "";
+   std::string list;
+   for (size_t i = 0; i < vars.size(); i++)
+   {
+     list += (i ? ", " : "") + vars[i] + " = " + vars[i];
+   }
+   return "c(" + list + ")";
+}
+
 // write output ODEs for R
 int writeFileR(SBMLDocument* document, std::string outfilename)
 {
@@ -1107,7 +1155,8 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
             << ((int)(numStates + i + 1) < numEntries ? " ," : "") << endl;
      }
      out << "   )" << endl;
-     out << "   return(list(Residuals))" << endl;
+     const std::string outputs = deSolveOutputs(model);
+     out << "   return(list(Residuals" << (outputs.empty() ? "" : ", " + outputs) << "))" << endl;
      out << endl << endl << "}" << endl << endl;
      out.close();
      return 0;
@@ -1155,7 +1204,10 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
           << ((int)(numStates + i + 1) < numEntries ? " ," : "") << endl;
    }
    out << "   )" << endl;
-   out << "   return(list(MassBalances))" << endl;
+   // Assignment-rule variables ride along as extra outputs, so the solution
+   // has a column for each beside the states.
+   const std::string outputs = deSolveOutputs(model);
+   out << "   return(list(MassBalances" << (outputs.empty() ? "" : ", " + outputs) << "))" << endl;
    out << endl;
 
 
@@ -1220,7 +1272,9 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
    int numCmt = model->getNumCompartments();
    for (int i = 0; i < numCmt; i++){
         if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
-        out <<  model->getCompartment(i)->getId() << " = " << Num{compartmentValue(model->getCompartment(i)), kSpellC} << ";\n";
+        // declared, or the C++ does not compile; mrgsolve makes a declaration
+        // in $MAIN global, so $ODE and $TABLE see it too
+        out << "double " << model->getCompartment(i)->getId() << " = " << Num{compartmentValue(model->getCompartment(i)), kSpellC} << ";\n";
    }
 
    out << "\n$ODE\n";
@@ -1265,6 +1319,25 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
          << r2sbml::formulaToInfixC(model->getRule(algRules[i])->getMath()) << "\n";
    }
    if (!algRules.empty()) warnAlgebraicUnsolved("mrgsolve", algRules.size(), true);
+
+   // The assignment-rule locals declared in $ODE are global to the model, but
+   // their values there are from the solver's last internal step, not the
+   // output time, so $TABLE recomputes them from the output-time states before
+   // $CAPTURE records them.
+   const std::vector<std::string> observed = observedVariables(model);
+   if (!observed.empty()){
+     out << "\n$TABLE\n";
+     for (int i = 0; i < numODEs; i++){
+       const Rule* r = model->getRule(i);
+       if (r->isAssignment()){
+         out << r->getVariable() << " = "
+             << r2sbml::formulaToInfixC(r->getMath()) << ";\n";
+       }
+     }
+     out << "\n$CAPTURE";
+     for (size_t i = 0; i < observed.size(); i++) out << " " << observed[i];
+     out << "\n";
+   }
 
    out.close();
    return 0;
@@ -1393,6 +1466,7 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
 
    const std::string fname = matlabFunctionName(outfilename);
    const std::vector<int> states = integratedSpecies(model);
+   const std::vector<std::string> observed = observedVariables(model);
    const int numStates = (int)states.size();
 
    const std::vector<int> algRules  = algebraicRules(model);
@@ -1411,7 +1485,8 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
 
    out << "% Automatically generated MATLAB model file by r2sbml\n";
    out << "%\n";
-   out << "% Save as " << fname << ".m, then solve with:  [t, y] = " << fname << "();\n";
+   out << "% Save as " << fname << ".m, then solve with:  [t, y"
+       << (observed.empty() ? "" : ", obs") << "] = " << fname << "();\n";
    out << "% Columns of y are, in order: ";
    for (int i = 0; i < numStates; i++){
      out << model->getSpecies(states[i])->getIdAttribute()
@@ -1421,6 +1496,12 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
      out << rateStates[i].id
          << ((int)(numStates + i + 1) < numEntries ? ", " : "\n");
    }
+   if (!observed.empty()){
+     out << "% Columns of obs, the assignment-rule variables, are: ";
+     for (size_t i = 0; i < observed.size(); i++){
+       out << observed[i] << (i + 1 < observed.size() ? ", " : "\n");
+     }
+   }
    out << "%\n";
    out << "% Model Summary\n";
    out << "%        compartments: " << numCmt << "\n";
@@ -1429,7 +1510,11 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    out << "%               rules: " << numRules << "\n";
    out << "%              events: " << model->getNumEvents() << "\n\n";
 
-   out << "function [t, y] = " << fname << "(tspan, y0)\n\n";
+   // A nested function shares every variable its parent also uses, so the
+   // parent's own names carry an r2sbml_ prefix: a loop index `k` would
+   // otherwise overwrite an SBML parameter `k` that massBalances reads.
+   out << "function [t, y" << (observed.empty() ? "" : ", r2sbml_obs") << "] = "
+       << fname << "(tspan, y0)\n\n";
 
    out << "    if nargin < 1 || isempty(tspan)\n";
    out << "        tspan = [0 10];\n";
@@ -1483,32 +1568,46 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
      out << "    [t, y] = ode15s(@massBalances, tspan, y0);\n\n";
    }
 
+   if (!observed.empty()){
+     // ode15s returns states only, so the assignment-rule variables are
+     // recomputed from each row of y by the same rules massBalances uses.
+     out << "    % Assignment-rule variables at each output time\n";
+     out << "    r2sbml_obs = zeros(numel(t), " << observed.size() << ");\n";
+     out << "    for r2sbml_i = 1:numel(t)\n";
+     out << "        r2sbml_obs(r2sbml_i, :) = observables(t(r2sbml_i), y(r2sbml_i, :).');\n";
+     out << "    end\n\n";
+   }
+
+   // The state unpacking and assignment rules, shared by massBalances and
+   // observables.  Assignment rules come after the unpacking, since they may
+   // read states, and before the derivatives, which may read them in turn.
+   auto unpackAndAssign = [&](){
+     out << "        % States\n";
+     for (int i = 0; i < numStates; i++){
+       out << "        " << model->getSpecies(states[i])->getIdAttribute()
+           << " = states(" << i + 1 << ");\n";
+     }
+     for (size_t i = 0; i < rateStates.size(); i++){
+       out << "        " << rateStates[i].id
+           << " = states(" << numStates + (int)i + 1 << ");\n";
+     }
+     out << "\n";
+
+     bool anyAssignment = false;
+     for (int i = 0; i < numRules; i++){
+       const Rule* r = model->getRule(i);
+       if (r->isAssignment()){
+         if (!anyAssignment){ out << "        % Assignment rules\n"; anyAssignment = true; }
+         out << "        " << r->getVariable() << " = "
+             << r2sbml::formulaToInfixMatlab(r->getMath()) << ";\n";
+       }
+     }
+     if (anyAssignment) out << "\n";
+   };
+
    // Nested, so the compartment and parameter values above stay in scope.
    out << "    function dydt = massBalances(time, states)\n\n";
-
-   out << "        % States\n";
-   for (int i = 0; i < numStates; i++){
-     out << "        " << model->getSpecies(states[i])->getIdAttribute()
-         << " = states(" << i + 1 << ");\n";
-   }
-   for (size_t i = 0; i < rateStates.size(); i++){
-     out << "        " << rateStates[i].id
-         << " = states(" << numStates + (int)i + 1 << ");\n";
-   }
-   out << "\n";
-
-   // Assignment rules come after the state unpacking, since they may read
-   // states, and before the derivatives, which may read them in turn.
-   bool anyAssignment = false;
-   for (int i = 0; i < numRules; i++){
-     const Rule* r = model->getRule(i);
-     if (r->isAssignment()){
-       if (!anyAssignment){ out << "        % Assignment rules\n"; anyAssignment = true; }
-       out << "        " << r->getVariable() << " = "
-           << r2sbml::formulaToInfixMatlab(r->getMath()) << ";\n";
-     }
-   }
-   if (anyAssignment) out << "\n";
+   unpackAndAssign();
 
    out << "        % Mass balances\n";
    out << "        dydt = zeros(" << numEntries << ", 1);\n";
@@ -1554,6 +1653,18 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
 
    out << "\n";
    out << "    end\n";
+
+   if (!observed.empty()){
+     out << "\n";
+     out << "    function r2sbml_row = observables(time, states)\n\n";
+     unpackAndAssign();
+     out << "        r2sbml_row = [";
+     for (size_t i = 0; i < observed.size(); i++){
+       out << observed[i] << (i + 1 < observed.size() ? ", " : "");
+     }
+     out << "];\n";
+     out << "    end\n";
+   }
    out << "end\n";
 
    // A local function after the main one: MATLAB has no conditional
@@ -1622,52 +1733,66 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    out << "#               rules: " << numRules << "\n";
    out << "#              events: " << model->getNumEvents() << "\n\n";
 
-   out << "using DifferentialEquations\n\n";
-
-   out << "function massbalances!(du, u, p, t)\n\n";
-
-   // SBML's csymbol for time serialises as `time`; the solver passes `t`.
-   out << "    time = t\n\n";
-
-   out << "    # Compartments\n";
-   for (int i = 0; i < numCmt; i++){
-     if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
-     out << "    " << model->getCompartment(i)->getId() << " = "
-         << Num{compartmentValue(model->getCompartment(i)), kSpellDefault} << "\n";
+   const std::vector<std::string> observed = observedVariables(model);
+   if (!observed.empty()){
+     out << "# Assignment-rule variables at each saved time:\n";
+     out << "#   obs = [observables(sol.u[i], p, sol.t[i]) for i in eachindex(sol.t)]\n";
+     out << "#\n";
    }
-   out << "\n";
+
+   out << "using DifferentialEquations\n\n";
 
    // p carries only the constant parameters, so its indices skip any
    // parameter that is integrated in u instead.
-   out << "    # Parameters\n";
    const std::vector<int> params = constantParameters(model);
-   for (size_t i = 0; i < params.size(); i++){
-     out << "    " << model->getParameter(params[i])->getIdAttribute()
-         << " = p[" << i + 1 << "]\n";
-   }
-   out << "\n";
 
-   out << "    # States\n";
-   for (int i = 0; i < numStates; i++){
-     out << "    " << model->getSpecies(states[i])->getIdAttribute()
-         << " = u[" << i + 1 << "]\n";
-   }
-   for (size_t i = 0; i < rateStates.size(); i++){
-     out << "    " << rateStates[i].id
-         << " = u[" << numStates + (int)i + 1 << "]\n";
-   }
-   out << "\n";
+   // Everything ahead of the mass balances, shared by massbalances! and
+   // observables: the time alias, constants, parameters, states, and the
+   // assignment rules, which may read any of them.
+   auto preamble = [&](){
+     // SBML's csymbol for time serialises as `time`; the solver passes `t`.
+     out << "    time = t\n\n";
 
-   bool anyAssignment = false;
-   for (int i = 0; i < numRules; i++){
-     const Rule* r = model->getRule(i);
-     if (r->isAssignment()){
-       if (!anyAssignment){ out << "    # Assignment rules\n"; anyAssignment = true; }
-       out << "    " << r->getVariable() << " = "
-           << r2sbml::formulaToInfixJulia(r->getMath()) << "\n";
+     out << "    # Compartments\n";
+     for (int i = 0; i < numCmt; i++){
+       if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
+       out << "    " << model->getCompartment(i)->getId() << " = "
+           << Num{compartmentValue(model->getCompartment(i)), kSpellDefault} << "\n";
      }
-   }
-   if (anyAssignment) out << "\n";
+     out << "\n";
+
+     out << "    # Parameters\n";
+     for (size_t i = 0; i < params.size(); i++){
+       out << "    " << model->getParameter(params[i])->getIdAttribute()
+           << " = p[" << i + 1 << "]\n";
+     }
+     out << "\n";
+
+     out << "    # States\n";
+     for (int i = 0; i < numStates; i++){
+       out << "    " << model->getSpecies(states[i])->getIdAttribute()
+           << " = u[" << i + 1 << "]\n";
+     }
+     for (size_t i = 0; i < rateStates.size(); i++){
+       out << "    " << rateStates[i].id
+           << " = u[" << numStates + (int)i + 1 << "]\n";
+     }
+     out << "\n";
+
+     bool anyAssignment = false;
+     for (int i = 0; i < numRules; i++){
+       const Rule* r = model->getRule(i);
+       if (r->isAssignment()){
+         if (!anyAssignment){ out << "    # Assignment rules\n"; anyAssignment = true; }
+         out << "    " << r->getVariable() << " = "
+             << r2sbml::formulaToInfixJulia(r->getMath()) << "\n";
+       }
+     }
+     if (anyAssignment) out << "\n";
+   };
+
+   out << "function massbalances!(du, u, p, t)\n\n";
+   preamble();
 
    out << "    # Mass balances\n";
    size_t nextAlgRule = 0;
@@ -1712,6 +1837,21 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    out << "\n";
    out << "    return nothing\n";
    out << "end\n\n";
+
+   // The solution holds states only; this recomputes the assignment-rule
+   // variables from a saved state with the same rules massbalances! uses.
+   if (!observed.empty()){
+     out << "function observables(u, p, t)\n\n";
+     preamble();
+     out << "    return (";
+     for (size_t i = 0; i < observed.size(); i++){
+       out << observed[i] << " = " << observed[i]
+           << (i + 1 < observed.size() ? ", " : "");
+     }
+     // a one-element NamedTuple needs the trailing comma
+     out << (observed.size() == 1 ? ",)" : ")") << "\n";
+     out << "end\n\n";
+   }
 
    // Float64[] rather than [], so a model whose initial amounts happen to be
    // whole numbers still gets a floating point state vector.
@@ -1996,6 +2136,12 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
    for (size_t i = 0; i < rateStates.size(); i++){
      const std::string cid = rateStates[i].id;
      out << "<O> " << cid << "_out = " << cid << "\n";
+   }
+   // the assignment-rule variables, which are <Ad> secondary parameters and
+   // so are not in the state vector the outputs above cover
+   const std::vector<std::string> observed = observedVariables(model);
+   for (size_t i = 0; i < observed.size(); i++){
+     out << "<O> " << observed[i] << "_out = " << observed[i] << "\n";
    }
 
    out.close();

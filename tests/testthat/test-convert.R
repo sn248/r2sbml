@@ -679,7 +679,7 @@ test_that("a 0-dimensional compartment with no size is written as 1", {
     for (fmt in names(out)) expect_false(has_bare_nan(out[[fmt]]), info = fmt)
 
     expect_true(any(grepl("^C = 1$", out$R)))
-    expect_true(any(grepl("^C = 1;$", file_section(out$mrgsolve, "^\\$MAIN", "^\\$ODE"))))
+    expect_true(any(grepl("^double C = 1;$", file_section(out$mrgsolve, "^\\$MAIN", "^\\$ODE"))))
     expect_true(any(grepl("^\\s*C <- 1$", out$nlmixr2)))
     expect_true(any(grepl("^\\s*C = 1;$", out$MATLAB)))
     expect_true(any(grepl("^\\s*C = 1$", out$Julia)))
@@ -835,7 +835,7 @@ test_that("a value nothing sets is written as NaN, with a warning naming it", {
     cmt <- gen(unsized, "cell")
     for (fmt in names(cmt)) expect_false(has_bare_nan(cmt[[fmt]]), info = fmt)
     expect_true(any(grepl("^cell = NaN$", cmt$R)))
-    expect_true(any(grepl("^cell = NAN;$", file_section(cmt$mrgsolve, "^\\$MAIN", "^\\$ODE"))))
+    expect_true(any(grepl("^double cell = NAN;$", file_section(cmt$mrgsolve, "^\\$MAIN", "^\\$ODE"))))
     expect_true(any(grepl("^\\s*cell <- NaN$", cmt$nlmixr2)))
     expect_true(any(grepl("^\\s*cell = NaN;$", cmt$MATLAB)))
     expect_true(any(grepl("^\\s*cell = NaN$", cmt$Julia)))
