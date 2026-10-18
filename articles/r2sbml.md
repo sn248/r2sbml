@@ -119,7 +119,6 @@ Simpler accessors return plain vectors:
 getCmtNames(model)
 #> [1] "comp"
 getCmtSizes(model)
-#> 1e-14
 #> [1] 1e-14
 getNumSpecies(model)
 #> [1] 4
@@ -461,10 +460,10 @@ cat(readLines(out_mrg), sep = "\n")
 #> double comp = 1e-14;
 #> 
 #> $ODE
-#> dxdt_E = -1 * (comp * (veq_kon * E * S - veq_koff * ES) / comp) + comp * vcat_kcat * ES / comp;
-#> dxdt_S = -1 * (comp * (veq_kon * E * S - veq_koff * ES) / comp);
+#> dxdt_E = -1.0 * (comp * (veq_kon * E * S - veq_koff * ES) / comp) + comp * vcat_kcat * ES / comp;
+#> dxdt_S = -1.0 * (comp * (veq_kon * E * S - veq_koff * ES) / comp);
 #> dxdt_P = comp * vcat_kcat * ES / comp;
-#> dxdt_ES = comp * (veq_kon * E * S - veq_koff * ES) / comp + -1 * (comp * vcat_kcat * ES / comp);
+#> dxdt_ES = comp * (veq_kon * E * S - veq_koff * ES) / comp + -1.0 * (comp * vcat_kcat * ES / comp);
 ```
 
 mrgsolve model blocks are C++, where `^` is bitwise XOR and does not
@@ -510,7 +509,7 @@ convertReactions(sbml_file, out_m, format = "MATLAB")
 cat(readLines(out_m), sep = "\n")
 #> % Automatically generated MATLAB model file by r2sbml
 #> %
-#> % Save as file29454acd6a48.m, then solve with:  [t, y] = file29454acd6a48();
+#> % Save as file2a275194d41d.m, then solve with:  [t, y] = file2a275194d41d();
 #> % Columns of y are, in order: E, S, P, ES
 #> %
 #> % Model Summary
@@ -520,7 +519,7 @@ cat(readLines(out_m), sep = "\n")
 #> %               rules: 4
 #> %              events: 0
 #> 
-#> function [t, y] = file29454acd6a48(tspan, y0)
+#> function [t, y] = file2a275194d41d(tspan, y0)
 #> 
 #>     if nargin < 1 || isempty(tspan)
 #>         tspan = [0 10];
@@ -656,10 +655,10 @@ cat(readLines(out_ub), sep = "\n")
 #> <I> ES = 0
 #> 
 #> # Mass balances
-#> <ODE:E> (((-1)*((comp*(((veq_kon*E)*S)-(veq_koff*ES)))/comp))+(((comp*vcat_kcat)*ES)/comp))
-#> <ODE:S> ((-1)*((comp*(((veq_kon*E)*S)-(veq_koff*ES)))/comp))
+#> <ODE:E> (((-1.0)*((comp*(((veq_kon*E)*S)-(veq_koff*ES)))/comp))+(((comp*vcat_kcat)*ES)/comp))
+#> <ODE:S> ((-1.0)*((comp*(((veq_kon*E)*S)-(veq_koff*ES)))/comp))
 #> <ODE:P> (((comp*vcat_kcat)*ES)/comp)
-#> <ODE:ES> (((comp*(((veq_kon*E)*S)-(veq_koff*ES)))/comp)+((-1)*(((comp*vcat_kcat)*ES)/comp)))
+#> <ODE:ES> (((comp*(((veq_kon*E)*S)-(veq_koff*ES)))/comp)+((-1.0)*(((comp*vcat_kcat)*ES)/comp)))
 #> 
 #> # Outputs
 #> <O> E_out = E
@@ -725,9 +724,13 @@ them.
 
 ### Algebraic rules make the model a DAE
 
-An algebraic rule is a constraint, `0 = f(...)`, not a derivative. Where
-the target can solve a differential-algebraic system, `r2sbml` emits
-one.
+An algebraic rule is a constraint, `0 = f(...)`, not a derivative. A
+rule that names a single undetermined variable and is linear in it is
+simply solved for that variable and written as an assignment rule, in
+every target. The rules in `sbmlalgebraicrules.xml` each name both `E`
+and `ES`, so they cannot be solved one at a time: the model is a
+differential-algebraic system, and where the target can solve one,
+`r2sbml` emits it.
 
 For deSolve that changes the shape of the generated function entirely:
 it becomes a **residual** function for `daspk` of
@@ -834,8 +837,8 @@ cat(grep("Solve with|^M |^M\\[|mass_matrix|ODEProblem", lines, value = TRUE), se
 #> prob = ODEProblem(massbalances, u0, tspan, p)
 ```
 
-mrgsolve, rxode2 and ubiquity integrate ODEs only. For those, the rule
-is written out as a comment and
+mrgsolve, rxode2 and ubiquity integrate ODEs only. For those, a rule
+that could not be solved is written out as a comment and
 [`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md)
 warns — see the limitations vignette.
 

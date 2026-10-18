@@ -12,6 +12,23 @@ first for how the package is meant to be used.
 
 library(r2sbml)
 ex <- function(f) system.file("examples", f, package = "r2sbml")
+
+# convertReactions() reports progress on the console; keep only the warnings
+convert <- function(file, format = "R", out = tempfile()) {
+  tryCatch({
+    invisible(capture.output(convertReactions(file, out, format = format)))
+    cat("no warning\n")
+  }, warning = function(w) cat(conditionMessage(w), "\n"))
+  invisible(out)
+}
+sbml_file <- function(body) {
+  f <- tempfile(fileext = ".xml")
+  writeLines(sprintf('<?xml version="1.0" encoding="UTF-8" ?>
+<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2">
+<model>%s</model>
+</sbml>', body), f)
+  f
+}
 ```
 
 ## The single most important table
@@ -22,18 +39,39 @@ limitation falls:
 
 | Limitation | How you find out |
 |----|----|
-| Algebraic rules in mrgsolve / rxode2 / ubiquity | **R warning** + comment in the file |
-| Algebraic rules that do not form a square system | **R warning** + comment |
-| Dilution for an assignment-rule compartment | **R warning** |
-| Constructs with no ubiquity spelling (incl. `delay`) | **R warning** + `# WARNING` block in the file |
+| Coupled or nonlinear algebraic rules in mrgsolve / rxode2 / ubiquity | **R warning** + comment in the file |
+| Coupled or nonlinear algebraic rules that do not form a square system | **R warning** + comment |
+| Dilution for an assignment-rule volume that cannot be differentiated | **R warning** |
+| A value the model leaves undefined | **R warning**, written as `NaN` |
+| Constructs with no ubiquity spelling | **R warning** + `# WARNING` block in the file |
+| An id renamed because the target reserves it | console message |
 | `delay` in the other five targets | **silent** — code fails at run time |
+| `root(n, x)` of a negative `x`, `n` not a literal | **silent** — `NaN`, even for an odd `n` |
 | Events | **silent** — a count in the header comment only |
-| Two-argument `log(b, x)` in R and MATLAB | **silent** — wrong answer |
-| `root`, `piecewise`, `factorial`, `%` in some targets | **silent** — untested |
+| `factorial` in C++ and Julia | **silent** — untested |
 | Inconsistent initial conditions for a DAE | solver error, not mentioning SBML |
 | A semantically invalid model | **silent** — nothing is validated |
 
 Everything below expands on these.
+
+## How far the output has been checked
+
+The deSolve output is checked numerically against the [SBML Test
+Suite](https://github.com/sbmlteam/sbml-test-suite): each case is
+converted, simulated and compared with the suite’s expected time course
+within the case’s own tolerances. Of the 1011 semantic cases in scope,
+**1007 pass**. “In scope” leaves out every case using a construct
+`r2sbml` does not translate: events, `delay`, `rateOf`, fast reactions,
+`stoichiometryMath` and the SBML Level 3 packages. The four that fail in
+scope are listed at the end.
+
+The other five targets share the same model preparation and the same
+expression rewriting, so most of what the suite checks applies to them
+too — but they are verified only on purpose-built probe models, against
+closed-form solutions: mrgsolve and rxode2 compiled and run, MATLAB
+under Octave, Julia with `DifferentialEquations.jl`, and ubiquity built
+with `build_system()` and run on both its C and R engines. None of them
+is run against the full suite.
 
 ## Scope: reading and exporting only
 
@@ -53,40 +91,70 @@ and getting simulation code out of it.
 | Feature | deSolve | mrgsolve | rxode2 | MATLAB | Julia | ubiquity |
 |----|:--:|:--:|:--:|:--:|:--:|:--:|
 | Rate rules / reactions | yes | yes | yes | yes | yes | yes |
-| Assignment rules | yes | yes | yes | yes | yes | yes |
+| Assignment rules, returned as outputs | yes | yes | yes | yes | yes | yes |
 | Boundary / constant species | yes | yes | yes | yes | yes | yes |
 | Initial-condition unit conversion | yes | yes | yes | yes | yes | yes |
-| Algebraic rules (as a DAE) | yes | no | no | yes | yes | no |
-| Compartment with a rate rule | yes | yes | yes | yes | yes | yes |
-| Compartment dilution term | yes | yes | yes | yes | yes | yes |
-| Compartment with an assignment rule | partial | partial | partial | partial | partial | partial |
+| Algebraic rules linear in one unknown | yes | yes | yes | yes | yes | yes |
+| Coupled or nonlinear algebraic rules (DAE) | yes | no | no | yes | yes | no |
+| Compartment with a rate rule, and dilution | yes | yes | yes | yes | yes | yes |
+| Compartment with an assignment rule, and dilution | mostly | mostly | mostly | mostly | mostly | mostly |
 | `delay` | no | no | no | no | no | no |
 | Events | no | no | no | no | no | no |
 | Exponentiation spelling | `^` | `pow()` | `^` | `^` | `^` | `SIMINT_POWER` |
 
-“partial” for an assignment-rule compartment means the volume itself is
-correct but the dilution term is missing; see below.
+“mostly” for an assignment-rule compartment means the dilution term is
+formed whenever the rule can be differentiated; see below.
 
 ## Algebraic rules
 
-An algebraic rule is a constraint `0 = f(...)`, not a derivative, so a
-model carrying one is a differential-algebraic system rather than an
-ODE.
+An algebraic rule is a constraint `0 = f(...)`, not a derivative. SBML
+does not say which variable a given rule determines, so `r2sbml` works
+it out.
 
-### Where a DAE is emitted
+### Rules linear in one unknown become assignments
 
-deSolve, MATLAB and Julia can each solve one, and `r2sbml` emits a real
-DAE for them — a `daspk` residual function, or a singular mass matrix.
-That path is demonstrated in the main vignette. The constraint is
-genuinely enforced:
+An *unknown* is a species, parameter or compartment that is not constant
+and has no rate or assignment rule. When a rule names exactly one
+unknown and is linear in it, `r2sbml` solves it, and the rule becomes an
+ordinary assignment rule — which every target supports. Here
+`0 = k - 0.9` defines a parameter that has no value of its own:
 
 ``` r
 
-out <- tempfile(fileext = ".R")
-convertReactions(ex("sbmlalgebraicrules.xml"), out, format = "R")
-#> Conversion completed.
-#> Number of ODEs - 4
+linear <- sbml_file('
+<listOfParameters><parameter id="k" constant="false"/></listOfParameters>
+<listOfRules><algebraicRule><math xmlns="http://www.w3.org/1998/Math/MathML">
+<apply><minus/><ci>k</ci><cn>0.9</cn></apply></math></algebraicRule></listOfRules>')
+out <- convert(linear, "mrgsolve")
+#> no warning
+grep("k = ", readLines(out), value = TRUE)
+#> [1] "double k = -(0.0 - 0.9) / (1.0 - 0.9 - (0.0 - 0.9));"
+#> [2] "k = -(0.0 - 0.9) / (1.0 - 0.9 - (0.0 - 0.9));"
+```
 
+The solution is `x = -f(0) / (f(1) - f(0))`, written out as is rather
+than simplified, which is why it reads as it does. Solving repeats until
+nothing more can be solved, so a rule that becomes linear in one unknown
+once another has been solved is solved too. Every algebraic rule in the
+SBML Test Suite is of this kind.
+
+The solution divides by the unknown’s coefficient. A rule such as
+`(k3 + 1) * S = T` with `k3 = -1` determines nothing, and the generated
+code returns `NaN` there.
+
+### Coupled or nonlinear rules become a DAE where the target can solve one
+
+What is left — rules that each name several unknowns, or are nonlinear
+in the one they name — makes the model a differential-algebraic system.
+deSolve, MATLAB and Julia can each solve one, and `r2sbml` emits a real
+DAE for them: a `daspk` residual function, or a singular mass matrix.
+`sbmlalgebraicrules.xml` is such a model, since both of its rules name
+both `E` and `ES`. The constraint is genuinely enforced:
+
+``` r
+
+out <- convert(ex("sbmlalgebraicrules.xml"))
+#> no warning
 env <- new.env(); source(out, local = env)
 d <- as.data.frame(deSolve::daspk(y = env$InitialAmounts, dy = env$InitialDerivatives,
                                   times = seq(0, 10, by = 2), res = env$massBalances,
@@ -95,51 +163,83 @@ max(abs(d$E + d$ES - d$E_total))    # constraint residual, ~1e-13
 #> [1] 1.511014e-13
 ```
 
-### Where it is not
-
 mrgsolve, rxode2 and ubiquity integrate ODEs only. There the rule is
 written out as a comment, the species it constrains is left at a zero
 derivative, and a warning is raised:
 
 ``` r
 
-tryCatch(
-  invisible(capture.output(convertReactions(ex("sbmlalgebraicrules.xml"),
-                                            tempfile(), format = "mrgsolve"))),
-  warning = function(w) cat(conditionMessage(w), "\n")
-)
+convert(ex("sbmlalgebraicrules.xml"), "mrgsolve")
 #> mrgsolve cannot enforce the 2 algebraic rule(s) in this model. They are written out as comments, and the species they constrain are left at a zero derivative, so the generated code runs but does not honour the constraint.
 ```
 
-There is no fix short of solving the constraint symbolically for its
-variable and emitting that as an assignment, which only works where such
-a solution exists and is unique.
+### The DAE path has three further limits
 
-### The square-system requirement
+**The system must be square.** Only species are candidates for a DAE
+row, and a DAE is emitted only when the number of remaining algebraic
+rules equals the number of undetermined species. Otherwise `r2sbml`
+falls back to comments and a warning rather than guess. A bipartite
+matching over the variables each rule names would widen this; it is not
+implemented.
 
-SBML does not record *which* variable a given algebraic rule determines,
-and libSBML exposes no matching for it. `r2sbml` works out the candidate
-set instead — a species that is not constant and carries neither a rate
-rule nor an assignment rule is undetermined, and the specification
-requires the algebraic rules to determine exactly those.
+**Consistent initial conditions are assumed, not checked.** A DAE has to
+start on the constraint manifold. `sbmlalgebraicrules.xml` happens to. A
+model that does not will fail inside the solver — `daspk` cannot find
+consistent initial conditions, `ode15s` rejects the initial state — and
+**the error will not mention SBML or `r2sbml`**.
 
-A DAE is emitted only when those two counts agree. If they differ, the
-model is over- or under-determined as far as this heuristic can tell,
-and rather than guess, `r2sbml` falls back to comments and warns. A
-proper bipartite matching over the variables each rule references would
-widen the set of models that qualify; that is not implemented.
+**`daspk`’s `estini` cannot be used as is.** It can estimate consistent
+initial values, but requires the algebraic equations to come last in the
+residual vector, which the current row ordering does not guarantee.
 
-### Consistent initial conditions are assumed, not checked
+## Compartments whose volume changes
 
-A DAE has to start on the constraint manifold. `sbmlalgebraicrules.xml`
-happens to. A model that does not will fail inside the solver — `daspk`
-cannot find consistent initial conditions, `ode15s` rejects the initial
-state — and **the error will not mention SBML or `r2sbml`**, which makes
-it hard to trace back to the model.
+When a volume changes, so does every concentration in it: `[S] = n/V`
+gives the dilution term `-[S] * (dV/dt) / V`, which libSBML’s own
+reaction conversion leaves out and `r2sbml` adds.
 
-`daspk`’s `estini` argument can estimate consistent values, but it
-requires the algebraic equations to come last in the residual vector,
-which the current row ordering does not guarantee.
+A compartment with a **rate rule** is fully handled: `dV/dt` is the
+rule.
+
+A compartment with an **assignment rule** `V = g(...)` needs `dV/dt`
+worked out by differentiating `g` — with respect to time, and through
+the chain rule with respect to every integrated state it reads. `r2sbml`
+does that for sums, products, quotients, powers and roots, `exp`, `ln`,
+`log`, and the trigonometric and hyperbolic functions:
+
+``` r
+
+volume <- function(rule) sbml_file(sprintf('
+<listOfCompartments><compartment id="c" size="1" constant="false"/></listOfCompartments>
+<listOfSpecies><species id="A" compartment="c" initialConcentration="2"
+  hasOnlySubstanceUnits="false" boundaryCondition="false" constant="false"/></listOfSpecies>
+<listOfParameters><parameter id="g" value="1" constant="true"/></listOfParameters>
+<listOfRules><assignmentRule variable="c">
+<math xmlns="http://www.w3.org/1998/Math/MathML">%s</math></assignmentRule></listOfRules>', rule))
+time <- '<csymbol encoding="text" definitionURL="http://www.sbml.org/sbml/symbols/time">time</csymbol>'
+
+growing <- volume(sprintf('<apply><plus/><cn>1</cn><apply><times/><ci>g</ci>%s</apply></apply>', time))
+out <- convert(growing)
+#> no warning
+grep("dA_dt = ", readLines(out), value = TRUE)    # V = 1 + g t, so dV/dt = g
+#> [1] "   dA_dt = -A * (1 * g) / c  ## includes dilution by the changing volume"
+```
+
+It falls back to a warning, and no dilution term, when the rule reads a
+species (whose own derivative would then depend on the volume’s), or
+depends through time or a state on `piecewise`, `min`, `max`, `abs`, the
+inverse trigonometric functions or `factorial`:
+
+``` r
+
+capped <- volume(sprintf('<apply><min/><cn>5</cn><apply><plus/><cn>1</cn>
+  <apply><times/><ci>g</ci>%s</apply></apply></apply>', time))
+convert(capped)
+#> Compartment(s) c follow an assignment rule, so deSolve receives the right volume but no dilution term for the species inside them. d[S]/dt is missing -[S]*(dV/dt)/V: the rule could not be differentiated (it reads a species, or uses piecewise, min, max, abs or another function r2sbml does not differentiate).
+```
+
+Events that change a compartment size are not handled, for the same
+reason events in general are not.
 
 ## `delay`
 
@@ -147,8 +247,8 @@ SBML’s `delay` csymbol passes through unchanged into every target:
 
 ``` r
 
-out <- tempfile(fileext = ".R")
-invisible(capture.output(convertReactions(ex("sbmldelay.xml"), out, format = "R")))
+out <- convert(ex("sbmldelay.xml"))
+#> no warning
 grep("delay", readLines(out), value = TRUE)
 #> [1] "   dP_dt = (1 / (1 + m * delay(P, delta_t)^q) - P) / tau"
 ```
@@ -157,17 +257,11 @@ grep("delay", readLines(out), value = TRUE)
 this code does not run anywhere. A delay-differential equation needs a
 different solver interface entirely —
 [`deSolve::lagvalue()`](https://rdrr.io/pkg/deSolve/man/timelags.html)
-for R, and the equivalent per target.
-
-Only the ubiquity writer notices:
+for R, and the equivalent per target. Only the ubiquity writer notices:
 
 ``` r
 
-tryCatch(
-  invisible(capture.output(convertReactions(ex("sbmldelay.xml"),
-                                            tempfile(), format = "ubiquity"))),
-  warning = function(w) cat(conditionMessage(w), "\n")
-)
+convert(ex("sbmldelay.xml"), "ubiquity")
 #> ubiquity has no equivalent for: delay. They were written out unchanged and the system file will not build until they are replaced.
 ```
 
@@ -182,17 +276,16 @@ comment and nothing else:
 
 ``` r
 
-out <- tempfile(fileext = ".R")
-invisible(capture.output(convertReactions(ex("sbmlevent.xml"), out, format = "R")))
+out <- convert(ex("sbmlevent.xml"))
+#> no warning
 grep("events", readLines(out), value = TRUE)
 #> [1] "##              events: 2"
 ```
 
 `sbmlevent.xml` has two events, and neither appears in the generated
 code. The simulation will run — and will silently ignore every trigger,
-delay and event assignment in the model.
-
-You can still inspect them from R:
+delay and event assignment in the model. You can still inspect them from
+R:
 
 ``` r
 
@@ -203,9 +296,9 @@ getEventMath(getModel(ex("sbmlevent.xml")))
 #> 
 #> 
 #> File: /home/runner/work/_temp/Library/r2sbml/examples/sbmlevent.xml (Level 3, version 2)
-#> Event 0 trigger: P1 > tau
+#> Event 0 trigger: 1 * (P1 > tau)
 #>   EventAssignment 1, trigger: G2 = 1
-#> Event 1 trigger: P1 <= tau
+#> Event 1 trigger: 1 * (P1 <= tau)
 #>   EventAssignment 1, trigger: G2 = 0
 #> [1] 0
 ```
@@ -215,98 +308,135 @@ mechanism — deSolve’s `events`/`roots`, mrgsolve’s `$EVENT`, and so on —
 which differ enough that there is no shared representation to generate
 from.
 
-## Compartments whose volume changes
+## Mathematics
 
-A compartment with a **rate rule** is fully handled: it joins the state
-vector, and every species inside it gains the dilution term
-`-[S] * (dV/dt) / V` that follows from `[S] = n/V`. The main vignette
-works through an example.
-
-A compartment with an **assignment rule** is only partly handled. The
-volume itself is correct — it is recomputed in the right-hand side like
-any other assignment rule — but the dilution term cannot be formed,
-because that needs `dV/dt`, i.e. a symbolic time derivative of the
-assignment expression, chain rule and all. Every writer warns:
+Most of SBML’s MathML is rewritten into each target’s own spelling:
+`piecewise` becomes nested conditionals, `ceiling`, infinity, `NaN` and
+the booleans are spelled per target, and the Level 3 Version 2 functions
+(`sec` and its relatives, the inverse functions, `quotient`, `rem`,
+`implies`, `exponentiale`, `avogadro`, `log` with a base, `root`, and
+n-ary relationals and logical operators) are expanded into functions
+every target has. A logarithm with a base and a cube root, for instance:
 
 ``` r
 
-assigned <- tempfile(fileext = ".xml")
-writeLines('<?xml version="1.0" encoding="UTF-8" ?>
-<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2">
-<model substanceUnits="mole" volumeUnits="litre" timeUnits="second" extentUnits="mole">
-<listOfCompartments>
-<compartment id="c" size="1" spatialDimensions="3" constant="false"/>
-</listOfCompartments>
-<listOfSpecies>
-<species id="A" compartment="c" initialConcentration="2" boundaryCondition="false"
-hasOnlySubstanceUnits="false" constant="false"/>
-</listOfSpecies>
+maths <- sbml_file('
 <listOfParameters>
-<parameter id="g" value="1" constant="true"/>
+<parameter id="x" value="8" constant="true"/>
+<parameter id="a" constant="false"/><parameter id="b" constant="false"/>
 </listOfParameters>
 <listOfRules>
-<assignmentRule variable="c">
-<math xmlns="http://www.w3.org/1998/Math/MathML">
-<apply><plus/><cn>1</cn><ci>g</ci></apply></math>
-</assignmentRule>
-</listOfRules>
-</model>
-</sbml>', assigned)
-
-tryCatch(
-  invisible(capture.output(convertReactions(assigned, tempfile(), format = "R"))),
-  warning = function(w) cat(conditionMessage(w), "\n")
-)
-#> Compartment(s) c follow an assignment rule, so deSolve receives the right volume but no dilution term for the species inside them. d[S]/dt is missing -[S]*(dV/dt)/V, which needs a symbolic time derivative of the rule.
+<assignmentRule variable="a"><math xmlns="http://www.w3.org/1998/Math/MathML">
+<apply><log/><logbase><cn>2</cn></logbase><ci>x</ci></apply></math></assignmentRule>
+<assignmentRule variable="b"><math xmlns="http://www.w3.org/1998/Math/MathML">
+<apply><root/><degree><cn>3</cn></degree><ci>x</ci></apply></math></assignmentRule>
+</listOfRules>')
+out <- convert(maths)
+#> no warning
+grep("^ +[ab] = ", readLines(out), value = TRUE)
+#> [1] "   b = (2 * (x >= 0) - 1) * ((2 * (x >= 0) - 1) * x)^(1 / 3)"
+#> [2] "   a = log(x) / log(2)"
+out <- convert(maths, "mrgsolve")
+#> no warning
+grep("^double [ab] = ", readLines(out), value = TRUE)
+#> [1] "double b = (2.0 * (x >= 0.0) - 1.0) * pow((2.0 * (x >= 0.0) - 1.0) * x, 1.0 / 3.0);"
+#> [2] "double a = log(x) / log(2.0);"
 ```
 
-Events that change a compartment size are not handled either, for the
-same reason events in general are not.
+The cube root is longer than `x^(1/3)` because it keeps the sign of `x`:
+an odd root of a negative number is real, but `x^(1/3)` is `NaN` there.
+The mrgsolve spelling shows one more rewrite: every whole-number literal
+is written as a double, because in C++ `1 / 3` divides as integers and
+is 0. The ubiquity output does the same, since ubiquity compiles it as
+C.
 
-## Mathematics with no spelling in the target language
+What is not covered:
 
-None of the following is exercised by the example models, so all of it
-is reasoned-correct rather than tested. All of it is **silent**.
+**`root(n, x)`** is written `x^(1/n)`, except that for a literal odd `n`
+it keeps the sign of `x`, so the cube root of `-8` is `-2`. A degree
+that is not a literal number cannot be checked for oddness, so there a
+negative `x` gives `NaN` even when a real root exists.
 
-**Two-argument logarithms.** The SBML Level 3 writer emits `log(b, x)`
-meaning “log of `x` to base `b`”. That is correct Julia. It is
-*reversed* in R, where `log(x, base)` takes the value first, and invalid
-in MATLAB, which has no two-argument `log`. Only the ubiquity writer
-rewrites it, as a ratio of `SIMINT_LOGN` calls. A model using
-`log(b, x)` will produce R code that runs and returns wrong numbers.
+**`factorial`** passes through unchanged. It is a function in R and
+MATLAB; in C++ and Julia it is untested, and Julia’s `factorial` accepts
+only an integer.
 
-**Other constructs.** `root(n, x)`, `piecewise(...)`, `exponentiale`,
-`factorial` in the C++ target, and the `%` modulo operator, whose
-spelling differs across R, C++ and MATLAB.
+**`quotient` and `rem`** follow libSBML’s own definitions, `floor(a/b)`
+and `a - b * floor(a/b)`. No test case has a negative operand, so
+whether that matches the intended truncation towards zero is unchecked.
 
-**Logical and relational operators in MATLAB.** `formulaToInfixMatlab()`
-rewrites `!` to `~` and `!=` to `~=`. No example model contains a
-logical operator, so that rewrite has never actually run against a real
-model.
+**ubiquity** has no spelling for `factorial` or `delay`. They are
+written out as plain calls, and the writer puts a `# WARNING` block in
+the file as well as raising an R warning. That matters more for ubiquity
+than elsewhere: `build_system()` accepts the file, and the failure
+surfaces much later as a C compile error naming a shared object, with
+nothing pointing back at the model.
 
-**ubiquity’s unsupported list.** `ubiquityUnsupported()` reports the
-constructs named in the ubiquity documentation — `root`, `piecewise`,
-`factorial`, `delay`, `or`, `not`, `xor`. Anything outside that list,
-the trigonometric functions in particular, falls into a generic
-named-call path: it is emitted as a plain call and reported by name if
-it cannot be resolved, rather than being caught up front.
+**Initial assignments are evaluated by libSBML**, which treats a numeric
+`piecewise` condition other than 0 or 1 as false. A model relying on
+`piecewise(0, 5, 1)` taking the first branch gets the second.
 
-Why this matters more for ubiquity than elsewhere: `build_system()`
-accepts a file containing an unknown call, and the failure surfaces much
-later as a C compile error naming a shared object, with nothing pointing
-back at the model. Hence the `# WARNING` block written into the file
-itself as well as the R warning.
+## Values and names
+
+### Values the model leaves undefined
+
+SBML lets a parameter omit its value and a compartment its size, as long
+as something else defines it. When nothing does, `r2sbml` writes the
+target’s not-a-number and warns, naming the variable, rather than make
+up a plausible value:
+
+``` r
+
+undefined <- sbml_file('
+<listOfParameters><parameter id="k" constant="true"/></listOfParameters>')
+convert(undefined)
+#> No value is defined for k, so deSolve receives NaN for it. If an algebraic rule determines it, r2sbml could not solve that rule for it: only a rule linear in a single undetermined variable is solved.
+```
+
+The same warning appears for a `NaN` the model assigns deliberately,
+where it is less apt.
+
+### Ids the target reserves
+
+An SBML id can be a reserved word in the target (`TRUE`, `Inf`, `if`), a
+built-in constant, or a name the generated code itself uses (`time`,
+Julia’s `p`, MATLAB’s `t` and `y`). Such an id is renamed by appending
+`_`, and the conversion says so:
+
+``` r
+
+reserved <- sbml_file('
+<listOfParameters><parameter id="Inf" value="2" constant="true"/>
+<parameter id="v" constant="false"/></listOfParameters>
+<listOfRules><assignmentRule variable="v"><math xmlns="http://www.w3.org/1998/Math/MathML">
+<apply><times/><ci>Inf</ci><cn>3</cn></apply></math></assignmentRule></listOfRules>')
+out <- tempfile()
+msg <- capture.output(convertReactions(reserved, out, format = "Julia"))
+grep("Renamed", msg, value = TRUE)
+#> [1] "Renamed Inf to Inf_: the name is reserved in Julia."
+```
+
+deSolve output keeps the SBML id as every name its results carry, so its
+columns are unchanged — except for a renamed compartment, which is a
+top-level variable there. The other targets show the new name. Three
+gaps remain:
+
+- rxode2 exports no list of its reserved names, so `r2sbml`’s list holds
+  only those found by probing it.
+- An id that is not a valid name in the target at all, rather than a
+  reserved one, is not renamed. libSBML promotes a local parameter `k1`
+  of reaction `_J0` to `_J0_k1`, which R does not accept.
+- rxode2’s `ini()` block rejects an infinite parameter value, and no
+  spelling avoids that.
 
 ## No validation is performed
 
-[`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md)
-stops if libSBML reports a problem while *reading* the file, but reading
-is not validation. Neither
-[`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md) nor
+[`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md) and
 [`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md)
-runs a consistency check, so a model that loads cleanly may still be
-semantically invalid — inconsistent units, an overdetermined system, a
-species referenced before it is defined.
+stop if libSBML reports an error while *reading* the file, but reading
+is not validation. Neither runs a consistency check, so a model that
+loads cleanly may still be semantically invalid — inconsistent units, an
+overdetermined system, a species referenced before it is defined.
 
 If you need validation, run it through libSBML’s own validator or the
 [online SBML validator](https://sbml.org/facilities/validator/) first.
@@ -337,10 +467,9 @@ getSpeciesIC(model)
 #> 5e-21 1e-20 0e+00 0e+00
 ```
 
-**No unit conversion is applied.** That is deliberate, and it is the one
-thing here worth watching: a query function should report the file. So a
-model that mixes amount-valued and concentration-valued species yields a
-vector that mixes units, and
+**No unit conversion is applied.** That is deliberate: a query function
+should report the file. So a model that mixes amount-valued and
+concentration-valued species yields a vector that mixes units, and
 [`getSpeciesIC()`](https://sn248.github.io/r2sbml/reference/getSpeciesIC.md)
 deliberately disagrees with the initial conditions
 [`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md)
@@ -349,8 +478,8 @@ ODE integrates concentrations:
 
 ``` r
 
-out <- tempfile(fileext = ".R")
-invisible(capture.output(convertReactions(ex("sbmlsimple.xml"), out, format = "R")))
+out <- convert(ex("sbmlsimple.xml"))
+#> no warning
 grep("^ +E = [0-9]", readLines(out), value = TRUE)   # 5e-07 = 5e-21 / 1e-14
 #> [1] "         E = 5e-07,"
 ```
@@ -425,9 +554,15 @@ and friends return `0` invisibly and print their content, so
 **Compartment volumes are constants in the generated code** — when the
 model says they are constant. That is not the volume being ignored.
 
+**Assignment-rule variables appear as outputs, not states.** They are
+recomputed from the states at every time point and returned beside them;
+the solver never integrates them.
+
 **ubiquity bounds are `-inf inf`.** Deliberate: an SBML value may be
 zero or negative, and a lower bound above the value would be
-inconsistent. They matter only for parameter estimation.
+inconsistent. ubiquity itself maps the `-inf` lower bound to
+`.Machine$double.xmin`, the smallest *positive* double — harmless for
+simulation, wrong for parameter estimation.
 
 **The generated header comment counts model components**, including ones
 that were expanded away (function definitions, initial assignments) or
@@ -452,8 +587,17 @@ draft:
   between amount and concentration using compartment volume, but it does
   not verify that the model’s declared units are mutually consistent,
   and it does not convert between, say, millilitres and litres.
-- Conversion factors are applied by libSBML’s converter, not by
-  `r2sbml`, and are only as correct as that converter.
+
+## The SBML Test Suite cases that still fail
+
+For completeness, the four in-scope cases that fail:
+
+| Case | Cause |
+|----|----|
+| 01121 | `_J0_k1`, a promoted local parameter, is not a valid R name |
+| 01282 | libSBML’s evaluation of a numeric `piecewise` condition |
+| 01323 | a relative error of about 3.5e-08, just outside the case’s tolerance |
+| 01486 | not yet diagnosed |
 
 ## Where these are tracked
 

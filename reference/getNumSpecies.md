@@ -1,6 +1,6 @@
-# getSpeciesNum Outputs the number of Species in the model
+# Number of species in a model
 
-getSpeciesNum Outputs the number of Species in the model
+Counts the species the model declares.
 
 ## Usage
 
@@ -13,6 +13,10 @@ getNumSpecies(input_model)
 - input_model:
 
   input should be an SBML model
+
+## Value
+
+an integer, the number of species
 
 ## Examples
 

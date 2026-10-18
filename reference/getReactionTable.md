@@ -1,6 +1,6 @@
-# getReactionTable Outputs the Information Table for Reactions
+# Table of the reactions in a model
 
-getReactionTable Outputs the Information Table for Reactions
+Lists each reaction with its rate law written as infix math.
 
 ## Usage
 
@@ -13,6 +13,11 @@ getReactionTable(input_model)
 - input_model:
 
   input should be an SBML Model
+
+## Value
+
+a data frame with one row per reaction and columns `Number`, `ID`,
+`Name`, `Reversible` and `RateLaw`
 
 ## Examples
 

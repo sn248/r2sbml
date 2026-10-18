@@ -1,6 +1,8 @@
-# getModel Outputs an external pointer to the Model from SBML file
+# Read an SBML model
 
-getModel Outputs an external pointer to the Model from SBML file
+Reads an SBML file and keeps the parsed document alive for the other
+query functions. A file with error- or fatal-severity diagnostics is an
+error; lesser diagnostics are raised as warnings.
 
 ## Usage
 
@@ -13,6 +15,10 @@ getModel(filename)
 - filename:
 
   input file name, should end with .xml
+
+## Value
+
+an external pointer to the model, to pass to the other functions
 
 ## Examples
 

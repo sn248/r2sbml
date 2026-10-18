@@ -1,6 +1,6 @@
-# getCmtSizes Outputs the Sizes of Compartments
+# Sizes of the compartments in a model
 
-getCmtSizes Outputs the Sizes of Compartments
+Reports each compartment's declared size, as the file states it.
 
 ## Usage
 
@@ -14,6 +14,10 @@ getCmtSizes(input_model)
 
   input should be an SBML Model
 
+## Value
+
+a numeric vector, one entry per compartment, in model order
+
 ## Examples
 
 ``` r
@@ -26,6 +30,5 @@ model <- getModel(sbml_file)
 #> 
 #> File: /home/runner/work/_temp/Library/r2sbml/examples/sbmlsimple.xml (Level 3, version 2)
 getCmtSizes(model)
-#> 1e-14
 #> [1] 1e-14
 ```

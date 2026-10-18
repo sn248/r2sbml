@@ -1,4 +1,4 @@
-# getSpeciesIC Initial values of the species in a model
+# Initial values of the species in a model
 
 A species carries `initialAmount` *or* `initialConcentration`, never
 both, and the unset one reads back as NaN. Asking only for the

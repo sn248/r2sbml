@@ -1,6 +1,6 @@
-# getspeciesTable Outputs the Information Table for Species
+# Table of the species in a model
 
-getspeciesTable Outputs the Information Table for Species
+Lists each species with its initial value, compartment and flags.
 
 ## Usage
 
@@ -13,6 +13,12 @@ getSpeciesTable(input_model)
 - input_model:
 
   input should be an SBML Model
+
+## Value
+
+a data frame with one row per species and columns `Number`, `Name`,
+`ID`, `InitialConcentration`, `InitialAmount`, `Compartment`,
+`CompartmentVol`, `BoundaryCondition` and `Constant`
 
 ## Examples
 

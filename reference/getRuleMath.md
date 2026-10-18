@@ -1,6 +1,6 @@
-# getRuleMath Outputs Model which can be simulated
+# Print the rules of a model
 
-getRuleMath Outputs Model which can be simulated
+Prints each rule as infix math; an algebraic rule is printed as `f = 0`.
 
 ## Usage
 
@@ -13,6 +13,10 @@ getRuleMath(input_model)
 - input_model:
 
   input should be an SBML Model
+
+## Value
+
+0; called for the printed output
 
 ## Examples
 

@@ -1,4 +1,4 @@
-# getCmtNames Names of the compartments in a model
+# Names of the compartments in a model
 
 Returns the `name` where one is set and falls back to the `id`
 otherwise, the same rule

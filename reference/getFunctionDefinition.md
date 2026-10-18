@@ -1,6 +1,6 @@
-# getFunctionDefinition Outputs Model which can be simulated
+# Print the function definitions of a model
 
-getFunctionDefinition Outputs Model which can be simulated
+Prints each function definition's arguments and body as infix math.
 
 ## Usage
 
@@ -13,6 +13,10 @@ getFunctionDefinition(input_model)
 - input_model:
 
   input should be an SBML Model
+
+## Value
+
+0; called for the printed output
 
 ## Examples
 

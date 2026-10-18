@@ -1,6 +1,7 @@
-# convertReactions
+# Convert an SBML model to simulation code
 
-convertReactions
+Writes the model's mass balances, rules and parameters as code for the
+chosen simulation tool, ready to simulate.
 
 ## Usage
 

@@ -1,6 +1,6 @@
-# getEventMath Outputs Model which can be simulated
+# Print the events of a model
 
-getEventMath Outputs Model which can be simulated
+Prints each event's trigger and assignments as infix math.
 
 ## Usage
 
@@ -14,6 +14,10 @@ getEventMath(input_model)
 
   input should be an SBML Model
 
+## Value
+
+0; called for the printed output
+
 ## Examples
 
 ``` r
@@ -26,9 +30,9 @@ model <- getModel(sbml_file)
 #> 
 #> File: /home/runner/work/_temp/Library/r2sbml/examples/sbmlevent.xml (Level 3, version 2)
 getEventMath(model)
-#> Event 0 trigger: P1 > tau
+#> Event 0 trigger: 1 * (P1 > tau)
 #>   EventAssignment 1, trigger: G2 = 1
-#> Event 1 trigger: P1 <= tau
+#> Event 1 trigger: 1 * (P1 <= tau)
 #>   EventAssignment 1, trigger: G2 = 0
 #> [1] 0
 ```

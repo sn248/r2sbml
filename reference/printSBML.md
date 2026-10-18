@@ -1,6 +1,7 @@
-# printSBML
+# Summarise an SBML file
 
-printSBML
+Prints the file's SBML level and version and how many of each component
+its model has.
 
 ## Usage
 
@@ -13,6 +14,11 @@ printSBML(filename)
 - filename:
 
   filename should be the name of the xml file
+
+## Value
+
+0 on success and 1 when the file has errors or no model; called for the
+printed summary
 
 ## Examples
 

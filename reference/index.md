@@ -8,7 +8,7 @@ works in two phases: read the file once, then query the pointer that
 comes back.
 
 - [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md) :
-  getModel Outputs an external pointer to the Model from SBML file
+  Read an SBML model
 
 ## Querying components
 
@@ -16,21 +16,21 @@ These return R objects. Note that a query for a component the model does
 not have raises an error rather than returning an empty result.
 
 - [`getSpeciesTable()`](https://sn248.github.io/r2sbml/reference/getSpeciesTable.md)
-  : getspeciesTable Outputs the Information Table for Species
+  : Table of the species in a model
 - [`getParameterTable()`](https://sn248.github.io/r2sbml/reference/getParameterTable.md)
-  : getParameterTable Outputs the Information Table for Paremeters
+  : Table of the parameters in a model
 - [`getReactionTable()`](https://sn248.github.io/r2sbml/reference/getReactionTable.md)
-  : getReactionTable Outputs the Information Table for Reactions
+  : Table of the reactions in a model
 - [`getSpeciesNames()`](https://sn248.github.io/r2sbml/reference/getSpeciesNames.md)
-  : getSpeciesNames Names of the species in a model
+  : Names of the species in a model
 - [`getSpeciesIC()`](https://sn248.github.io/r2sbml/reference/getSpeciesIC.md)
-  : getSpeciesIC Initial values of the species in a model
+  : Initial values of the species in a model
 - [`getNumSpecies()`](https://sn248.github.io/r2sbml/reference/getNumSpecies.md)
-  : getSpeciesNum Outputs the number of Species in the model
+  : Number of species in a model
 - [`getCmtNames()`](https://sn248.github.io/r2sbml/reference/getCmtNames.md)
-  : getCmtNames Names of the compartments in a model
+  : Names of the compartments in a model
 - [`getCmtSizes()`](https://sn248.github.io/r2sbml/reference/getCmtSizes.md)
-  : getCmtSizes Outputs the Sizes of Compartments
+  : Sizes of the compartments in a model
 
 ## Printing the mathematics
 
@@ -39,13 +39,13 @@ with [`capture.output()`](https://rdrr.io/r/utils/capture.output.html)
 rather than assigning them.
 
 - [`getRuleMath()`](https://sn248.github.io/r2sbml/reference/getRuleMath.md)
-  : getRuleMath Outputs Model which can be simulated
+  : Print the rules of a model
 - [`getReactionMath()`](https://sn248.github.io/r2sbml/reference/getReactionMath.md)
-  : getReactionMath Outputs Model which can be simulated
+  : Print the rate laws of a model
 - [`getFunctionDefinition()`](https://sn248.github.io/r2sbml/reference/getFunctionDefinition.md)
-  : getFunctionDefinition Outputs Model which can be simulated
+  : Print the function definitions of a model
 - [`getEventMath()`](https://sn248.github.io/r2sbml/reference/getEventMath.md)
-  : getEventMath Outputs Model which can be simulated
+  : Print the events of a model
 
 ## Printing the document
 
@@ -53,9 +53,9 @@ The exception to the two-phase rule: these take a filename, not a model
 pointer.
 
 - [`printSBML()`](https://sn248.github.io/r2sbml/reference/printSBML.md)
-  : printSBML
+  : Summarise an SBML file
 - [`echoSBML()`](https://sn248.github.io/r2sbml/reference/echoSBML.md) :
-  echoSBML
+  Check an SBML file for errors
 
 ## Exporting mass balances
 
@@ -63,4 +63,4 @@ Writes ready-to-simulate code for one of six ODE targets. Reads the SBML
 file itself, so it takes no model pointer.
 
 - [`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md)
-  : convertReactions
+  : Convert an SBML model to simulation code

@@ -1,6 +1,6 @@
-# getParameterTable Outputs the Information Table for Paremeters
+# Table of the parameters in a model
 
-getParameterTable Outputs the Information Table for Paremeters
+Lists each global parameter with its declared value and units.
 
 ## Usage
 
@@ -13,6 +13,11 @@ getParameterTable(input_model)
 - input_model:
 
   input should be an SBML Model
+
+## Value
+
+a data frame with one row per parameter and columns `Number`, `ID`,
+`Name`, `Value` and `Units`
 
 ## Examples
 

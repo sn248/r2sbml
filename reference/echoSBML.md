@@ -1,6 +1,7 @@
-# echoSBML
+# Check an SBML file for errors
 
-echoSBML
+Reads the file and prints the number of diagnostics libSBML reports,
+then the diagnostics themselves.
 
 ## Usage
 
@@ -13,6 +14,10 @@ echoSBML(filename)
 - filename:
 
   input file name
+
+## Value
+
+the number of diagnostics, as an integer
 
 ## Examples
 

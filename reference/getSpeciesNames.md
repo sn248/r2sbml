@@ -1,4 +1,4 @@
-# getSpeciesNames Names of the species in a model
+# Names of the species in a model
 
 SBML separates `id`, which every species must have, from `name`, which
 is an optional human-readable label. Most models in the wild set only

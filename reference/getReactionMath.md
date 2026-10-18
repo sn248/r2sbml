@@ -1,6 +1,6 @@
-# getReactionMath Outputs Model which can be simulated
+# Print the rate laws of a model
 
-getReactionMath Outputs Model which can be simulated
+Prints each reaction's kinetic law as infix math.
 
 ## Usage
 
@@ -13,6 +13,10 @@ getReactionMath(input_model)
 - input_model:
 
   input should be an SBML Model
+
+## Value
+
+0; called for the printed output
 
 ## Examples
 
