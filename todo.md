@@ -48,7 +48,15 @@ chain rule and all. All six writers warn in that case.
 
 Doing it properly means differentiating an AST with respect to time and the
 states it reads. That is a real piece of work, and worth it only if such
-models turn up — no example has one.
+models turn up — no example has one. The SBML Test Suite has 18 (e.g.
+00310-00318). Three of them (00310-00312) passed until assignment-rule
+variables became solution columns: the comparison then used the true volume
+rather than the declared one, which had hidden the missing dilution.
+
+The warning also fires for a rule that does not vary with time (`c = 1`),
+where no dilution is needed. Silencing it means changing
+`growing_volume_model(assignment = TRUE)` in `test-convert.R` to a
+time-dependent rule first, since that test relies on the warning.
 
 ### `delay`
 
@@ -70,74 +78,76 @@ None of these is exercised by the example models, so all are untested:
 - Two-argument `log(b, x)`. The Level 3 writer emits `log(b, x)`, which is
   correct in Julia but reversed in R (`log(x, base)`) and invalid in MATLAB.
   `formulaToUbiquity()` already rewrites it as a ratio of `SIMINT_LOGN`.
-- `root(n, x)`, `piecewise(...)`, `exponentiale`, `factorial` in C++, and the
-  `%` modulo operator, whose spelling differs across R, C++ and MATLAB.
+- `root(n, x)`, `exponentiale`, `factorial` in C++, and the `%` modulo
+  operator, whose spelling differs across R, C++ and MATLAB. (`piecewise`,
+  `ceiling`, infinity and booleans are now spelled per target by
+  `rewriteForDialect()`.)
+- n-ary `xor`: R's `xor()` takes exactly two arguments (00201, 00279).
+- The Level 3 Version 2 MathML functions -- `implies`, `quotient`, `rem`,
+  `sec`, `arccoth` and friends, n-ary `plus` written as a call -- and the
+  `avogadro` csymbol pass through unchanged and are not functions or names in
+  R (about 18 suite cases, e.g. 01277, 01278, 01279, 00957, 00959, 00961).
 - The MATLAB `!` -> `~` and `!=` -> `~=` rewrite in `formulaToInfixMatlab()`
   is reasoned-correct but unexercised: no example model contains a logical
   operator.
 - `ubiquityUnsupported()` lists the constructs named in the ubiquity
   documentation. Anything else — the trigonometric functions in particular —
   falls into the generic named-call path and is reported by name rather than
-  being in the explicit list.
+  being in the explicit list. ubiquity does have `SIMINT_OR`, `SIMINT_NOT` and
+  `SIMINT_NE`, so `or`, `not` and `!=` could be translated rather than flagged.
+
+### Smaller target-specific gaps
+
+- rxode2's `ini()` block rejects an infinite parameter value; no spelling
+  avoids that.
+- ubiquity maps a `-inf` lower bound to `.Machine$double.xmin`, the smallest
+  *positive* double. Harmless for simulation; wrong for estimation.
+- MATLAB: a species named `y` or `t` overwrites the generated function's own
+  outputs. The parent function's other locals are prefixed `r2sbml_` for
+  this reason, but `t` and `y` are its documented outputs.
 
 ## Found by running the SBML Test Suite
 
 Found 2026-10-17 by converting the semantic cases of the SBML Test Suite
-(https://github.com/sbmlteam/sbml-test-suite, `cases/semantic/`) to deSolve
-with `convertReactions()`, simulating them with `ode()` (or `daspk()` for a
-DAE) and comparing against each case's `results.csv` within the tolerances in
-its `settings.txt`. Cases using events, `delay`, `rateOf`, fast reactions,
-`stoichiometryMath` or any SBML package were skipped, leaving 766; 494 passed.
-Making rate-rule parameters into states (they were frozen at their initial
-value) raised that to 526, and no longer writing unset sizes and values as
-`nan` to 581, in each case with no case that passed before failing after.
-The numbers below are suite case ids, so each item can be reproduced from the
-case directory of the same name.
+(https://github.com/sbmlteam/sbml-test-suite, `cases/semantic/`) to deSolve,
+simulating them and comparing against each case's `results.csv` within its
+tolerances. That run is now part of the tests: 75 passing cases ship in
+`tests/testthat/sbml-test-suite/`, and the whole suite runs when
+`R2SBML_SBML_TEST_SUITE` points at `cases/semantic`, and in the
+`sbml-test-suite.yaml` CI job (pinned to suite commit d6dcd2c). Both fail
+below `sts_pass_floor` in `test-sbml-test-suite.R`; raise it whenever a fix
+passes more, and ship a case or two from that fix.
 
-### Assignment-rule species are not observable
+1011 cases are in scope (no events, `delay`, `rateOf`, fast reactions,
+`stoichiometryMath` or SBML packages). 647 passed at 4bc2da9 and 875 after
+fixing piecewise/ceiling/infinity spellings, three silently wrong conversions
+(assignment-rule compartment volumes, rule-set stoichiometry, conversion
+factors) and returning assignment-rule variables as outputs. The first
+harness put the scope at 766 because it read an empty `packagesPresent:`
+line as a package; the counts recorded with it in earlier commits (494, 526,
+581) are low for that reason, though each before/after comparison stands.
 
-An assignment-rule species is computed as a local inside the RHS and never
-returned, so its trajectory cannot be read from the solution (78 cases, e.g.
-00038). deSolve accepts extra outputs as further elements of the list
-`massBalances` returns, and the other targets have equivalents.
+The remaining 136 failures, by cause. The numbers are suite case ids, so each
+can be reproduced from the case directory of the same name; run the full
+suite through the helper in `tests/testthat/helper-sbml-test-suite.R` to see
+the current detail for each.
 
-### A model with no integrated species
-
-When every species is set by an assignment rule, or there are none,
-`InitialAmounts` is empty and `ode()` fails with "`y' must be numeric" (43
-cases, e.g. 00029). A model with parameters only makes the conversion itself
-fail (00950).
-
-### Initial values ignore initial assignments to the compartment
-
-Species starting values are converted through the compartment size the file
-declares, not the size an initial assignment or a constant assignment rule
-gives it (about 10 cases, e.g. 00143, 00471).
-
-### Rule-assigned stoichiometry is ignored
-
-A `speciesReference` whose stoichiometry is set by a rule keeps its declared
-value (4 cases, e.g. 00971).
-
-### Conversion factors
-
-Three model-level conversion-factor cases (00975 to 00977) integrate to the
-wrong values. Not yet diagnosed.
-
-### `ceil`
-
-The Level 3 writer spells the ceiling function `ceil`, which R does not have;
-R's is `ceiling` (3 cases, e.g. 00028). The other targets need checking too.
-`piecewise`, listed above, accounts for another 18 failures.
-
-### Running the suite as a test
-
-The harness that produced all of the above is not in the repo. A curated set
-of cases (each is three small files: the `-sbml-l3v2.xml`, `-results.csv` and
-`-settings.txt`) could ship under `tests/testthat/`, or a `skip_on_cran()` test
-or CI job could fetch the suite and fail on a drop in the pass count. The
-whole semantic set is about 10.8MB, too large to ship. The suite is LGPL 2.1,
-so shipping cases needs an entry in `inst/COPYRIGHTS`.
+- Algebraic rules (about 30): see "Algebraic rules" above. 18 of them stop
+  the solver on a `NaN` written by `warnUndefinedValues()`.
+- Assignment-rule compartment dilution (18): see above.
+- A species reference used in math, or stoichiometry that varies in time
+  (13, e.g. 00974, 01107, 01449).
+- Level 3 Version 2 MathML functions and `avogadro` (about 18): see
+  "Miscellaneous maths".
+- A reaction id used in math as its rate (6, e.g. 01225, 01226, 01231,
+  01301): `J0` is not defined in the generated code.
+- `Conversion failed.` (5, e.g. 00950, 01234, 01554, 01557). 00950
+  is `expandInitialAssignments` rejecting an initial assignment to
+  `inf`/`-inf`/`nan`; the others are not yet diagnosed.
+- Conversion factors in the remaining shapes (4, e.g. 01484, 01499-01501).
+- Generated R that does not parse (about 12, "unexpected '>'" or "'='"); not
+  yet diagnosed.
+- About 25 numeric mismatches not yet diagnosed individually.
 
 ## Not action items, recorded so they are not rediscovered
 

@@ -47,6 +47,12 @@ One trap worth knowing: **pkgdown publishes every root-level `*.md` as a site pa
 
 The `path` values in `search.json` are absolute URLs when `url:` is set in `_pkgdown.yml` and root-relative when it is not, and some entries carry no `path` at all — hence the suffix match and the guard in the clean script.
 
+### SBML Test Suite tests
+
+`tests/testthat/test-sbml-test-suite.R` checks converted models numerically against SBML Test Suite cases: convert to deSolve, simulate, compare with `results.csv` within each case's tolerances. The runner (`sts_run_case()`, `sts_in_scope()`) lives in `helper-sbml-test-suite.R` and reads the XML with a small regex, so the tests need no `xml2`. The shipped cases in `tests/testthat/sbml-test-suite/<id>/` each run as their own `test_that`; adding one is copying the case's three files (`-sbml-l3v2.xml`, `-results.csv`, `-settings.txt`) into a directory of the same name. They are LGPL 2.1, credited in `inst/COPYRIGHTS`.
+
+The whole suite runs when `R2SBML_SBML_TEST_SUITE` points at a checkout's `cases/semantic`, and in the `sbml-test-suite.yaml` CI job, which pins the suite commit: the floor `sts_pass_floor` is only meaningful against fixed case content, so bump both together. A fix that passes more cases should raise the floor and ship a case or two of its own. A case that starts failing after a fix is not automatically a regression — 00310-00312 passed only while a declared compartment size masked a missing dilution term — but find out which before lowering anything.
+
 ## Architecture
 
 ### Two-phase API
@@ -128,11 +134,18 @@ The volume comes from the species' own compartment, so a multi-compartment model
 
 ### Values SBML leaves undefined
 
-The same NaN trap applies to compartment sizes and parameter values, and it was the largest single failure in the SBML Test Suite run (86 cases, all `object 'nan' not found`). Never stream a size or value straight into a writer; route it through `Num{value, "<target's NaN>"}`, whose `operator<<` writes the target's own not-a-number — `NaN`, or `NAN` in mrgsolve's C++ `$MAIN` (its `$PARAM` is read by R, so `NaN` there). Three cases, in order of how often they occur:
+The same NaN trap applies to compartment sizes and parameter values, and it was the largest single failure in the SBML Test Suite run (86 cases, all `object 'nan' not found`). Never stream a size or value straight into a writer; route it through `Num{value, kSpell<Target>}`, whose `operator<<` writes the target's own not-a-number and infinity — `NaN`/`Inf`, or `NAN`/`INFINITY` in mrgsolve's C++ `$MAIN` (its `$PARAM` is read by R, so `kSpellDefault` there). Three cases, in order of how often they occur:
 
 - **A parameter an assignment rule sets** is left out of every parameter list by `constantParameters()`, exactly as an assignment-rule species gets no state slot; the RHS recomputes it. SBML lets such a parameter omit `value`, which is where most of the `nan`s came from, and mrgsolve and ubiquity reject the duplicate name even when it has one. The deSolve DAE's `InitialDerivatives` is evaluated outside `massBalances`, so it runs the assignment rules itself before the derivatives.
 - **A 0-D compartment with no size** is 1, via `compartmentValue()`. Nothing reads it: the suite's 0-D cases hold only `hasOnlySubstanceUnits` species and never name the compartment in a formula.
 - **Anything else with no value** — in the suite, always a compartment or parameter that only an algebraic rule defines, which `algebraicStates()` does not match — is written as NaN, and `warnUndefinedValues()` names it. Writing 1 instead would be a plausible wrong answer: two of the suite's unsized 3-D compartments have a true volume other than 1.
+
+### What `replaceReactions` gets wrong, and is patched around
+
+- **Stoichiometry a rule sets.** libSBML uses a declared number ahead of any rule and has no rate-rule case at all. `exposeRuleStoichiometry()` unsets the number and, for a rate rule, swaps in a placeholder assignment rule whose formula is NaN (`id = id` is rejected as circular, and the converter rewrites any subexpression equal to an assignment rule's formula into that variable). The real rate rule is held aside meanwhile, since validation rejects two rules for one variable; `restoreRuleStoichiometry()` undoes it and seeds the parameter with the declared number. A rule or initial assignment with no math is ignored, as Level 3 Version 2 specifies — treating it as governing broke five suite cases (01464, 01465, 01552, 01553, 01657).
+- **Conversion factors.** Ignored by libSBML; `applyConversionFactors()` multiplies each reaction-derived species rate rule by the species', else the model's, factor (always a constant parameter).
+- **Assignment-rule compartment volumes.** Species initial amounts convert through `initialCompartmentSize()`, the rule evaluated at t = 0 by `SBMLTransforms::evaluateASTNode()` over parameters and compartments only (`valuesAtStart()`). Unknown names evaluate to NaN, so "not evaluable" needs no separate test.
+- **Not a bug:** a reactant term like `-compartment * (...)` under the rule `compartment = 1` is the same libSBML rewrite, replacing the literal 1 with the variable equal to it.
 
 ### Compartments whose volume is not constant
 
@@ -160,6 +173,12 @@ This class of bug is silent: the generated code runs, and simply integrates from
 - A species an **algebraic rule** fixes keeps its slot too, but the row becomes a constraint instead of a derivative. See below.
 
 Iterating over rules instead is the bug this avoids, and `writeFileR`, `writeFileMrgsolve` and `writeFileNlmixr2` all had it: they emitted one derivative per *rule* while listing states per *species*. On `sbmlmutlicompartment.xml` (4 species, 3 rate rules) the generated R referenced an undefined `dX_dt`; on `sbmlalgebraicrules.xml` an algebraic rule has no variable at all, so the same loop produced `d_dt = ...`. Both files are now covered by tests that evaluate the generated RHS, so a regression fails the suite rather than the user's solver.
+
+### Assignment-rule variables are outputs, not states
+
+`observedVariables()` lists every assignment-rule variable in rule order, and each writer returns them beside the states without touching the state vector: deSolve as the extra-output element of the list `massBalances` returns (`ode` and `daspk` both take it); mrgsolve recomputed in `$TABLE` and `$CAPTURE`d, because `$ODE`'s value is from the solver's last internal step, not the output time; rxode2 needs nothing, as plain assignments are output columns already; MATLAB as a third output `obs` from a nested `observables()`, with the parent's own locals prefixed `r2sbml_` because a nested function shares every variable its parent uses; Julia as `observables(u, p, t)` returning a NamedTuple; ubiquity as `<O>` lines.
+
+A model with nothing to integrate gets one inert `r2sbml_placeholder` state, appended last by `integratedRateStates()`, because no solver accepts an empty state vector. mrgsolve's `$MAIN` declares its compartment constants `double`, without which no generated mrgsolve model with a compartment compiled.
 
 ### Algebraic rules become a DAE
 
@@ -204,6 +223,10 @@ Never call `SBML_formulaToString()` or `Rule::getFormula()` — both emit the SB
 - It writes exponentiation as `a^b`, which suits R and rxode2 but not mrgsolve, whose model blocks are C++ where `^` is bitwise XOR and does not compile for doubles.
 
 `r2sbml::formulaToInfixC()` is the mrgsolve variant: it deep-copies the AST, retypes every power node, and serialises that. The retype targets `AST_FUNCTION` (a plain named call) rather than `AST_FUNCTION_POWER`, because the Level 3 writer spells *both* `AST_POWER` and `AST_FUNCTION_POWER` as `a^b` — only a named call comes back as `pow(a, b)`. The rest of the Level 3 syntax is an improvement for mrgsolve too, since `b > 1` and `a && b` are valid C++ where the Level 1 spellings were not.
+
+All Level 3 fix-ups go through one AST pass, `rewriteForDialect()` (R, C, MATLAB, Julia); add new spellings there, never as text patches. `piecewise` becomes nested three-argument calls — `ifelse` in R, rxode2 and Julia, and an emitted `r2sbml_ifelse` helper in C++ and MATLAB, which have no conditional expression (the helper is written only when a model uses piecewise; a piecewise with no `otherwise` falls back to NaN). ubiquity's conditional is a *statement*, so its writer hoists each piecewise into an `r2sbml_pw<n>` `<Ad>` with `<IF>` lines; that happens before `integratedRateStates()`, because `RateState::rate` points into rule math. ubiquity pastes expressions verbatim into both R and C, so only spellings valid in both work there: `(1.0/0.0)`, `(0.0/0.0)`, `-floor(-x)` for ceiling; its `<P>` values are data and take `Inf`/`NaN`. Julia has its own serialiser, `formulaToInfixJulia()`, because it spells `ceil` where R needs `ceiling`. `Num` takes a per-target `Spelling` (`kSpellDefault`, `kSpellC`, `kSpellUbiquity`) for both NaN and infinity.
+
+`R CMD INSTALL` does not track header dependencies: after editing only `formulaToInfix.h`, touch the `.cpp` files that include it, or the build is silently stale.
 
 Unrelated to the serialiser: SBML's `delay` csymbol still passes through as `delay(...)`, which is not a function in base R. `sbmldelay.xml` is the one example whose generated deSolve/rxode2 code will not run; deSolve would need `lagvalue()`.
 

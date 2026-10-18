@@ -26,9 +26,11 @@ for (case in sort(list.dirs(sts_dir, recursive = FALSE))) {
 # are skipped, as they were when the floor below was measured.
 #
 # The floor is the number of in-scope cases that passed at the last
-# measurement (master 4bc2da9: 647 of 1011).  A fix that passes more should
+# measurement (647 of 1011 at 4bc2da9; 875 after the spelling, silent-bug and
+# output fixes, the 3 cases lost being 00310-00312, which had only passed
+# because their missing dilution was masked).  A fix that passes more should
 # raise it; falling below it means a regression.
-sts_pass_floor <- 647
+sts_pass_floor <- 875
 
 test_that("the full SBML Test Suite does not regress", {
     skip_on_cran()
