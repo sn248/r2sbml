@@ -697,6 +697,82 @@ static void applyConversionFactors(Model* model,
    }
 }
 
+// --- reaction ids used in math --------------------------------------------------
+//
+// In Level 3 a reaction's id, used in math, denotes its rate: the value of its
+// kinetic law.  replaceReactions removes the reactions, leaving the name
+// undefined (SBML Test Suite cases 01225, 01226, 01231, 01301, 01302, 01306).
+// The kinetic laws are captured beforehand, and each referenced one comes back
+// afterwards as a parameter set by an assignment rule.  Local parameters are
+// constants, so their values are inlined; a reaction with no kinetic law gets
+// the parameter alone, which warnUndefinedValues() reports.
+static bool mentionsName(const ASTNode* node, const std::string& id)
+{
+   if (node == NULL) return false;
+   if (node->getType() == AST_NAME && id == node->getName()) return true;
+   for (unsigned int i = 0; i < node->getNumChildren(); i++)
+     if (mentionsName(node->getChild(i), id)) return true;
+   return false;
+}
+
+static bool mentionedInMath(Model* model, const std::string& id)
+{
+   for (unsigned int i = 0; i < model->getNumRules(); i++)
+     if (mentionsName(model->getRule(i)->getMath(), id)) return true;
+   for (unsigned int i = 0; i < model->getNumInitialAssignments(); i++)
+     if (mentionsName(model->getInitialAssignment(i)->getMath(), id)) return true;
+   for (unsigned int i = 0; i < model->getNumReactions(); i++)
+   {
+     const KineticLaw* kl = model->getReaction(i)->getKineticLaw();
+     if (kl != NULL && mentionsName(kl->getMath(), id)) return true;
+   }
+   return false;
+}
+
+typedef std::vector<std::pair<std::string, ASTNode*> > ReactionRates;
+
+static ReactionRates referencedReactionRates(Model* model)
+{
+   ReactionRates rates;
+   for (unsigned int i = 0; i < model->getNumReactions(); i++)
+   {
+     const Reaction* rn = model->getReaction(i);
+     if (!mentionedInMath(model, rn->getIdAttribute())) continue;
+
+     ASTNode* rate = NULL;
+     const KineticLaw* kl = rn->getKineticLaw();
+     if (kl != NULL && kl->isSetMath())
+     {
+       rate = kl->getMath()->deepCopy();
+       for (unsigned int j = 0; j < kl->getNumParameters(); j++)
+       {
+         const Parameter* local = kl->getParameter(j);
+         ASTNode value(AST_REAL);
+         value.setValue(local->getValue());
+         rate->replaceArgument(local->getIdAttribute(), &value);
+       }
+     }
+     rates.push_back(std::make_pair(rn->getIdAttribute(), rate));
+   }
+   return rates;
+}
+
+static void restoreReactionRates(Model* model, ReactionRates& rates)
+{
+   for (size_t k = 0; k < rates.size(); k++)
+   {
+     Parameter* p = model->createParameter();
+     p->setId(rates[k].first);
+     p->setConstant(false);
+     if (rates[k].second == NULL) continue;
+
+     AssignmentRule* rule = model->createAssignmentRule();
+     rule->setVariable(rates[k].first);
+     rule->setMath(rates[k].second);
+     delete rates[k].second;
+   }
+}
+
 //'convertReactions
 //'@param infile input file name
 //'@param outfile output file name
@@ -747,11 +823,13 @@ static void applyConversionFactors(Model* model,
                 " SBML error(s), listed above.  Nothing was written.");
    }
 
-   // Two things replaceReactions gets wrong have to be set up beforehand: see
-   // exposeRuleStoichiometry() and reactionConversionFactors().
+   // Three things replaceReactions gets wrong have to be set up beforehand: see
+   // exposeRuleStoichiometry(), reactionConversionFactors() and
+   // referencedReactionRates().
    StoichiometryPatch stoichiometry = exposeRuleStoichiometry(document->getModel());
    const std::vector<std::pair<std::string, std::string> > factors =
        reactionConversionFactors(document->getModel());
+   ReactionRates rates = referencedReactionRates(document->getModel());
 
    // create conversion object that identifies the function definition converter
    ConversionProperties props;
@@ -770,6 +848,7 @@ static void applyConversionFactors(Model* model,
 
    restoreRuleStoichiometry(document->getModel(), stoichiometry);
    applyConversionFactors(document->getModel(), factors);
+   restoreReactionRates(document->getModel(), rates);
 
    // promote local parameters to global parameters
    props.addOption("promoteLocalParameters", true,
@@ -808,6 +887,28 @@ static void applyConversionFactors(Model* model,
      Rcpp::Rcerr << "Unable to perform conversion due to the following:" << endl;
      document->printErrors(Rcpp::Rcerr);
      Rcpp::stop("Conversion failed.");
+   }
+
+   // Every writer emits assignment rules in list order, as statements, but
+   // SBML lets a rule precede the ones it reads -- and restoreReactionRates()
+   // appends its rules last.  Sort them so each comes after what it uses.
+   // The sorter fails on a rule with no math (01464, 01552), which Level 3
+   // Version 2 allows and gives no effect, so such a model is left unsorted.
+   bool allMath = true;
+   for (unsigned int i = 0; i < document->getModel()->getNumRules(); i++)
+     allMath = allMath && document->getModel()->getRule(i)->isSetMath();
+   if (allMath)
+   {
+     ConversionProperties sortProps;
+     sortProps.addOption("sortRules", true, "Sort rules by dependency");
+     success = document->convert(sortProps);
+
+     if (success != LIBSBML_OPERATION_SUCCESS)
+     {
+       Rcpp::Rcerr << "Unable to perform conversion due to the following:" << endl;
+       document->printErrors(Rcpp::Rcerr);
+       Rcpp::stop("Conversion failed.");
+     }
    }
 
    // make names equal to ID if name doesn't exist

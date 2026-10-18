@@ -111,7 +111,7 @@ None of these is exercised by the example models, so all are untested:
 Found 2026-10-17 by converting the semantic cases of the SBML Test Suite
 (https://github.com/sbmlteam/sbml-test-suite, `cases/semantic/`) to deSolve,
 simulating them and comparing against each case's `results.csv` within its
-tolerances. That run is now part of the tests: 75 passing cases ship in
+tolerances. That run is now part of the tests: 81 passing cases ship in
 `tests/testthat/sbml-test-suite/`, and the whole suite runs when
 `R2SBML_SBML_TEST_SUITE` points at `cases/semantic`, and in the
 `sbml-test-suite.yaml` CI job (pinned to suite commit d6dcd2c). Both fail
@@ -122,12 +122,14 @@ passes more, and ship a case or two from that fix.
 `stoichiometryMath` or SBML packages). 647 passed at 4bc2da9 and 875 after
 fixing piecewise/ceiling/infinity spellings, three silently wrong conversions
 (assignment-rule compartment volumes, rule-set stoichiometry, conversion
-factors) and returning assignment-rule variables as outputs. The first
+factors) and returning assignment-rule variables as outputs, then 883 once a
+reaction id used in math denoted its rate and assignment rules were sorted
+into dependency order. The first
 harness put the scope at 766 because it read an empty `packagesPresent:`
 line as a package; the counts recorded with it in earlier commits (494, 526,
 581) are low for that reason, though each before/after comparison stands.
 
-The remaining 136 failures, by cause. The numbers are suite case ids, so each
+The remaining 128 failures, by cause. The numbers are suite case ids, so each
 can be reproduced from the case directory of the same name; run the full
 suite through the helper in `tests/testthat/helper-sbml-test-suite.R` to see
 the current detail for each.
@@ -136,11 +138,12 @@ the current detail for each.
   the solver on a `NaN` written by `warnUndefinedValues()`.
 - Assignment-rule compartment dilution (18): see above.
 - A species reference used in math, or stoichiometry that varies in time
-  (13, e.g. 00974, 01107, 01449).
+  (12, e.g. 00974, 01449).
 - Level 3 Version 2 MathML functions and `avogadro` (about 18): see
   "Miscellaneous maths".
-- A reaction id used in math as its rate (6, e.g. 01225, 01226, 01231,
-  01301): `J0` is not defined in the generated code.
+- A model with a rule that has no math is not sorted into dependency order,
+  because libSBML's `sortRules` converter fails on it; an out-of-order rule
+  there still emits code reading an undefined name. No suite case has both.
 - `Conversion failed.` (5, e.g. 00950, 01234, 01554, 01557). 00950
   is `expandInitialAssignments` rejecting an initial assignment to
   `inf`/`-inf`/`nan`; the others are not yet diagnosed.
