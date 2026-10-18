@@ -767,7 +767,9 @@ test_that("an assignment-rule parameter still drives the simulation", {
 
 # A square DAE whose rate expressions read an assignment-rule parameter.  S
 # decays at rate k; B is a non-constant boundary species with no rate rule, so
-# it is the one undetermined state, and the algebraic rule 0 = B - 2*S fixes it.
+# it is the one undetermined state, and the algebraic rule 0 = B*B - 4*S*S fixes
+# it.  B = 2*S would be solved as an assignment rule instead; squaring keeps
+# this a DAE, with the same solution from the consistent start B = 2.
 dae_assigned_k_model <- function() unset_value_model(
     cmt = '<compartment id="c" size="1" spatialDimensions="3" constant="true"/>',
     species = '<species id="S" compartment="c" initialConcentration="1" boundaryCondition="false"
@@ -777,7 +779,8 @@ dae_assigned_k_model <- function() unset_value_model(
     params = '<parameter id="k" constant="false"/>',
     rules = paste0(k_assignment,
         '<algebraicRule><math xmlns="http://www.w3.org/1998/Math/MathML">
-         <apply><minus/><ci>B</ci><apply><times/><cn>2</cn><ci>S</ci></apply></apply>
+         <apply><minus/><apply><times/><ci>B</ci><ci>B</ci></apply>
+           <apply><times/><cn>4</cn><ci>S</ci><ci>S</ci></apply></apply>
          </math></algebraicRule>'),
     reactions = sub('species="A"', 'species="S"',
                     decay_reaction("<apply><times/><ci>k</ci><ci>S</ci><ci>c</ci></apply>")))

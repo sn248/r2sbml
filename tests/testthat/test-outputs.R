@@ -109,7 +109,8 @@ test_that("mrgsolve and rxode2 solutions carry the assignment-rule columns", {
 })
 
 # A DAE that also carries an assignment rule: S decays, B is fixed by the
-# algebraic rule B = 2 S, and Y = 3 S is an assignment.  daspk takes the same
+# algebraic rule B*B = 4*S*S (squared so that it stays a DAE rather than being
+# solved as B = 2 S), and Y = 3 S is an assignment.  daspk takes the same
 # list-of-extra-outputs return as ode, so Y gets a column here too.
 dae_with_assignment_model <- function() {
     xml <- '<?xml version="1.0" encoding="UTF-8" ?>
@@ -131,7 +132,7 @@ hasOnlySubstanceUnits="false" constant="false"/>
 </listOfParameters>
 <listOfRules>
 <algebraicRule><math xmlns="http://www.w3.org/1998/Math/MathML">
-<apply><minus/><ci>B</ci><apply><times/><cn>2</cn><ci>S</ci></apply></apply></math></algebraicRule>
+<apply><minus/><apply><times/><ci>B</ci><ci>B</ci></apply><apply><times/><cn>4</cn><ci>S</ci><ci>S</ci></apply></apply></math></algebraicRule>
 <assignmentRule variable="Y"><math xmlns="http://www.w3.org/1998/Math/MathML">
 <apply><times/><cn>3</cn><ci>S</ci></apply></math></assignmentRule>
 </listOfRules>

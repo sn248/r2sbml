@@ -396,9 +396,10 @@ static std::ostream& operator<<(std::ostream& out, const Num& n)
 }
 
 // What is left without a value after the converters have expanded initial
-// assignments.  An algebraic rule may determine it, but algebraicStates()
-// only matches species, so nothing here solves for it.  Writing 1 instead
-// would be a plausible wrong answer; NaN plus this warning is not.
+// assignments.  An algebraic rule may determine it, but only one linear in a
+// single undetermined variable is solved (solveLinearAlgebraicRules()), and
+// the DAE path matches species alone.  Writing 1 instead would be a plausible
+// wrong answer; NaN plus this warning is not.
 static void warnUndefinedValues(Model* model, const std::string& target)
 {
    std::string list;
@@ -422,8 +423,8 @@ static void warnUndefinedValues(Model* model, const std::string& target)
 
    Rcpp::warning("No value is defined for " + list + ", so " + target +
                  " receives NaN for it. If an algebraic rule determines it, "
-                 "r2sbml does not solve for that yet: only species are "
-                 "matched to algebraic rules.");
+                 "r2sbml could not solve that rule for it: only a rule "
+                 "linear in a single undetermined variable is solved.");
 }
 
 // A varying compartment must not also be emitted as a constant: one with a
@@ -1227,6 +1228,145 @@ static void renameReservedIds(Model* model, const std::string& format)
    delete all;
 }
 
+// --- algebraic rules solvable for one variable ---------------------------------
+//
+// An algebraic rule 0 = f is a constraint, and only deSolve, MATLAB and Julia
+// can solve a DAE.  But a rule that names exactly one undetermined variable x,
+// and is linear in it, has the closed-form solution x = -f[x:=0] / (f[x:=1] -
+// f[x:=0]), so it becomes an ordinary assignment rule every target handles.
+// That covers every algebraic rule in the SBML Test Suite's failures --
+// parameters (00533), compartment sizes (00539), modifier-only species
+// (00549) -- where algebraicStates() matched species alone.
+//
+// The undetermined variables are the non-constant species, parameters and
+// compartments with no rate or assignment rule, which after replaceReactions
+// includes every species no reaction changes.  Solving one makes it
+// determined, so the rules are peeled repeatedly; each solution reads only
+// variables already determined, so no cycle can arise.  Rules naming two or
+// more undetermined variables (inst/examples/sbmlalgebraicrules.xml) are left
+// for the DAE path.
+
+// Whether @p node contains the name @p x: 0 if not, 1 if linearly, -1 if in
+// any other way.
+static int linearIn(const ASTNode* node, const std::string& x)
+{
+   if (node == NULL) return 0;
+   if (node->getType() == AST_NAME) return x == node->getName() ? 1 : 0;
+
+   const unsigned int n = node->getNumChildren();
+   std::vector<int> kids(n);
+   bool any = false;
+   for (unsigned int i = 0; i < n; i++)
+   {
+     kids[i] = linearIn(node->getChild(i), x);
+     if (kids[i] < 0) return -1;
+     any = any || kids[i] != 0;
+   }
+   if (!any) return 0;
+
+   switch (node->getType())
+   {
+     case AST_PLUS:
+     case AST_MINUS:
+       return 1;
+     case AST_TIMES:
+     {
+       int with = 0;
+       for (unsigned int i = 0; i < n; i++) with += kids[i];
+       return with == 1 ? 1 : -1;
+     }
+     case AST_DIVIDE:
+       return n == 2 && kids[1] == 0 ? 1 : -1;
+     default:
+       return -1;
+   }
+}
+
+static void collectNames(const ASTNode* node, std::set<std::string>& names)
+{
+   if (node == NULL) return;
+   if (node->getType() == AST_NAME) names.insert(node->getName());
+   for (unsigned int i = 0; i < node->getNumChildren(); i++)
+     collectNames(node->getChild(i), names);
+}
+
+static std::set<std::string> undeterminedVariables(Model* model)
+{
+   std::set<std::string> ids;
+   for (unsigned int i = 0; i < model->getNumSpecies(); i++)
+   {
+     const Species* s = model->getSpecies(i);
+     if (!s->getConstant()) ids.insert(s->getIdAttribute());
+   }
+   for (unsigned int i = 0; i < model->getNumParameters(); i++)
+   {
+     const Parameter* p = model->getParameter(i);
+     if (!p->getConstant()) ids.insert(p->getIdAttribute());
+   }
+   for (unsigned int i = 0; i < model->getNumCompartments(); i++)
+   {
+     const Compartment* c = model->getCompartment(i);
+     if (!c->getConstant()) ids.insert(c->getIdAttribute());
+   }
+   for (unsigned int i = 0; i < model->getNumRules(); i++)
+   {
+     const Rule* r = model->getRule(i);
+     if (!r->isAlgebraic()) ids.erase(r->getVariable());
+   }
+   return ids;
+}
+
+static void solveLinearAlgebraicRules(Model* model)
+{
+   std::set<std::string> unknown = undeterminedVariables(model);
+   bool progress = true;
+   while (progress)
+   {
+     progress = false;
+     for (unsigned int i = 0; i < model->getNumRules(); i++)
+     {
+       const Rule* rule = model->getRule(i);
+       if (!rule->isAlgebraic() || !rule->isSetMath()) continue;
+
+       std::set<std::string> names;
+       collectNames(rule->getMath(), names);
+       std::string x;
+       int count = 0;
+       for (std::set<std::string>::const_iterator it = names.begin(); it != names.end(); ++it)
+         if (unknown.count(*it)) { x = *it; count++; }
+       if (count != 1 || linearIn(rule->getMath(), x) != 1) continue;
+
+       ASTNode zero(AST_REAL);
+       zero.setValue(0.0);
+       ASTNode one(AST_REAL);
+       one.setValue(1.0);
+       ASTNode* b = rule->getMath()->deepCopy();
+       b->replaceArgument(x, &zero);
+       ASTNode* b1 = rule->getMath()->deepCopy();
+       b1->replaceArgument(x, &one);
+
+       // x = -b / (f[x:=1] - b)
+       ASTNode* a = new ASTNode(AST_MINUS);
+       a->addChild(b1);
+       a->addChild(b->deepCopy());
+       ASTNode* negb = new ASTNode(AST_MINUS);
+       negb->addChild(b);
+       ASTNode solution(AST_DIVIDE);
+       solution.addChild(negb);
+       solution.addChild(a);
+
+       delete model->removeRule(i);
+       AssignmentRule* ar = model->createAssignmentRule();
+       ar->setVariable(x);
+       ar->setMath(&solution);
+
+       unknown.erase(x);
+       progress = true;
+       break;
+     }
+   }
+}
+
 //'convertReactions
 //'@param infile input file name
 //'@param outfile output file name
@@ -1359,9 +1499,11 @@ static void renameReservedIds(Model* model, const std::string& format)
      Rcpp::stop("Conversion failed.");
    }
 
+   solveLinearAlgebraicRules(document->getModel());
+
    // Every writer emits assignment rules in list order, as statements, but
    // SBML lets a rule precede the ones it reads -- and restoreReactionRates()
-   // appends its rules last.  Sort them so each comes after what it uses.
+   // and solveLinearAlgebraicRules() append their rules last.  Sort them so each comes after what it uses.
    // The sorter fails on a rule with no math, but dropEmptyMath() has
    // removed those.
    ConversionProperties sortProps;
@@ -1825,9 +1967,10 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
      out << "$GLOBAL\n";
      out << "inline double r2sbml_ifelse(bool c, double a, double b) { return c ? a : b; }\n\n";
    }
-   out << "$PARAM\n";
-
+   // mrgsolve warns about an empty $PARAM block, so it is left out when no
+   // parameter is constant.
    const std::vector<int> params = constantParameters(model);
+   if (!params.empty()) out << "$PARAM\n";
    for (size_t i = 0; i < params.size(); i++){
         const Parameter* p = model->getParameter(params[i]);
         out << p->getIdAttribute() << " = " << Num{p->getValue(), kSpellDefault} << "\n";
