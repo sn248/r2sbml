@@ -31,9 +31,10 @@ for (case in sort(list.dirs(sts_dir, recursive = FALSE))) {
 # because their missing dilution was masked; 883 once reaction ids in math
 # denote the rate and assignment rules are sorted; 962 after the Level 3
 # Version 2 maths, reserved-id renaming and five more replaceReactions
-# patches).  A fix that passes more should raise it; falling below it means
-# a regression.
-sts_pass_floor <- 962
+# patches; 1007 after solving linear algebraic rules and diluting through
+# assignment-rule volumes).  A fix that passes more should raise it; falling
+# below it means a regression.
+sts_pass_floor <- 1007
 
 test_that("the full SBML Test Suite does not regress", {
     skip_on_cran()
