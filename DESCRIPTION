@@ -67,7 +67,9 @@ Imports:
 Suggests:
     deSolve,
     knitr,
+    mrgsolve,
     rmarkdown,
+    rxode2,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
 LinkingTo:
