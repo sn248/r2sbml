@@ -50,10 +50,12 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <map>
 #include <chrono>
 #include <ctime>
 #include <sbml/SBMLTypes.h>
 #include <sbml/conversion/ConversionProperties.h>
+#include <sbml/SBMLTransforms.h>
 
 #include "formulaToInfix.h"
 
@@ -84,17 +86,21 @@ int writeFileUbiquity(SBMLDocument*, std::string);
 //
 // Nothing about this is visible in the generated code: the model simply starts
 // in the wrong place and integrates smoothly away from it.
+static double initialCompartmentSize(const Model* model, const Compartment* c);
+
 static double speciesInitialValue(const Model* model, const Species* species)
 {
    const Compartment* c = model->getCompartment(species->getCompartment());
 
-   // A zero-dimensional compartment has no volume to convert through, and a
-   // size of 0 would only turn the conversion into an inf or a NaN.
+   // The volume at t = 0, which an assignment rule may set to something other
+   // than the declared size.  A zero-dimensional compartment has no volume to
+   // convert through, and a size of 0 would only turn the conversion into an
+   // inf or a NaN.
    double volume = 1.0;
-   if (c != NULL && c->getSpatialDimensions() > 0 &&
-       c->isSetSize() && c->getSize() != 0.0)
+   if (c != NULL && c->getSpatialDimensions() > 0)
    {
-     volume = c->getSize();
+     const double size = initialCompartmentSize(model, c);
+     if (std::isfinite(size) && size != 0.0) volume = size;
    }
 
    const bool wantsAmount = species->getHasOnlySubstanceUnits();
@@ -183,6 +189,74 @@ static double compartmentValue(const Compartment* c)
    if (c->isSetSize() || c->isSetVolume()) return c->getVolume();
    if (c->isSetSpatialDimensions() && c->getSpatialDimensionsAsDouble() == 0) return 1.0;
    return std::numeric_limits<double>::quiet_NaN();
+}
+
+// --- values an assignment rule gives at t = 0 ---------------------------------
+//
+// A compartment an assignment rule sets has that rule's value, not its
+// declared size, and species initial amounts have to be converted through it.
+// SBML Test Suite case 00143 declares size 5 under the rule `compartment = 1`,
+// and every species started a factor of 5 too low.
+
+// Values of the parameters and compartments at t = 0, including those the
+// assignment rules set.  Species are left out on purpose: their values are in
+// whichever units the file declares, not the units being integrated, so a rule
+// that reads one is left unevaluated rather than evaluated wrongly.
+//
+// SBMLTransforms::evaluateASTNode() returns NaN for any name missing from the
+// map, so "not evaluable" needs no separate test.
+static std::map<std::string, double> valuesAtStart(const Model* model)
+{
+   std::map<std::string, double> known;
+   for (unsigned int i = 0; i < model->getNumParameters(); i++)
+   {
+     const Parameter* p = model->getParameter(i);
+     if (std::isnan(p->getValue()) || model->getRule(p->getIdAttribute()) != NULL) continue;
+     known[p->getIdAttribute()] = p->getValue();
+   }
+   for (unsigned int i = 0; i < model->getNumCompartments(); i++)
+   {
+     const Compartment* c = model->getCompartment(i);
+     const double v = compartmentValue(c);
+     if (std::isnan(v) || model->getRule(c->getIdAttribute()) != NULL) continue;
+     known[c->getIdAttribute()] = v;
+   }
+
+   // Assignment rules may read one another; SBML forbids cycles but not any
+   // particular order, so sweep until a pass adds nothing.
+   bool progress = true;
+   while (progress)
+   {
+     progress = false;
+     for (unsigned int i = 0; i < model->getNumRules(); i++)
+     {
+       const Rule* r = model->getRule(i);
+       if (!r->isAssignment() || known.count(r->getVariable())) continue;
+       if (model->getParameter(r->getVariable()) == NULL &&
+           model->getCompartment(r->getVariable()) == NULL) continue;
+       const double v = SBMLTransforms::evaluateASTNode(r->getMath(), known, model);
+       if (std::isfinite(v))
+       {
+         known[r->getVariable()] = v;
+         progress = true;
+       }
+     }
+   }
+   return known;
+}
+
+// Size of @p c at t = 0: its assignment rule's value when it has one and the
+// rule can be evaluated, the declared size otherwise.  An initial assignment
+// needs nothing here, since expandInitialAssignments has already written its
+// value into the size.
+static double initialCompartmentSize(const Model* model, const Compartment* c)
+{
+   const Rule* r = model->getRule(c->getIdAttribute());
+   if (r == NULL || !r->isAssignment()) return compartmentValue(c);
+
+   const std::map<std::string, double> known = valuesAtStart(model);
+   const std::map<std::string, double>::const_iterator it = known.find(c->getIdAttribute());
+   return it != known.end() ? it->second : compartmentValue(c);
 }
 
 // A state that is not a species: a compartment or a parameter carrying a rate
@@ -390,6 +464,198 @@ static void warnAssignmentRuleCompartment(Model* model, const std::string& targe
                  target + " receives the right volume but no dilution term for "
                  "the species inside them. d[S]/dt is missing -[S]*(dV/dt)/V, "
                  "which needs a symbolic time derivative of the rule.");
+
+   // The starting volume is the rule's value at t = 0 when that can be worked
+   // out from the parameters and compartments alone.  A rule that reads a
+   // species cannot be, and the declared size is used instead.
+   const std::map<std::string, double> known = valuesAtStart(model);
+   std::string unevaluated;
+   for (unsigned int i = 0; i < model->getNumCompartments(); i++)
+   {
+     const std::string id = model->getCompartment(i)->getIdAttribute();
+     if (hasAssignmentRule(model, id) && !known.count(id))
+     {
+       unevaluated += (unevaluated.empty() ? "" : ", ") + id;
+     }
+   }
+   if (unevaluated.empty()) return;
+
+   Rcpp::warning("The assignment rule for compartment(s) " + unevaluated +
+                 " could not be evaluated at t = 0, so species initial values "
+                 "inside them were converted with the declared size instead.");
+}
+
+// --- stoichiometry a rule sets ------------------------------------------------
+//
+// A speciesReference with an id can have its stoichiometry set by an
+// assignment rule, a rate rule or an initial assignment.  replaceReactions
+// (SBMLReactionConverter::determineStoichiometryNode) asks isSetStoichiometry()
+// *first*, so as soon as the file also declares a number -- which Level 3
+// files routinely do -- that number is used and the rule ignored.  SBML Test
+// Suite case 00971 declares 1 under the rule `Xref = 3`, and X grew a third as
+// fast as it should.  When no number is set, the converter does the right
+// thing for an assignment rule (it writes the id, and creates a parameter of
+// that name for the rule to set) and for an initial assignment (it inlines
+// the expression), but has no case for a rate rule at all.
+//
+// So before converting: unset the declared number wherever a rule or initial
+// assignment governs it, and for a rate rule swap in a placeholder assignment
+// rule so the converter takes its by-name path.  The rate rule
+// itself is held aside meanwhile -- the converter validates the model first and
+// rejects two rules for one variable -- and so is any initial assignment on
+// it, which the converter would otherwise inline ahead of the placeholder.
+// After converting: drop the placeholders, put the held rules and initial
+// assignments back, and give the parameter the declared number as its
+// starting value, so integratedRateStates() integrates it like any other and
+// expandInitialAssignments can still apply an initial assignment to it.
+struct StoichiometryPatch
+{
+   std::vector<std::string>                     placeholders;
+   std::vector<std::pair<std::string, double> > declared;
+   std::vector<Rule*>                           heldRules;
+   std::vector<InitialAssignment*>              held;
+};
+
+static StoichiometryPatch exposeRuleStoichiometry(Model* model)
+{
+   StoichiometryPatch patch;
+   for (unsigned int i = 0; i < model->getNumReactions(); i++)
+   {
+     Reaction* rn = model->getReaction(i);
+     for (unsigned int side = 0; side < 2; side++)
+     {
+       const unsigned int n = side ? rn->getNumProducts() : rn->getNumReactants();
+       for (unsigned int j = 0; j < n; j++)
+       {
+         SpeciesReference* sr = side ? rn->getProduct(j) : rn->getReactant(j);
+         if (!sr->isSetId()) continue;
+         const std::string id = sr->getId();
+         const bool assigned = model->getAssignmentRule(id) != NULL;
+         const bool rated    = model->getRateRule(id) != NULL;
+         if (!assigned && !rated && model->getInitialAssignment(id) == NULL) continue;
+
+         patch.declared.push_back(std::make_pair(id, sr->isSetStoichiometry()
+             ? sr->getStoichiometry() : std::numeric_limits<double>::quiet_NaN()));
+         sr->unsetStoichiometry();
+
+         if (rated && !assigned)
+         {
+           patch.heldRules.push_back(model->removeRuleByVariable(id));
+           if (model->getInitialAssignment(id) != NULL)
+           {
+             patch.held.push_back(model->removeInitialAssignment(id));
+           }
+           // The converter only asks whether an assignment rule exists, so
+           // the formula is never used.  It must not be `id` (circular, and
+           // rejected) and must not be anything a rate law might contain, since
+           // the converter rewrites any subexpression equal to an assignment
+           // rule's formula into that rule's variable; NaN is neither.
+           AssignmentRule* ar = model->createAssignmentRule();
+           ar->setVariable(id);
+           ASTNode placeholder(AST_REAL);
+           placeholder.setValue(std::numeric_limits<double>::quiet_NaN());
+           ar->setMath(&placeholder);
+           patch.placeholders.push_back(id);
+         }
+       }
+     }
+   }
+   return patch;
+}
+
+static void restoreRuleStoichiometry(Model* model, StoichiometryPatch& patch)
+{
+   for (size_t k = 0; k < patch.placeholders.size(); k++)
+   {
+     for (unsigned int i = model->getNumRules(); i-- > 0; )
+     {
+       const Rule* r = model->getRule(i);
+       if (r->isAssignment() && r->getVariable() == patch.placeholders[k])
+       {
+         delete model->removeRule(i);
+         break;
+       }
+     }
+   }
+   for (size_t k = 0; k < patch.heldRules.size(); k++)
+   {
+     model->addRule(patch.heldRules[k]);
+     delete patch.heldRules[k];
+   }
+   patch.heldRules.clear();
+   for (size_t k = 0; k < patch.held.size(); k++)
+   {
+     model->addInitialAssignment(patch.held[k]);
+     delete patch.held[k];
+   }
+   patch.held.clear();
+
+   // The converter creates the parameter with no value; a rate rule needs one
+   // to start from.  An assignment rule overrides whatever is set here.
+   for (size_t k = 0; k < patch.declared.size(); k++)
+   {
+     Parameter* p = model->getParameter(patch.declared[k].first);
+     if (p != NULL && !p->isSetValue() && !std::isnan(patch.declared[k].second))
+     {
+       p->setValue(patch.declared[k].second);
+     }
+   }
+}
+
+// --- conversion factors -------------------------------------------------------
+//
+// In Level 3 a reaction changes a species by stoichiometry * rate *
+// conversionFactor, taking the species' own conversionFactor, else the
+// model's.  replaceReactions ignores both, so every reaction term came out
+// short by that factor (SBML Test Suite cases 00975-00977, a factor of 4).
+// The factor must be a constant parameter, so it can be applied afterwards as
+// a single multiplier on each reaction-derived rate rule.
+//
+// Which rate rules are reaction-derived has to be decided before converting:
+// a species that already has a rate rule takes no part in reactions (SBML
+// requires it to be a boundary species if it appears in one), so it is
+// excluded, as are species no reaction changes.
+static std::vector<std::pair<std::string, std::string> > reactionConversionFactors(Model* model)
+{
+   std::vector<std::pair<std::string, std::string> > factors;
+   const std::string modelFactor =
+       model->isSetConversionFactor() ? model->getConversionFactor() : "";
+
+   for (unsigned int i = 0; i < model->getNumSpecies(); i++)
+   {
+     const Species* s = model->getSpecies(i);
+     const std::string factor =
+         s->isSetConversionFactor() ? s->getConversionFactor() : modelFactor;
+     if (factor.empty() || s->getBoundaryCondition() || s->getConstant() ||
+         model->getRateRule(s->getIdAttribute()) != NULL) continue;
+
+     bool inReaction = false;
+     for (unsigned int j = 0; j < model->getNumReactions() && !inReaction; j++)
+     {
+       const Reaction* rn = model->getReaction(j);
+       inReaction = rn->getReactant(s->getIdAttribute()) != NULL ||
+                    rn->getProduct(s->getIdAttribute()) != NULL;
+     }
+     if (inReaction) factors.push_back(std::make_pair(s->getIdAttribute(), factor));
+   }
+   return factors;
+}
+
+static void applyConversionFactors(Model* model,
+                                   const std::vector<std::pair<std::string, std::string> >& factors)
+{
+   for (size_t k = 0; k < factors.size(); k++)
+   {
+     const int rule = rateRuleFor(model, factors[k].first);
+     if (rule < 0 || !model->getRule(rule)->isSetMath()) continue;
+
+     ASTNode scaled(AST_TIMES);
+     ASTNode* cf = new ASTNode(AST_NAME);
+     cf->setName(factors[k].second.c_str());
+     scaled.addChild(cf);
+     scaled.addChild(model->getRule(rule)->getMath()->deepCopy());
+     model->getRule(rule)->setMath(&scaled);
+   }
 }
 
 //'convertReactions
@@ -442,6 +708,12 @@ static void warnAssignmentRuleCompartment(Model* model, const std::string& targe
                 " SBML error(s), listed above.  Nothing was written.");
    }
 
+   // Two things replaceReactions gets wrong have to be set up beforehand: see
+   // exposeRuleStoichiometry() and reactionConversionFactors().
+   StoichiometryPatch stoichiometry = exposeRuleStoichiometry(document->getModel());
+   const std::vector<std::pair<std::string, std::string> > factors =
+       reactionConversionFactors(document->getModel());
+
    // create conversion object that identifies the function definition converter
    ConversionProperties props;
 
@@ -456,6 +728,9 @@ static void warnAssignmentRuleCompartment(Model* model, const std::string& targe
      document->printErrors(Rcpp::Rcerr);
      Rcpp::stop("Conversion failed.");
    }
+
+   restoreRuleStoichiometry(document->getModel(), stoichiometry);
+   applyConversionFactors(document->getModel(), factors);
 
    // promote local parameters to global parameters
    props.addOption("promoteLocalParameters", true,
