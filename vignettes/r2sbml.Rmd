@@ -322,8 +322,12 @@ update while the rules recompute different values beside them.
 
 ## Algebraic rules make the model a DAE
 
-An algebraic rule is a constraint, `0 = f(...)`, not a derivative. Where the
-target can solve a differential-algebraic system, `r2sbml` emits one.
+An algebraic rule is a constraint, `0 = f(...)`, not a derivative. A rule that
+names a single undetermined variable and is linear in it is simply solved for
+that variable and written as an assignment rule, in every target. The rules in
+`sbmlalgebraicrules.xml` each name both `E` and `ES`, so they cannot be solved
+one at a time: the model is a differential-algebraic system, and where the
+target can solve one, `r2sbml` emits it.
 
 For deSolve that changes the shape of the generated function entirely: it
 becomes a **residual** function for `daspk` of `(time, states, derivs, params)`,
@@ -381,9 +385,9 @@ lines <- readLines(out_alg_jl)
 cat(grep("Solve with|^M |^M\\[|mass_matrix|ODEProblem", lines, value = TRUE), sep = "\n")
 ```
 
-mrgsolve, rxode2 and ubiquity integrate ODEs only. For those, the rule is
-written out as a comment and `convertReactions()` warns — see the limitations
-vignette.
+mrgsolve, rxode2 and ubiquity integrate ODEs only. For those, a rule that
+could not be solved is written out as a comment and `convertReactions()`
+warns — see the limitations vignette.
 
 ## Changing compartment volumes
 
