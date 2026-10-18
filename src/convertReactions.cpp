@@ -945,21 +945,42 @@ static void dropEmptyMath(Model* model)
        delete model->removeInitialAssignment(i);
 }
 
-// expandInitialAssignments only applies an assignment whose value is not NaN
-// (SBMLTransforms::expandInitialAssignment), and fails the whole conversion if
-// any is left over -- so an initial assignment to <notanumber/> could never
-// convert (SBML Test Suite case 00950).  Apply the literal ones by hand.
-static void applyNaNInitialAssignments(Model* model)
+// --- initial assignments to NaN ------------------------------------------------
+//
+// libSBML's evaluator returns NaN for "cannot evaluate", so
+// expandInitialAssignments never expands one whose value genuinely is NaN,
+// and then reports the whole conversion as failed (SBML Test Suite 00950,
+// 01813).  An assignment that names nothing -- only numbers and constants --
+// can be evaluated here instead, so such a NaN is set directly beforehand.
+static bool namesNothing(const ASTNode* node)
+{
+   if (node == NULL) return true;
+   if (node->isName() || node->getType() == AST_FUNCTION) return false;
+   for (unsigned int i = 0; i < node->getNumChildren(); i++)
+     if (!namesNothing(node->getChild(i))) return false;
+   return true;
+}
+
+static void expandNaNInitialAssignments(Model* model)
 {
    for (unsigned int i = model->getNumInitialAssignments(); i-- > 0; )
    {
      const InitialAssignment* ia = model->getInitialAssignment(i);
-     const ASTNode* math = ia->getMath();
-     if (math == NULL || !math->isReal() || !std::isnan(math->getReal())) continue;
+     if (!ia->isSetMath() || !namesNothing(ia->getMath())) continue;
+     if (!std::isnan(SBMLTransforms::evaluateASTNode(ia->getMath(), model))) continue;
 
+     const std::string id = ia->getSymbol();
      const double nan = std::numeric_limits<double>::quiet_NaN();
-     if (Parameter* p = model->getParameter(ia->getSymbol())) p->setValue(nan);
-     else if (Compartment* c = model->getCompartment(ia->getSymbol())) c->setSize(nan);
+     if (Parameter* p = model->getParameter(id)) p->setValue(nan);
+     else if (Compartment* c = model->getCompartment(id)) c->setSize(nan);
+     else if (Species* s = model->getSpecies(id))
+     {
+       if (s->getHasOnlySubstanceUnits()) s->setInitialAmount(nan);
+       else s->setInitialConcentration(nan);
+     }
+     else if (SpeciesReference* sr =
+                  dynamic_cast<SpeciesReference*>(model->getElementBySId(id)))
+       sr->setStoichiometry(nan);
      else continue;
      delete model->removeInitialAssignment(i);
    }
@@ -1016,6 +1037,194 @@ static void restoreCompartmentSizes(Model* model, const CompartmentPatch& patch)
      Compartment* c = model->getCompartment(patch.unitSize[k]);
      if (c != NULL && std::isnan(c->getSize())) c->setSize(1.0);
    }
+}
+
+// --- ids a target cannot use as names ---------------------------------------
+//
+// An SBML id is any [A-Za-z_][A-Za-z0-9_]*, so it can be a reserved word, a
+// built-in constant or a function name in the target (Inf, TRUE, if, exp), or
+// one of the names the generated code itself uses (time, states, p).  Written
+// as is, the file does not parse, or quietly reads the wrong thing: a Julia
+// parameter `p` overwrote the parameter vector it was read from.  Such an id
+// is renamed before writing by appending underscores until it is free --
+// `Inf` becomes `Inf_` -- everywhere it occurs, via libSBML's own
+// renameSIdRefs().  deSolve output keeps the SBML id as the name of each
+// state, parameter and output column (see sbmlId()); the other targets show
+// the new name, and the conversion reports each one.
+
+// R's reserved words and constants.
+static const char* const kReservedR[] = {
+   "if", "else", "repeat", "while", "function", "for", "in", "next", "break",
+   "TRUE", "FALSE", "NULL", "Inf", "NaN", "NA", "NA_integer_", "NA_real_",
+   "NA_character_", "NA_complex_", NULL };
+
+static const char* const kReservedDeSolve[] = {
+   "time", "states", "derivs", "params", "parameters", "InitialAmounts",
+   "InitialDerivatives", "massBalances", "MassBalances", "Residuals", NULL };
+
+static const char* const kReservedRxode2[] = {
+   "time", "t", "Time", "TIME", "pi", "M_PI", "tlast", "tad", "podo", "amt", "cmt",
+   "evid", "rate", "dur", "ID", "CMT", "AMT", "EVID", NULL };
+
+static const char* const kReservedC[] = {
+   // C++ keywords
+   "alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand", "bitor",
+   "bool", "break", "case", "catch", "char", "char8_t", "char16_t", "char32_t",
+   "class", "compl", "concept", "const", "consteval", "constexpr", "constinit",
+   "const_cast", "continue", "co_await", "co_return", "co_yield", "decltype",
+   "default", "delete", "do", "double", "dynamic_cast", "else", "enum",
+   "explicit", "export", "extern", "false", "float", "for", "friend", "goto",
+   "if", "inline", "int", "long", "mutable", "namespace", "new", "noexcept",
+   "not", "not_eq", "nullptr", "operator", "or", "or_eq", "private",
+   "protected", "public", "register", "reinterpret_cast", "requires", "return",
+   "short", "signed", "sizeof", "static", "static_assert", "static_cast",
+   "struct", "switch", "template", "this", "thread_local", "throw", "true",
+   "try", "typedef", "typeid", "typename", "union", "unsigned", "using",
+   "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq",
+   // C macros the generated code or libm defines
+   "INFINITY", "NAN", "HUGE_VAL", "M_PI", "M_E",
+   // mrgsolve's reserved names (mrgsolve:::Reserved)
+   "ID", "amt", "cmt", "ii", "ss", "evid", "addl", "rate", "time", "SOLVERTIME",
+   "table", "ETA", "EPS", "AMT", "CMT", "TIME", "EVID", "simeps", "self",
+   "simeta", "NEWIND", "DONE", "CFONSTOP", "DXDTZERO", "INITSOLV", "_F", "_R",
+   "_ALAG", "SETINIT", "report", "_VARS_", "VARS", "SS_ADVANCE",
+   "END_OF_INFUSION", "CHECK_MODELED_INFUSIONS", "FINAL_ROW", "FINAL_IROW",
+   "II", "SS", "ADDL", "RATE", "THETA", "capture", "until", "now", NULL };
+
+static const char* const kReservedMatlab[] = {
+   "break", "case", "catch", "classdef", "continue", "else", "elseif", "end",
+   "for", "function", "global", "if", "otherwise", "parfor", "persistent",
+   "return", "spmd", "switch", "try", "while",
+   "Inf", "inf", "NaN", "nan", "pi", "true", "false",
+   // names the generated function uses
+   "t", "y", "tspan", "y0", "M", "opts", "time", "states", "dydt", "nargin",
+   "massBalances", "observables", "ode15s", "odeset", "zeros", "eye", "numel",
+   NULL };
+
+static const char* const kReservedJulia[] = {
+   "baremodule", "begin", "break", "catch", "const", "continue", "do", "else",
+   "elseif", "end", "export", "false", "finally", "for", "function", "global",
+   "if", "import", "let", "local", "macro", "module", "quote", "return",
+   "struct", "true", "try", "using", "while", "abstract", "mutable",
+   "primitive", "type", "where", "in", "isa", "outer",
+   "Inf", "NaN", "Inf64", "NaN64", "Inf32", "NaN32", "pi", "missing",
+   "nothing", "ifelse",
+   // names the generated file uses
+   "t", "u", "du", "p", "time", "u0", "tspan", "M", "prob", "sol",
+   "massbalances", "observables", "ODEFunction", "ODEProblem", NULL };
+
+// Math functions the serialisers emit as calls.  A variable of the same name
+// shadows the function in C++, MATLAB and Julia (R looks calls up apart).
+static const char* const kMathFunctions[] = {
+   "pow", "exp", "log", "log10", "sqrt", "abs", "fabs", "floor", "ceil",
+   "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh",
+   "asinh", "acosh", "atanh", "factorial", "max", "min", NULL };
+
+static void addNames(std::set<std::string>& set, const char* const* names)
+{
+   for (; *names != NULL; names++) set.insert(*names);
+}
+
+// The names an SBML id must not take for @p format; empty for an unknown one.
+static std::set<std::string> reservedNames(const std::string& format)
+{
+   std::set<std::string> names;
+   if (format == "R" || format == "deSolve")
+   {
+     addNames(names, kReservedR);
+     addNames(names, kReservedDeSolve);
+   }
+   else if (format == "nlmixr2" || format == "rxode2")
+   {
+     addNames(names, kReservedR);
+     addNames(names, kReservedRxode2);
+   }
+   else if (format == "mrgsolve")
+   {
+     // $PARAM is parsed by R, the model blocks are C++
+     addNames(names, kReservedR);
+     addNames(names, kReservedC);
+     addNames(names, kMathFunctions);
+   }
+   else if (format == "MATLAB" || format == "matlab")
+   {
+     addNames(names, kReservedMatlab);
+     addNames(names, kMathFunctions);
+   }
+   else if (format == "Julia" || format == "julia")
+   {
+     addNames(names, kReservedJulia);
+     addNames(names, kMathFunctions);
+   }
+   else if (format == "ubiquity" || format == "Ubiquity")
+   {
+     // pasted verbatim into both an R and a C model
+     addNames(names, kReservedR);
+     addNames(names, kReservedC);
+     addNames(names, kMathFunctions);
+   }
+   return names;
+}
+
+// Renamed id -> SBML id, for the current conversion.
+static std::map<std::string, std::string> renamedIds;
+
+// The SBML id behind a (possibly renamed) id.
+static std::string sbmlId(const std::string& id)
+{
+   std::map<std::string, std::string>::const_iterator it = renamedIds.find(id);
+   return it == renamedIds.end() ? id : it->second;
+}
+
+// The SBML id as an R name tag, `c(name = ...)`: backquoted when renamed,
+// since only a name the parser would reject is ever renamed.
+static std::string rNameTag(const std::string& id)
+{
+   std::map<std::string, std::string>::const_iterator it = renamedIds.find(id);
+   return it == renamedIds.end() ? id : "`" + it->second + "`";
+}
+
+static void renameReservedIds(Model* model, const std::string& format)
+{
+   renamedIds.clear();
+   const std::set<std::string> reserved = reservedNames(format);
+   if (reserved.empty()) return;
+
+   List* all = model->getAllElements();
+   std::set<std::string> taken;
+   for (unsigned int i = 0; i < all->getSize(); i++)
+   {
+     const SBase* e = static_cast<const SBase*>(all->get(i));
+     if (e->isSetIdAttribute()) taken.insert(e->getIdAttribute());
+   }
+
+   std::vector<std::pair<std::string, std::string> > renames;
+   for (unsigned int i = 0; i < all->getSize(); i++)
+   {
+     SBase* e = static_cast<SBase*>(all->get(i));
+     const int type = e->getTypeCode();
+     if (type != SBML_SPECIES && type != SBML_COMPARTMENT && type != SBML_PARAMETER &&
+         type != SBML_SPECIES_REFERENCE && type != SBML_REACTION) continue;
+     if (!e->isSetIdAttribute() || reserved.count(e->getIdAttribute()) == 0) continue;
+
+     const std::string old = e->getIdAttribute();
+     std::string fresh = old + "_";
+     while (taken.count(fresh) || reserved.count(fresh)) fresh += "_";
+     taken.insert(fresh);
+     e->setIdAttribute(fresh);
+     renames.push_back(std::make_pair(old, fresh));
+   }
+
+   for (size_t k = 0; k < renames.size(); k++)
+   {
+     model->renameSIdRefs(renames[k].first, renames[k].second);
+     for (unsigned int i = 0; i < all->getSize(); i++)
+       static_cast<SBase*>(all->get(i))->renameSIdRefs(renames[k].first, renames[k].second);
+     renamedIds[renames[k].second] = renames[k].first;
+     Rcpp::Rcout << "Renamed " << renames[k].first << " to " << renames[k].second
+                 << ": the name is reserved in " << format << "." << endl;
+   }
+   delete all;
 }
 
 //'convertReactions
@@ -1124,7 +1333,7 @@ static void restoreCompartmentSizes(Model* model, const CompartmentPatch& patch)
    }
 
    // expand Initial Assignments
-   applyNaNInitialAssignments(document->getModel());
+   expandNaNInitialAssignments(document->getModel());
    props.addOption("expandInitialAssignments", true,
                    "Expanding Initial Assignments");
    // convert
@@ -1171,6 +1380,8 @@ static void restoreCompartmentSizes(Model* model, const CompartmentPatch& patch)
        Rcpp::stop("Conversion failed.");
      }
    }
+
+   renameReservedIds(document->getModel(), format);
 
    // make names equal to ID if name doesn't exist
 
@@ -1282,7 +1493,7 @@ static std::string deSolveOutputs(Model* model)
    std::string list;
    for (size_t i = 0; i < vars.size(); i++)
    {
-     list += (i ? ", " : "") + vars[i] + " = " + vars[i];
+     list += (i ? ", " : "") + rNameTag(vars[i]) + " = " + vars[i];
    }
    return "c(" + list + ")";
 }
@@ -1354,12 +1565,12 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    const int numEntries = numStates + (int)rateStates.size();
    for (int i = 0; i < numStates; i++){
       const Species* s = model->getSpecies(states[i]);
-      out << "         " << s->getIdAttribute() << " = " << speciesInitialValue(model, s)
+      out << "         " << rNameTag(s->getIdAttribute()) << " = " << speciesInitialValue(model, s)
           << (i + 1 < numEntries ? "," : "") << endl;
    }
    for (size_t i = 0; i < rateStates.size(); i++){
       const RateState& c = rateStates[i];
-      out << "         " << c.id << " = " << Num{c.initial, kSpellDefault}
+      out << "         " << rNameTag(c.id) << " = " << Num{c.initial, kSpellDefault}
           << ((int)(numStates + i + 1) < numEntries ? "," : "")
           << "   ## " << c.what << ", integrated" << endl;
    }
@@ -1374,7 +1585,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    const int numParams = (int)params.size();
    for (int i = 0; i < numParams; i++){
       const Parameter* p = model->getParameter(params[i]);
-      out << "         " << p->getIdAttribute() << " = " << Num{p->getValue(), kSpellDefault}
+      out << "         " << rNameTag(p->getIdAttribute()) << " = " << Num{p->getValue(), kSpellDefault}
           << (i + 1 < numParams ? "," : "") << endl;
    }
 
@@ -1409,6 +1620,15 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
      // InitialAmounts nor parameters, so the rules have to run first, in the
      // order massBalances runs them.
      out << "InitialDerivatives <- with(as.list(c(InitialAmounts, parameters)), {" << endl;
+     // The list is named by SBML id, the code below by the renamed one.
+     std::vector<std::string> listed;
+     for (int i = 0; i < numStates; i++) listed.push_back(model->getSpecies(states[i])->getIdAttribute());
+     for (size_t i = 0; i < rateStates.size(); i++) listed.push_back(rateStates[i].id);
+     for (int i = 0; i < numParams; i++) listed.push_back(model->getParameter(params[i])->getIdAttribute());
+     for (size_t i = 0; i < listed.size(); i++){
+       if (sbmlId(listed[i]) != listed[i])
+         out << "   " << listed[i] << " = `" << sbmlId(listed[i]) << "`" << endl;
+     }
      out << "   time = 0" << endl;
      for (unsigned int i = 0; i < model->getNumRules(); i++){
        const Rule* r = model->getRule(i);
@@ -1420,13 +1640,13 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
      out << "   c(" << endl;
      for (int i = 0; i < numStates; i++){
        const Species* sp = model->getSpecies(states[i]);
-       out << "         " << sp->getIdAttribute() << " = "
+       out << "         " << rNameTag(sp->getIdAttribute()) << " = "
            << speciesDerivative(model, sp, r2sbml::formulaToInfix)
            << (i + 1 < numEntries ? "," : "") << endl;
      }
      for (size_t i = 0; i < rateStates.size(); i++){
        const RateState& c = rateStates[i];
-       out << "         " << c.id << " = "
+       out << "         " << rNameTag(c.id) << " = "
            << r2sbml::formulaToInfix(c.rate)
            << ((int)(numStates + i + 1) < numEntries ? "," : "") << endl;
      }
@@ -1450,18 +1670,18 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
 
    out << "   ## Get States Names " << endl;
    for (int i = 0; i < numStates; i++){
-        out << "   " << model->getSpecies(states[i])->getIdAttribute() << " = states[[\"" << model->getSpecies(states[i])->getIdAttribute() << "\"]]" << endl;
+        out << "   " << model->getSpecies(states[i])->getIdAttribute() << " = states[[\"" << sbmlId(model->getSpecies(states[i])->getIdAttribute()) << "\"]]" << endl;
    }
    for (size_t i = 0; i < rateStates.size(); i++){
         const std::string cid = rateStates[i].id;
-        out << "   " << cid << " = states[[\"" << cid << "\"]]" << endl;
+        out << "   " << cid << " = states[[\"" << sbmlId(cid) << "\"]]" << endl;
    }
 
    out << endl;
    out << "   ## Get Parameter Names " << endl;
    for (int i = 0; i<numParams; i++){
         const std::string pid = model->getParameter(params[i])->getIdAttribute();
-        out << "   " << pid << " = params[[\"" << pid << "\"]]" << endl;
+        out << "   " << pid << " = params[[\"" << sbmlId(pid) << "\"]]" << endl;
    }
 
    int numODEs = model->getNumRules();
@@ -1491,7 +1711,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
        int rule = rateRuleFor(model, id);
        const bool diluted = !dilutingCompartment(model, model->getSpecies(states[i])).empty();
        if (rule >= 0 || diluted){
-         out << "   res_" << id << " = derivs[[\"" << id << "\"]] - ("
+         out << "   res_" << id << " = derivs[[\"" << sbmlId(id) << "\"]] - ("
              << speciesDerivative(model, model->getSpecies(states[i]),
                                   r2sbml::formulaToInfix) << ")" << endl;
        } else if (nextAlgRule < algRules.size() &&
@@ -1501,13 +1721,13 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
              << r2sbml::formulaToInfix(r->getMath())
              << "  ## algebraic rule fixing " << id << endl;
        } else {
-         out << "   res_" << id << " = derivs[[\"" << id << "\"]]  ## " << id
+         out << "   res_" << id << " = derivs[[\"" << sbmlId(id) << "\"]]  ## " << id
              << " is constant" << endl;
        }
      }
      for (size_t i = 0; i < rateStates.size(); i++){
        const std::string cid = rateStates[i].id;
-       out << "   res_" << cid << " = derivs[[\"" << cid << "\"]] - ("
+       out << "   res_" << cid << " = derivs[[\"" << sbmlId(cid) << "\"]] - ("
            << r2sbml::formulaToInfix(
                   rateStates[i].rate) << ")" << endl;
      }

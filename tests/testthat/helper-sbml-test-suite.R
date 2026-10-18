@@ -95,6 +95,10 @@ sts_run_case <- function(dir) {
 
     expected <- utils::read.csv(file("-results.csv"), check.names = FALSE)
     names(expected) <- trimws(names(expected))
+    # The first column of each is the time axis, and a variable may be named
+    # `time` or `Time` itself (01820, 01821), so neither is looked up.
+    expected <- expected[-1]
+    sol      <- sol[-1]
 
     bad <- character()
     for (v in st$vars) {

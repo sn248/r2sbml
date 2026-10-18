@@ -273,6 +273,11 @@ negation(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* x, Dialect d)
  *   R's function is `ceiling`.  `true`/`false` are 1 and 0 in R (rxode2 has no TRUE).
  * - Infinity and NaN serialise as `INF` and `NaN`.  `INF` is a number in none
  *   of the four, and C++ needs `NAN` too.
+ * - A relational with more than two operands is a chain: MathML's
+ *   `gt(a, b, c)` means a > b > c, i.e. a > b && b > c.  The Level 3 writer
+ *   emits `a > b > c`, a syntax error in R and the wrong comparison in C++,
+ *   MATLAB and Julia, so it becomes the `&&` of the adjacent pairs.  With one
+ *   operand it is vacuously true.
  * - piecewise(v1, c1, v2, c2, ..., otherwise) serialises unchanged, and is a
  *   function in none of the four.  It becomes a nested three-argument call,
  *   ifelse(c1, v1, ifelse(c2, v2, otherwise)), evaluated eagerly -- which is
@@ -369,6 +374,28 @@ rewriteForDialect(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node, Dialect d)
     }
 
     default: break;
+  }
+
+  if (node->isRelational() && node->getNumChildren() != 2)
+  {
+    const unsigned int kids = node->getNumChildren();
+    if (kids < 2)
+    {
+      // 1 rather than TRUE in R, as for AST_CONSTANT_TRUE above.
+      return d == Dialect::R ? realNode(1.0)
+                             : new LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode(AST_CONSTANT_TRUE);
+    }
+    LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* all =
+        new LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode(AST_LOGICAL_AND);
+    for (unsigned int i = 0; i + 1 < kids; ++i)
+    {
+      LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* pair =
+          new LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode(node->getType());
+      pair->addChild(node->getChild(i)->deepCopy());
+      pair->addChild(node->getChild(i + 1)->deepCopy());
+      all->addChild(pair);
+    }
+    return all;
   }
 
   if (node->isNumber())
@@ -608,6 +635,21 @@ inline std::string formulaToUbiquityNode(const LIBSBML_CPP_NAMESPACE_QUALIFIER A
   {
     return std::string(binary) + "[" + formulaToUbiquityNode(n->getChild(0)) +
            "][" + formulaToUbiquityNode(n->getChild(1)) + "]";
+  }
+  // A relational chain, a > b > c, is the AND of its adjacent pairs; with one
+  // operand it is vacuously true.
+  if (n->isRelational() && kids != 2)
+  {
+    if (kids < 2) return "1";
+    std::string acc;
+    for (unsigned int i = 0; i + 1 < kids; ++i)
+    {
+      const std::string pair = std::string(binary ? binary : "SIMINT_NE") + "[" +
+                               formulaToUbiquity(n->getChild(i)) + "][" +
+                               formulaToUbiquity(n->getChild(i + 1)) + "]";
+      acc = acc.empty() ? pair : "SIMINT_AND[" + acc + "][" + pair + "]";
+    }
+    return acc;
   }
   // AND over more than two operands nests pairwise.
   if (binary != NULL && kids > 2)
