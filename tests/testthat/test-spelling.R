@@ -108,9 +108,9 @@ test_that("piecewise becomes a conditional each target can run", {
     expect_length(def, 1)
     expect_length(use, 1)
     expect_true(def < use)
-    expect_true(any(grepl("^<IF:r2sbml_pw1:COND> SIMINT_GT\\[A\\]\\[2\\]; 1$", u)))
-    expect_true(any(grepl("^<IF:r2sbml_pw1:COND> SIMINT_LT\\[A\\]\\[0\\]; 2$", u)))
-    expect_true(any(grepl("^<IF:r2sbml_pw1:ELSE> 3$", u)))
+    expect_true(any(grepl("^<IF:r2sbml_pw1:COND> SIMINT_GT\\[A\\]\\[2\\.0\\]; 1\\.0$", u)))
+    expect_true(any(grepl("^<IF:r2sbml_pw1:COND> SIMINT_LT\\[A\\]\\[0\\.0\\]; 2\\.0$", u)))
+    expect_true(any(grepl("^<IF:r2sbml_pw1:ELSE> 3\\.0$", u)))
 })
 
 test_that("a piecewise nested in a rate law is hoisted for ubiquity too", {
@@ -123,7 +123,7 @@ test_that("a piecewise nested in a rate law is hoisted for ubiquity too", {
     u <- spelled_targets(m)$ubiquity
 
     # the inner piecewise is hoisted first, so the outer one can read it
-    expect_true(any(grepl("^<IF:r2sbml_pw1:ELSE> 5$", u)))
+    expect_true(any(grepl("^<IF:r2sbml_pw1:ELSE> 5\\.0$", u)))
     expect_true(any(grepl("^<IF:r2sbml_pw2:ELSE> r2sbml_pw1$", u)))
     expect_true(grep("^<Ad> r2sbml_pw1 ", u) < grep("^<Ad> r2sbml_pw2 ", u))
     expect_true(any(grepl("^<ODE:A> .*r2sbml_pw2", u)))
@@ -282,6 +282,10 @@ l3v2_functions <- list(
               function(A) log10(A)),
     r3 = list(l3v2_apply("root", "<degree><cn>3</cn></degree>", "<ci>A</ci>"),
               function(A) A^(1 / 3)),
+    # an odd root of a negative number is real
+    rn = list(l3v2_apply("root", "<degree><cn>3</cn></degree>",
+                         l3v2_apply("minus", "<cn>0.5</cn>", "<ci>A</ci>")),
+              function(A) sign(0.5 - A) * abs(0.5 - A)^(1 / 3)),
     r2 = list(l3v2_apply("root", "<degree><cn>2</cn></degree>", "<ci>A</ci>"),
               function(A) sqrt(A)))
 
@@ -318,8 +322,8 @@ test_that("the Level 3 Version 2 functions and constants are written out for eve
     expect_true(any(grepl("\\br2 = sqrt\\(A\\)", out$R)))
     expect_true(any(grepl("^<Ad> r2 = SIMINT_POWER\\[A\\]\\[0.5\\]$", out$ubiquity)))
     expect_true(any(grepl("\\bq = floor\\(A \\* 5 / 2\\)", out$R)))
-    expect_true(any(grepl("^<Ad> r = \\(\\(A\\*5\\)-\\(2\\*floor\\(\\(\\(A\\*5\\)/2\\)\\)\\)\\)$", out$ubiquity)))
-    expect_true(any(grepl("^<Ad> e = \\(SIMINT_EXP\\[1\\]\\*A\\)$", out$ubiquity)))
+    expect_true(any(grepl("^<Ad> r = \\(\\(A\\*5\\.0\\)-\\(2\\.0\\*floor\\(\\(\\(A\\*5\\.0\\)/2\\.0\\)\\)\\)\\)$", out$ubiquity)))
+    expect_true(any(grepl("^<Ad> e = \\(SIMINT_EXP\\[1\\.0\\]\\*A\\)$", out$ubiquity)))
 })
 
 test_that("mrgsolve literals are doubles, so a division of two is not an integer one", {
@@ -334,7 +338,8 @@ test_that("mrgsolve literals are doubles, so a division of two is not an integer
     expect_true(any(grepl("double h = 1\\.0 / 2\\.0;", code)))
     expect_true(any(grepl("double w = 3\\.0;", code)))
     out <- spelled_targets(l3v2_model(l3v2_functions))
-    expect_true(any(grepl("r3 = pow\\(A, 1\\.0 / 3\\.0\\)", out$mrgsolve)))
+    expect_true(any(grepl("r3 = .*pow\\(.*, 1\\.0 / 3\\.0\\)", out$mrgsolve)))
+    expect_true(any(grepl("^<Ad> r3 = .*\\(1\\.0/3\\.0\\)", out$ubiquity)))
     expect_true(any(grepl("lt = log10\\(A\\)", out$mrgsolve)))
 })
 

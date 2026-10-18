@@ -59,7 +59,7 @@ falls:
 | Constructs with no ubiquity spelling | **R warning** + `# WARNING` block in the file |
 | An id renamed because the target reserves it | console message |
 | `delay` in the other five targets | **silent** — code fails at run time |
-| `root(n, x)` of a negative `x` | **silent** — `NaN`, even for an odd `n` |
+| `root(n, x)` of a negative `x`, `n` not a literal | **silent** — `NaN`, even for an odd `n` |
 | Events | **silent** — a count in the header comment only |
 | `factorial` in C++ and Julia | **silent** — untested |
 | Inconsistent initial conditions for a DAE | solver error, not mentioning SBML |
@@ -305,13 +305,18 @@ out <- convert(maths, "mrgsolve")
 grep("^double [ab] = ", readLines(out), value = TRUE)
 ```
 
-The mrgsolve spelling shows one more rewrite: every whole-number literal is
-written as a double, because in C++ `1 / 3` divides as integers and is 0.
+The cube root is longer than `x^(1/3)` because it keeps the sign of `x`: an odd
+root of a negative number is real, but `x^(1/3)` is `NaN` there. The mrgsolve
+spelling shows one more rewrite: every whole-number literal is written as a
+double, because in C++ `1 / 3` divides as integers and is 0. The ubiquity
+output does the same, since ubiquity compiles it as C.
 
 What is not covered:
 
-**`root(n, x)`** is written `x^(1/n)`, which is `NaN` for a negative `x` even
-when `n` is odd and a real root exists.
+**`root(n, x)`** is written `x^(1/n)`, except that for a literal odd `n` it
+keeps the sign of `x`, so the cube root of `-8` is `-2`. A degree that is not a
+literal number cannot be checked for oddness, so there a negative `x` gives
+`NaN` even when a real root exists.
 
 **`factorial`** passes through unchanged. It is a function in R and MATLAB; in
 C++ and Julia it is untested, and Julia's `factorial` accepts only an integer.

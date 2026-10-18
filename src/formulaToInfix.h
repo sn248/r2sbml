@@ -155,7 +155,8 @@ reciprocal(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* x)
  *   them log10(x) and sqrt(x) only when the base or degree is the *integer*
  *   10 or 2 -- as libSBML stores the implicit ones, but not `<cn>10</cn>`,
  *   which reads back as a real.  So a literal 10 or 2 becomes that integer,
- *   and anything else ln(x)/ln(b) and x^(1/n).
+ *   and anything else ln(x)/ln(b) and x^(1/n) -- or, for a literal odd n,
+ *   s * (s*x)^(1/n) with s the sign of x, since the real root exists there.
  * - plus, times, and, or and xor may have zero or one operand in Level 3
  *   Version 2; the empty forms are their identities and the single forms the
  *   operand.  xor over more than two operands nests, since R's takes two.
@@ -228,9 +229,30 @@ expandMathML(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node)
           out = opNode(node->getType(), base, arg->deepCopy());
           break;
         }
-        out = log ? opNode(AST_DIVIDE, opNode(AST_FUNCTION_LN, arg->deepCopy()),
-                           opNode(AST_FUNCTION_LN, x))
-                  : opNode(AST_POWER, arg->deepCopy(), reciprocal(x));
+        const double n = x->isNumber() ? x->getValue() : 0;
+        if (log)
+        {
+          out = opNode(AST_DIVIDE, opNode(AST_FUNCTION_LN, arg->deepCopy()),
+                       opNode(AST_FUNCTION_LN, x));
+        }
+        else if (n == static_cast<long long>(n) && static_cast<long long>(n) % 2 != 0)
+        {
+          // An odd root of a negative number is real, but x^(1/n) is NaN, so
+          // it is s * (s*x)^(1/n) with s = 2*(x >= 0) - 1, the sign of x:
+          // arithmetic every target spells, unlike sign(), abs() or a
+          // conditional.
+          LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* s =
+              opNode(AST_MINUS,
+                     opNode(AST_TIMES, realNode(2.0),
+                            opNode(AST_RELATIONAL_GEQ, arg->deepCopy(), realNode(0.0))),
+                     realNode(1.0));
+          out = opNode(AST_TIMES, s->deepCopy(),
+                       opNode(AST_POWER, opNode(AST_TIMES, s, arg->deepCopy()), reciprocal(x)));
+        }
+        else
+        {
+          out = opNode(AST_POWER, arg->deepCopy(), reciprocal(x));
+        }
         x = NULL;
       }
       break;
@@ -791,8 +813,13 @@ inline std::string formulaToUbiquityNode(const LIBSBML_CPP_NAMESPACE_QUALIFIER A
   if (n->isNumber() || n->isName())
   {
     // Numbers and identifiers have the same spelling in both languages, so
-    // let the Level 3 writer format them.
-    return serialiseL3(n);
+    // let the Level 3 writer format them -- but a whole number as a double,
+    // or `(1/3)` is an integer division in the C model (see doubleLiteral()).
+    LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* literal = doubleLiteral(n);
+    if (literal == NULL) return serialiseL3(n);
+    const std::string text = literal->getName();
+    delete literal;
+    return text;
   }
 
   // Unrecognised: emit a call and let ubiquityUnsupported() flag it.

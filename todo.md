@@ -58,8 +58,8 @@ rewritten by `expandMathML()`. What is left:
 
 - `factorial` passes through unchanged. It is a function in R and MATLAB;
   in C++ and Julia it is untested, and Julia's takes only an integer.
-- `root(n, x)` is `x^(1/n)`, which is NaN for a negative `x` even when `n` is
-  odd and the real root exists.
+- `root(n, x)` with a degree that is not a literal is `x^(1/n)`, so NaN for a
+  negative `x` even when `n` turns out odd. A literal odd degree is handled.
 - `quotient` and `rem` follow libSBML's floor definition; no suite case has a
   negative operand, so truncation towards zero cannot be ruled out.
 - 01282: libSBML's `expandInitialAssignments` evaluates `piecewise(0, 5, 1)`
