@@ -1,0 +1,62 @@
+# Runs the whole SBML Test Suite through convertReactions + deSolve and fails
+# if fewer in-scope cases pass than the floor recorded in
+# tests/testthat/test-sbml-test-suite.R.  Kept out of R-CMD-check so that job
+# stays a pure CRAN check.
+#
+# The suite is pinned to the commit the floor was measured against, so a new
+# upstream case cannot move the count.  When bumping it, re-measure and update
+# sts_pass_floor in the same change.
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+name: SBML-Test-Suite
+
+permissions:
+  contents: read
+
+jobs:
+  sbml-test-suite:
+    runs-on: ubuntu-latest
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      NOT_CRAN: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the SBML Test Suite (semantic cases only)
+        uses: actions/checkout@v4
+        with:
+          repository: sbmlteam/sbml-test-suite
+          ref: d6dcd2cc6408d5eb881638ac6ce7a05fd7d2e4d1   # 3.3.0, develop
+          path: sbml-test-suite
+          sparse-checkout: cases/semantic
+
+      - name: Install system dependencies
+        run: sudo apt-get update -y && sudo apt-get install -y cmake libxml2-dev libbz2-dev
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::testthat, any::deSolve
+
+      - name: Install r2sbml
+        run: R CMD INSTALL .
+
+      - name: Run the full suite
+        working-directory: tests/testthat
+        env:
+          R2SBML_SBML_TEST_SUITE: ${{ github.workspace }}/sbml-test-suite/cases/semantic
+        run: |
+          library(r2sbml)
+          testthat::test_file("test-sbml-test-suite.R", reporter = "summary",
+                              stop_on_failure = TRUE)
+        shell: Rscript {0}

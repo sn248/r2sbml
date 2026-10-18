@@ -225,3 +225,33 @@ Every line of each file appears in the corresponding listing, except the
 opening <sbml> tag of sbmlevent.xml: the listing in Section 7.11 closes that
 tag before its namespace declarations, which is not well-formed XML, and the
 copy here was corrected.
+
+
+9. SBML Test Suite cases
+-----------------------------------------------------------------------
+
+Files:      tests/testthat/sbml-test-suite/*/
+            (each <id>-sbml-l3v2.xml, <id>-results.csv, <id>-settings.txt)
+Source:     the semantic test cases of the SBML Test Suite 3.3.0,
+            https://github.com/sbmlteam/sbml-test-suite, cases/semantic/,
+            commit d6dcd2cc6408d5eb881638ac6ce7a05fd7d2e4d1
+Copyright:  (C) 2016-2017 jointly by the California Institute of Technology
+              (Pasadena, CA, USA), the EMBL European Bioinformatics
+              Institute (EMBL-EBI, Hinxton, UK), the University of
+              Heidelberg (Heidelberg, Germany), the University of Tuebingen
+              (Tuebingen, Germany) and the Babraham Institute (Cambridge, UK)
+            (C) 2010-2016 jointly by the California Institute of Technology,
+              the EMBL European Bioinformatics Institute and the University
+              of Heidelberg
+            (C) 2008-2009 by the California Institute of Technology
+            (C) 2004-2007 jointly by the California Institute of Technology
+              and the University of Hertfordshire (UK)
+Licence:    GNU Lesser General Public License (LGPL), version 2.1 or, at
+            your option, any later version.
+
+These are test data only: they are read by the package's tests and are not
+installed with the package.  The files are copied unchanged; each directory
+is named after its case number in the suite.  Only the three files the tests
+read are kept from each case, out of the several the suite provides.  None of
+them comes from the suite's separately licensed contributions (the DSMTS
+stochastic cases and sbmltest2archive), which live outside cases/semantic/.
