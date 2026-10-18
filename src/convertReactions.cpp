@@ -562,9 +562,16 @@ static StoichiometryPatch exposeRuleStoichiometry(Model* model)
          SpeciesReference* sr = side ? rn->getProduct(j) : rn->getReactant(j);
          if (!sr->isSetId()) continue;
          const std::string id = sr->getId();
-         const bool assigned = model->getAssignmentRule(id) != NULL;
-         const bool rated    = model->getRateRule(id) != NULL;
-         if (!assigned && !rated && model->getInitialAssignment(id) == NULL) continue;
+         // Level 3 Version 2 lets a rule or initial assignment omit its math,
+         // and one that does has no effect: the declared number stands (SBML
+         // Test Suite cases 01464, 01465, 01552, 01553, 01657).
+         const Rule*              ar0 = model->getAssignmentRule(id);
+         const Rule*              rr0 = model->getRateRule(id);
+         const InitialAssignment* ia0 = model->getInitialAssignment(id);
+         const bool assigned = ar0 != NULL && ar0->isSetMath();
+         const bool rated    = rr0 != NULL && rr0->isSetMath();
+         const bool initial  = ia0 != NULL && ia0->isSetMath();
+         if (!assigned && !rated && !initial) continue;
 
          patch.declared.push_back(std::make_pair(id, sr->isSetStoichiometry()
              ? sr->getStoichiometry() : std::numeric_limits<double>::quiet_NaN()));
