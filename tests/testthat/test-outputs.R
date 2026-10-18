@@ -59,7 +59,7 @@ test_that("every other target exposes the assignment-rule variables", {
     # mrgsolve: recomputed in $TABLE from the output-time states, then captured
     mrg <- convert_lines(f, "mrgsolve", ".cpp")
     table <- mrg[seq(grep("^\\$TABLE$", mrg), length(mrg))]
-    expect_true(any(grepl("^S1 = T / \\(1 \\+ Keq\\);$", table)))
+    expect_true(any(grepl("^S1 = T / \\(1\\.0 \\+ Keq\\);$", table)))
     expect_true(any(grepl("^\\$CAPTURE S1 S2$", mrg)))
 
     # rxode2: plain assignments in model() are already output columns

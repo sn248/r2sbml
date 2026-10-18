@@ -25,6 +25,7 @@
  * `a && b` are valid C++ where the Level 1 spellings were not.
  */
 
+#include <sstream>
 #include <string>
 #include <cstdlib>
 #include <vector>
@@ -149,6 +150,12 @@ reciprocal(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* x)
  * - quotient and rem round down, as libSBML evaluates them:
  *   floor(a/b) and a - b*floor(a/b).  (R's %/% and %% agree.)
  * - implies(a, b) is !a || b.
+ * - log(b, x) is base b, which R reads the other way round and MATLAB not at
+ *   all, and root(n, x) is a function nowhere.  The Level 3 writer spells
+ *   them log10(x) and sqrt(x) only when the base or degree is the *integer*
+ *   10 or 2 -- as libSBML stores the implicit ones, but not `<cn>10</cn>`,
+ *   which reads back as a real.  So a literal 10 or 2 becomes that integer,
+ *   and anything else ln(x)/ln(b) and x^(1/n).
  * - plus, times, and, or and xor may have zero or one operand in Level 3
  *   Version 2; the empty forms are their identities and the single forms the
  *   operand.  xor over more than two operands nests, since R's takes two.
@@ -203,6 +210,28 @@ expandMathML(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node)
             opNode(AST_FUNCTION_FLOOR, opNode(AST_DIVIDE, x->deepCopy(), b->deepCopy()));
         out = node->getType() == AST_FUNCTION_QUOTIENT
                 ? q : opNode(AST_MINUS, x->deepCopy(), opNode(AST_TIMES, b->deepCopy(), q));
+      }
+      break;
+
+    case AST_FUNCTION_LOG:
+    case AST_FUNCTION_ROOT:
+      if (kids == 2)
+      {
+        const bool log = node->getType() == AST_FUNCTION_LOG;
+        const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* arg = node->getChild(1);
+        const long plain = log ? 10 : 2;
+        if (x->isNumber() && x->getValue() == plain)
+        {
+          LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* base =
+              new LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode(AST_INTEGER);
+          base->setValue(plain);
+          out = opNode(node->getType(), base, arg->deepCopy());
+          break;
+        }
+        out = log ? opNode(AST_DIVIDE, opNode(AST_FUNCTION_LN, arg->deepCopy()),
+                           opNode(AST_FUNCTION_LN, x))
+                  : opNode(AST_POWER, arg->deepCopy(), reciprocal(x));
+        x = NULL;
       }
       break;
 
@@ -414,6 +443,45 @@ rewriteForDialect(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node, Dialect d)
 }
 
 /**
+ * In C++ two integer literals divide as integers, so `1 / 2` is 0 and
+ * `pow(A, 1 / 3)` is 1 -- silently, but for a warning from mrgsolve's own
+ * parser.  The Level 3 writer prints an integral value with no decimal point,
+ * and a rational as `(1/3)`, so for C every such literal is written out as a
+ * double instead.  The base or degree of log10 and sqrt stays the integer the
+ * writer needs to recognise them (see expandMathML()).
+ */
+inline LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode*
+doubleLiteral(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node)
+{
+  if (!node->isNumber() || node->isNaN() || node->isInfinity() || node->isNegInfinity())
+    return NULL;
+  const double v = node->getValue();
+  if (!node->isInteger() && !node->isRational() && v != static_cast<long long>(v))
+    return NULL;
+
+  std::ostringstream text;
+  text.precision(17);
+  text << v;
+  std::string s = text.str();
+  if (s.find_first_of(".e") == std::string::npos) s += ".0";
+  return nameNode(s.c_str());
+}
+
+inline void doubleLiterals(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node)
+{
+  const unsigned int kids = node->getNumChildren();
+  const bool keepFirst = kids == 2 && (node->getType() == AST_FUNCTION_LOG ||
+                                       node->getType() == AST_FUNCTION_ROOT);
+  for (unsigned int i = keepFirst ? 1 : 0; i < kids; ++i)
+  {
+    LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* child   = node->getChild(i);
+    LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* literal = doubleLiteral(child);
+    if (literal != NULL) node->replaceChild(i, literal, true);
+    else doubleLiterals(child);
+  }
+}
+
+/**
  * Serialise @p math for @p d.  Works on a copy, so the model is untouched.
  *
  * Every caller writes the result where a number is expected -- a rule's
@@ -432,6 +500,19 @@ inline std::string formulaToDialect(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNod
   if (root->isBoolean()) root = opNode(AST_TIMES, realNode(1.0), root);
 
   LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* out = rewriteForDialect(root, d);
+  if (d == Dialect::C)
+  {
+    LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* literal = doubleLiteral(out);
+    if (literal != NULL)
+    {
+      if (out != root) delete out;
+      out = literal;
+    }
+    else
+    {
+      doubleLiterals(out);
+    }
+  }
   std::string formula = serialiseL3(out);
   if (out != root) delete root;
   delete out;
@@ -535,7 +616,6 @@ inline void ubiquityUnsupportedNode(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNod
 
   switch (node->getType())
   {
-    case AST_FUNCTION_ROOT:      found.push_back("root");      break;
     case AST_FUNCTION_FACTORIAL: found.push_back("factorial"); break;
     case AST_FUNCTION_DELAY:     found.push_back("delay");     break;
     case AST_LOGICAL_OR:         found.push_back("or");        break;
@@ -615,16 +695,14 @@ inline std::string formulaToUbiquityNode(const LIBSBML_CPP_NAMESPACE_QUALIFIER A
     default: break;
   }
 
-  // MathML <log> is base 10 when given one argument and base-b with two.
-  if (n->getType() == AST_FUNCTION_LOG)
+  // expandMathML() has rewritten every log but base 10 and every root but the
+  // square root; the base or degree is the first of two children, if present.
+  if ((n->getType() == AST_FUNCTION_LOG || n->getType() == AST_FUNCTION_ROOT) &&
+      (kids == 1 || kids == 2))
   {
-    if (kids == 1) unary = "SIMINT_LOG10";
-    else if (kids == 2)
-    {
-      // log_b(x) has no ubiquity spelling; write it as a ratio of logs.
-      return "(SIMINT_LOGN[" + formulaToUbiquityNode(n->getChild(1)) +
-             "]/SIMINT_LOGN[" + formulaToUbiquityNode(n->getChild(0)) + "])";
-    }
+    const std::string arg = formulaToUbiquityNode(n->getChild(kids - 1));
+    return n->getType() == AST_FUNCTION_LOG ? "SIMINT_LOG10[" + arg + "]"
+                                            : "SIMINT_POWER[" + arg + "][0.5]";
   }
 
   if (unary != NULL && kids == 1)

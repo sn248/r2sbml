@@ -94,7 +94,7 @@ test_that("piecewise becomes a conditional each target can run", {
     expect_true(any(grepl(sprintf(nested, ""), out$nlmixr2)))
     expect_true(any(grepl(sprintf(nested, ""), out$Julia)))
     # C++ and MATLAB have no conditional expression: a helper, defined once
-    expect_true(any(grepl("r2sbml_ifelse\\(A > 2, 1, r2sbml_ifelse\\(A < 0, 2, 3\\)\\)", out$mrgsolve)))
+    expect_true(any(grepl("r2sbml_ifelse\\(A > 2\\.0, 1\\.0, r2sbml_ifelse\\(A < 0\\.0, 2\\.0, 3\\.0\\)\\)", out$mrgsolve)))
     expect_true(any(grepl("^\\$GLOBAL$", out$mrgsolve)))
     expect_equal(sum(grepl("inline double r2sbml_ifelse\\(bool c, double a, double b\\)", out$mrgsolve)), 1)
     expect_true(any(grepl("r2sbml_ifelse\\(A > 2, 1, r2sbml_ifelse\\(A < 0, 2, 3\\)\\)", out$MATLAB)))
@@ -137,7 +137,7 @@ test_that("a piecewise with no otherwise is NaN where no condition holds", {
     for (fmt in c("R", "nlmixr2", "Julia")) {
         expect_true(any(grepl("ifelse\\(A > 2, 1, NaN\\)", out[[fmt]])), info = fmt)
     }
-    expect_true(any(grepl("r2sbml_ifelse\\(A > 2, 1, NAN\\)", out$mrgsolve)))
+    expect_true(any(grepl("r2sbml_ifelse\\(A > 2\\.0, 1\\.0, NAN\\)", out$mrgsolve)))
     expect_true(any(grepl("r2sbml_ifelse\\(A > 2, 1, NaN\\)", out$MATLAB)))
     expect_true(any(grepl("^<IF:r2sbml_pw1:ELSE> \\(0.0/0.0\\)$", out$ubiquity)))
 })
@@ -155,7 +155,7 @@ test_that("true and false are spelled 1 and 0 for R", {
         expect_false(any(grepl("TRUE|FALSE", out[[fmt]])), info = fmt)
     }
     expect_true(any(grepl("ifelse\\(true, 1, ifelse\\(false, 2, 3\\)\\)", out$Julia)))
-    expect_true(any(grepl("r2sbml_ifelse\\(true, 1, r2sbml_ifelse\\(false, 2, 3\\)\\)", out$mrgsolve)))
+    expect_true(any(grepl("r2sbml_ifelse\\(true, 1\\.0, r2sbml_ifelse\\(false, 2\\.0, 3\\.0\\)\\)", out$mrgsolve)))
     expect_true(any(grepl("r2sbml_ifelse\\(true, 1, r2sbml_ifelse\\(false, 2, 3\\)\\)", out$MATLAB)))
 })
 
@@ -273,7 +273,17 @@ l3v2_functions <- list(
     av = list(l3v2_apply("divide", paste0('<csymbol encoding="text" definitionURL=',
               '"http://www.sbml.org/sbml/symbols/avogadro">avogadro</csymbol>'), "<cn>1e23</cn>"),
               function(A) 6.02214179 + 0 * A),
-    n  = list(l3v2_apply("plus", "<ci>A</ci>", l3v2_apply("times")), function(A) A + 1))
+    n  = list(l3v2_apply("plus", "<ci>A</ci>", l3v2_apply("times")), function(A) A + 1),
+    # log with a base, which R reads reversed, and root, which no target has
+    lb = list(l3v2_apply("log", "<logbase><cn>2</cn></logbase>",
+                         l3v2_apply("plus", "<ci>A</ci><cn>3</cn>")),
+              function(A) log2(A + 3)),
+    lt = list(l3v2_apply("log", "<logbase><cn>10</cn></logbase>", "<ci>A</ci>"),
+              function(A) log10(A)),
+    r3 = list(l3v2_apply("root", "<degree><cn>3</cn></degree>", "<ci>A</ci>"),
+              function(A) A^(1 / 3)),
+    r2 = list(l3v2_apply("root", "<degree><cn>2</cn></degree>", "<ci>A</ci>"),
+              function(A) sqrt(A)))
 
 # ubiquity has no or/not/xor, so the logical ones are kept apart
 l3v2_logic <- list(
@@ -301,11 +311,31 @@ expect_closed_forms <- function(solution, rules, tolerance = 1e-6) {
 test_that("the Level 3 Version 2 functions and constants are written out for every target", {
     # SBML Test Suite cases 00892, 00959, 00961, 01277-01279, 01488, 01490
     out <- spelled_targets(l3v2_model(l3v2_functions))
-    unspelled <- "\\b(sec|arccot|arccoth|quotient|rem|plus|times)\\(|\\b(exponentiale|avogadro)\\b"
+    unspelled <- paste0("\\b(sec|arccot|arccoth|quotient|rem|plus|times|root)\\(",
+                        "|\\b(exponentiale|avogadro)\\b|\\blog\\([^()]*,")
     for (fmt in names(out)) expect_false(any(grepl(unspelled, out[[fmt]])), info = fmt)
+    expect_true(any(grepl("\\blt = log10\\(A\\)", out$R)))
+    expect_true(any(grepl("\\br2 = sqrt\\(A\\)", out$R)))
+    expect_true(any(grepl("^<Ad> r2 = SIMINT_POWER\\[A\\]\\[0.5\\]$", out$ubiquity)))
     expect_true(any(grepl("\\bq = floor\\(A \\* 5 / 2\\)", out$R)))
     expect_true(any(grepl("^<Ad> r = \\(\\(A\\*5\\)-\\(2\\*floor\\(\\(\\(A\\*5\\)/2\\)\\)\\)\\)$", out$ubiquity)))
     expect_true(any(grepl("^<Ad> e = \\(SIMINT_EXP\\[1\\]\\*A\\)$", out$ubiquity)))
+})
+
+test_that("mrgsolve literals are doubles, so a division of two is not an integer one", {
+    # 1 / 2 is 0 in C++, and root(3, A) became pow(A, 1 / 3), i.e. 1
+    m <- spelling_model(paste(assign_rule("k", "<cn>1</cn>"),
+                              assign_rule("h", l3v2_apply("divide", "<cn>1</cn><cn>2</cn>")),
+                              assign_rule("w", "<cn>3</cn>")),
+                        params = '<parameter id="h" constant="false"/><parameter id="w" constant="false"/>')
+    o <- tempfile(fileext = ".cpp")
+    expect_no_warning(convertReactions(m, o, format = "mrgsolve"))
+    code <- readLines(o)
+    expect_true(any(grepl("double h = 1\\.0 / 2\\.0;", code)))
+    expect_true(any(grepl("double w = 3\\.0;", code)))
+    out <- spelled_targets(l3v2_model(l3v2_functions))
+    expect_true(any(grepl("r3 = pow\\(A, 1\\.0 / 3\\.0\\)", out$mrgsolve)))
+    expect_true(any(grepl("lt = log10\\(A\\)", out$mrgsolve)))
 })
 
 test_that("implies, n-ary xor and a bare comparison are spelled for every target", {

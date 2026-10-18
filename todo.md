@@ -52,15 +52,14 @@ comment. `getEventMath()` can inspect them from R.
 ### Miscellaneous maths with no target spelling
 
 The Level 3 Version 2 MathML (sec/csc/cot and hyperbolics, every `arc*`,
-`quotient`, `rem`, `implies`, `exponentiale`, `avogadro`, and
-plus/times/and/or/xor with zero, one or many operands) is now rewritten by
-`expandMathML()`. What is left:
+`quotient`, `rem`, `implies`, `exponentiale`, `avogadro`, `log` with a base,
+`root`, and plus/times/and/or/xor with zero, one or many operands) is now
+rewritten by `expandMathML()`. What is left:
 
-- Two-argument `log(b, x)`. The Level 3 writer emits `log(b, x)`, which is
-  correct in Julia but reversed in R (`log(x, base)`) and invalid in MATLAB.
-  `formulaToUbiquity()` already rewrites it as a ratio of `SIMINT_LOGN`.
-- `root(n, x)`, `factorial` in C++, and the `%` modulo operator, whose
-  spelling differs across R, C++ and MATLAB.
+- `factorial` passes through unchanged. It is a function in R and MATLAB;
+  in C++ and Julia it is untested, and Julia's takes only an integer.
+- `root(n, x)` is `x^(1/n)`, which is NaN for a negative `x` even when `n` is
+  odd and the real root exists.
 - `quotient` and `rem` follow libSBML's floor definition; no suite case has a
   negative operand, so truncation towards zero cannot be ruled out.
 - 01282: libSBML's `expandInitialAssignments` evaluates `piecewise(0, 5, 1)`

@@ -95,7 +95,7 @@ test_that("each target renames the names it reserves", {
 test_that("an n-ary relational is the AND of its adjacent pairs", {
     sbml <- names_model()
     expect_true(any(grepl("(Inf_ > 1) && (1 > 0)", convert_to(sbml, "MATLAB", ".m"), fixed = TRUE)))
-    expect_true(any(grepl("(Inf_ > 1) && (1 > 0)", convert_to(sbml, "mrgsolve", ".cpp"), fixed = TRUE)))
+    expect_true(any(grepl("(Inf_ > 1.0) && (1.0 > 0.0)", convert_to(sbml, "mrgsolve", ".cpp"), fixed = TRUE)))
     expect_true(any(grepl("SIMINT_AND[SIMINT_GT[Inf_][1]][SIMINT_GT[1][0]]",
                           convert_to(sbml, "ubiquity", ".txt"), fixed = TRUE)))
 })
