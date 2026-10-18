@@ -458,7 +458,7 @@ cat(readLines(out_mrg), sep = "\n")
 #> S_0 = 1e-06;
 #> P_0 = 0;
 #> ES_0 = 0;
-#> comp = 1e-14;
+#> double comp = 1e-14;
 #> 
 #> $ODE
 #> dxdt_E = -1 * (comp * (veq_kon * E * S - veq_koff * ES) / comp) + comp * vcat_kcat * ES / comp;
@@ -510,7 +510,7 @@ convertReactions(sbml_file, out_m, format = "MATLAB")
 cat(readLines(out_m), sep = "\n")
 #> % Automatically generated MATLAB model file by r2sbml
 #> %
-#> % Save as file2a05386e582.m, then solve with:  [t, y] = file2a05386e582();
+#> % Save as file290d44d1fe6e.m, then solve with:  [t, y] = file290d44d1fe6e();
 #> % Columns of y are, in order: E, S, P, ES
 #> %
 #> % Model Summary
@@ -520,7 +520,7 @@ cat(readLines(out_m), sep = "\n")
 #> %               rules: 4
 #> %              events: 0
 #> 
-#> function [t, y] = file2a05386e582(tspan, y0)
+#> function [t, y] = file290d44d1fe6e(tspan, y0)
 #> 
 #>     if nargin < 1 || isempty(tspan)
 #>         tspan = [0 10];
@@ -713,7 +713,7 @@ cat(lines[grep("Assignment Rules", lines):length(lines)], sep = "\n")
 #>      dX1_dt ,
 #>      dT_dt
 #>    )
-#>    return(list(MassBalances))
+#>    return(list(MassBalances, c(S1 = S1, S2 = S2)))
 #> 
 #> }
 ```
@@ -790,7 +790,7 @@ round(sol, 6)
 d <- as.data.frame(sol)
 # both algebraic rules hold along the whole trajectory
 max(abs(d$E + d$ES - d$E_total))
-#> [1] 1.511014e-13
+#> [1] 8.104628e-14
 max(abs(1 * d$E * d$S - (0.5 + 0.5) * d$ES))
 #> [1] 4.561434e-07
 ```

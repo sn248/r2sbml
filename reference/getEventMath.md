@@ -19,8 +19,6 @@ getEventMath(input_model)
 ``` r
 sbml_file <- system.file("examples", "sbmlevent.xml", package = "r2sbml")
 model <- getModel(sbml_file)
-#> Warning: Namespace prefix sbml for units on cn is not defined [201]
-#> Warning: Namespace prefix sbml for units on cn is not defined [201]
 #> 
 #>   filename: /home/runner/work/_temp/Library/r2sbml/examples/sbmlevent.xml
 #>   error(s): 0

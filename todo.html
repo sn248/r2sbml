@@ -45,12 +45,14 @@
 <p>deSolve, MATLAB and Julia now emit a DAE and enforce the constraint. mrgsolve, rxode2 and ubiquity integrate ODEs only, so they still write the rule out as a comment, leave the species it constrains at a zero derivative, and warn. There is no fix short of solving the constraint symbolically for its variable and emitting that as an assignment, which only works for the cases where such a solution exists and is unique.</p>
 <p>Two related gaps in what <em>is</em> implemented:</p>
 <ul><li>The DAE is only emitted when the number of algebraic rules equals the number of undetermined states (<code>daeIsSquare()</code>). SBML records no matching between rules and the variables they determine, and libSBML exposes none, so a model where the counts differ falls back to comments and a warning. A real bipartite matching over the variables each rule references would widen this.</li>
+<li>Only species are candidates for what an algebraic rule determines (<code>algebraicStates()</code>). A rule that fixes a non-constant parameter or compartment is never matched, so the counts disagree and the model falls back to comments and a warning. SBML Test Suite cases 00182, 00184, 00573 and 00576 are all of this shape: parameters only, with rate rules and one algebraic rule. Another 19 (e.g. 00533, 00539, 00547) declare the compartment or parameter with no size or value at all, leaving the algebraic rule as the only thing that defines it; those are written as <code>NaN</code> with a warning naming the variable (<code>warnUndefinedValues()</code>).</li>
 <li>Consistent initial conditions are assumed, not checked. <code>inst/examples/sbmlalgebraicrules.xml</code> happens to start on the constraint manifold. A model that does not will have <code>daspk</code> fail at t = 0, and <code>ode15s</code> reject the initial state; neither error mentions the SBML model. <code>daspk</code>’s <code>estini</code> can estimate them, but it requires the algebraic equations to come last in the residual vector, which the current row order does not guarantee.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="dilution-for-an-assignment-rule-compartment">Dilution for an assignment-rule compartment<a class="anchor" aria-label="anchor" href="#dilution-for-an-assignment-rule-compartment"></a></h3>
 <p>A compartment with a <em>rate</em> rule is now integrated as a state and the species inside it get the dilution term <code>-[S]*(dV/dt)/V</code>. A compartment with an <em>assignment</em> rule gets the right volume but no dilution: forming the term needs dV/dt, i.e. a symbolic time derivative of the assignment expression, chain rule and all. All six writers warn in that case.</p>
-<p>Doing it properly means differentiating an AST with respect to time and the states it reads. That is a real piece of work, and worth it only if such models turn up — no example has one.</p>
+<p>Doing it properly means differentiating an AST with respect to time and the states it reads. That is a real piece of work, and worth it only if such models turn up — no example has one. The SBML Test Suite has 18 (e.g. 00310-00318). Three of them (00310-00312) passed until assignment-rule variables became solution columns: the comparison then used the true volume rather than the declared one, which had hidden the missing dilution.</p>
+<p>The warning also fires for a rule that does not vary with time (<code>c = 1</code>), where no dilution is needed. Silencing it means changing <code>growing_volume_model(assignment = TRUE)</code> in <code>test-convert.R</code> to a time-dependent rule first, since that test relies on the warning.</p>
 </div>
 <div class="section level3">
 <h3 id="delay"><code>delay</code><a class="anchor" aria-label="anchor" href="#delay"></a></h3>
@@ -65,12 +67,36 @@
 <p>None of these is exercised by the example models, so all are untested:</p>
 <ul><li>Two-argument <code>log(b, x)</code>. The Level 3 writer emits <code>log(b, x)</code>, which is correct in Julia but reversed in R (<code>log(x, base)</code>) and invalid in MATLAB. <code>formulaToUbiquity()</code> already rewrites it as a ratio of <code>SIMINT_LOGN</code>.</li>
 <li>
-<code>root(n, x)</code>, <code>piecewise(...)</code>, <code>exponentiale</code>, <code>factorial</code> in C++, and the <code>%</code> modulo operator, whose spelling differs across R, C++ and MATLAB.</li>
+<code>root(n, x)</code>, <code>exponentiale</code>, <code>factorial</code> in C++, and the <code>%</code> modulo operator, whose spelling differs across R, C++ and MATLAB. (<code>piecewise</code>, <code>ceiling</code>, infinity and booleans are now spelled per target by <code>rewriteForDialect()</code>.)</li>
+<li>n-ary <code>xor</code>: R’s <code><a href="https://rdrr.io/r/base/Logic.html" class="external-link">xor()</a></code> takes exactly two arguments (00201, 00279).</li>
+<li>The Level 3 Version 2 MathML functions – <code>implies</code>, <code>quotient</code>, <code>rem</code>, <code>sec</code>, <code>arccoth</code> and friends, n-ary <code>plus</code> written as a call – and the <code>avogadro</code> csymbol pass through unchanged and are not functions or names in R (about 18 suite cases, e.g. 01277, 01278, 01279, 00957, 00959, 00961).</li>
 <li>The MATLAB <code>!</code> -&gt; <code>~</code> and <code>!=</code> -&gt; <code>~=</code> rewrite in <code>formulaToInfixMatlab()</code> is reasoned-correct but unexercised: no example model contains a logical operator.</li>
 <li>
-<code>ubiquityUnsupported()</code> lists the constructs named in the ubiquity documentation. Anything else — the trigonometric functions in particular — falls into the generic named-call path and is reported by name rather than being in the explicit list.</li>
+<code>ubiquityUnsupported()</code> lists the constructs named in the ubiquity documentation. Anything else — the trigonometric functions in particular — falls into the generic named-call path and is reported by name rather than being in the explicit list. ubiquity does have <code>SIMINT_OR</code>, <code>SIMINT_NOT</code> and <code>SIMINT_NE</code>, so <code>or</code>, <code>not</code> and <code>!=</code> could be translated rather than flagged.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="smaller-target-specific-gaps">Smaller target-specific gaps<a class="anchor" aria-label="anchor" href="#smaller-target-specific-gaps"></a></h3>
+<ul><li>rxode2’s <code>ini()</code> block rejects an infinite parameter value; no spelling avoids that.</li>
+<li>ubiquity maps a <code>-inf</code> lower bound to <code>.Machine$double.xmin</code>, the smallest <em>positive</em> double. Harmless for simulation; wrong for estimation.</li>
+<li>MATLAB: a species named <code>y</code> or <code>t</code> overwrites the generated function’s own outputs. The parent function’s other locals are prefixed <code>r2sbml_</code> for this reason, but <code>t</code> and <code>y</code> are its documented outputs.</li>
 </ul></div>
 </div>
+<div class="section level2">
+<h2 id="found-by-running-the-sbml-test-suite">Found by running the SBML Test Suite<a class="anchor" aria-label="anchor" href="#found-by-running-the-sbml-test-suite"></a></h2>
+<p>Found 2026-10-17 by converting the semantic cases of the SBML Test Suite (<a href="https://github.com/sbmlteam/sbml-test-suite" class="external-link uri">https://github.com/sbmlteam/sbml-test-suite</a>, <code>cases/semantic/</code>) to deSolve, simulating them and comparing against each case’s <code>results.csv</code> within its tolerances. That run is now part of the tests: 75 passing cases ship in <code>tests/testthat/sbml-test-suite/</code>, and the whole suite runs when <code>R2SBML_SBML_TEST_SUITE</code> points at <code>cases/semantic</code>, and in the <code>sbml-test-suite.yaml</code> CI job (pinned to suite commit d6dcd2c). Both fail below <code>sts_pass_floor</code> in <code>test-sbml-test-suite.R</code>; raise it whenever a fix passes more, and ship a case or two from that fix.</p>
+<p>1011 cases are in scope (no events, <code>delay</code>, <code>rateOf</code>, fast reactions, <code>stoichiometryMath</code> or SBML packages). 647 passed at 4bc2da9 and 875 after fixing piecewise/ceiling/infinity spellings, three silently wrong conversions (assignment-rule compartment volumes, rule-set stoichiometry, conversion factors) and returning assignment-rule variables as outputs. The first harness put the scope at 766 because it read an empty <code>packagesPresent:</code> line as a package; the counts recorded with it in earlier commits (494, 526, 581) are low for that reason, though each before/after comparison stands.</p>
+<p>The remaining 136 failures, by cause. The numbers are suite case ids, so each can be reproduced from the case directory of the same name; run the full suite through the helper in <code>tests/testthat/helper-sbml-test-suite.R</code> to see the current detail for each.</p>
+<ul><li>Algebraic rules (about 30): see “Algebraic rules” above. 18 of them stop the solver on a <code>NaN</code> written by <code>warnUndefinedValues()</code>.</li>
+<li>Assignment-rule compartment dilution (18): see above.</li>
+<li>A species reference used in math, or stoichiometry that varies in time (13, e.g. 00974, 01107, 01449).</li>
+<li>Level 3 Version 2 MathML functions and <code>avogadro</code> (about 18): see “Miscellaneous maths”.</li>
+<li>A reaction id used in math as its rate (6, e.g. 01225, 01226, 01231, 01301): <code>J0</code> is not defined in the generated code.</li>
+<li>
+<code>Conversion failed.</code> (5, e.g. 00950, 01234, 01554, 01557). 00950 is <code>expandInitialAssignments</code> rejecting an initial assignment to <code>inf</code>/<code>-inf</code>/<code>nan</code>; the others are not yet diagnosed.</li>
+<li>Conversion factors in the remaining shapes (4, e.g. 01484, 01499-01501).</li>
+<li>Generated R that does not parse (about 12, “unexpected ‘&gt;’” or “‘=’”); not yet diagnosed.</li>
+<li>About 25 numeric mismatches not yet diagnosed individually.</li>
+</ul></div>
 <div class="section level2">
 <h2 id="not-action-items-recorded-so-they-are-not-rediscovered">Not action items, recorded so they are not rediscovered<a class="anchor" aria-label="anchor" href="#not-action-items-recorded-so-they-are-not-rediscovered"></a></h2>
 <ul><li>
