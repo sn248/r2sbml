@@ -126,6 +126,14 @@ Second, and less visible: **the attribute that is set is not necessarily in the 
 
 The volume comes from the species' own compartment, so a multi-compartment model rescales per species: in `sbmlmutlicompartment.xml` only `Y2` (cytoplasm, size 5) moves, while `Y1n` (nucleus, size 1) does not. Compartments with `spatialDimensions="0"`, an unset size, or a size of 0 convert through a volume of 1 — there is nothing meaningful to divide by, and 0 would only produce an inf.
 
+### Values SBML leaves undefined
+
+The same NaN trap applies to compartment sizes and parameter values, and it was the largest single failure in the SBML Test Suite run (86 cases, all `object 'nan' not found`). Never stream a size or value straight into a writer; route it through `Num{value, "<target's NaN>"}`, whose `operator<<` writes the target's own not-a-number — `NaN`, or `NAN` in mrgsolve's C++ `$MAIN` (its `$PARAM` is read by R, so `NaN` there). Three cases, in order of how often they occur:
+
+- **A parameter an assignment rule sets** is left out of every parameter list by `constantParameters()`, exactly as an assignment-rule species gets no state slot; the RHS recomputes it. SBML lets such a parameter omit `value`, which is where most of the `nan`s came from, and mrgsolve and ubiquity reject the duplicate name even when it has one. The deSolve DAE's `InitialDerivatives` is evaluated outside `massBalances`, so it runs the assignment rules itself before the derivatives.
+- **A 0-D compartment with no size** is 1, via `compartmentValue()`. Nothing reads it: the suite's 0-D cases hold only `hasOnlySubstanceUnits` species and never name the compartment in a formula.
+- **Anything else with no value** — in the suite, always a compartment or parameter that only an algebraic rule defines, which `algebraicStates()` does not match — is written as NaN, and `warnUndefinedValues()` names it. Writing 1 instead would be a plausible wrong answer: two of the suite's unsized 3-D compartments have a true volume other than 1.
+
 ### Compartments whose volume is not constant
 
 `replaceReactions` leaves out **two** things when a compartment varies, and both had to be put back:

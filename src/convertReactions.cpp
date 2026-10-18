@@ -48,6 +48,8 @@
 #include <cctype>
 #include <vector>
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <chrono>
 #include <ctime>
 #include <sbml/SBMLTypes.h>
@@ -171,6 +173,18 @@ static std::vector<int> integratedSpecies(Model* model)
 // have to be put back here, or the model integrates at a frozen volume and
 // silently drifts away from the right answer.
 
+// The size of a compartment.  A 0-dimensional compartment has none to give,
+// and nothing reads it: the SBML Test Suite's 0-D cases put only
+// hasOnlySubstanceUnits species inside one and never name it in a formula.
+// So it is 1, as speciesInitialValue() already assumes.  Any other unset size
+// stays NaN, for warnUndefinedValues() to report.
+static double compartmentValue(const Compartment* c)
+{
+   if (c->isSetSize() || c->isSetVolume()) return c->getVolume();
+   if (c->isSetSpatialDimensions() && c->getSpatialDimensionsAsDouble() == 0) return 1.0;
+   return std::numeric_limits<double>::quiet_NaN();
+}
+
 // A state that is not a species: a compartment or a parameter carrying a rate
 // rule.  replaceReactions leaves those rules in the rule list, but the state
 // vector is built from species, so without this the variable is emitted as a
@@ -195,7 +209,7 @@ static std::vector<RateState> integratedRateStates(Model* model)
      const int rule = rateRuleFor(model, c->getIdAttribute());
      if (rule >= 0)
      {
-       extra.push_back({c->getIdAttribute(), c->getVolume(),
+       extra.push_back({c->getIdAttribute(), compartmentValue(c),
                         model->getRule(rule)->getMath(), "compartment volume"});
      }
    }
@@ -213,19 +227,75 @@ static std::vector<RateState> integratedRateStates(Model* model)
 }
 
 // Indices of the parameters that stay constant parameters.  One with a rate
-// rule is a state (above) and must not also be passed in as a constant, or
-// the target either rejects the duplicate name or reads the frozen value.
+// rule is a state (above), and one with an assignment rule is recomputed in
+// the RHS like an assignment-rule species.  Neither may also be passed in as a
+// constant: the target either rejects the duplicate name (mrgsolve, ubiquity)
+// or carries a value the rule never uses -- often none at all, since SBML lets
+// such a parameter omit `value`, which used to be written out as `nan`.
 static std::vector<int> constantParameters(Model* model)
 {
    std::vector<int> params;
    for (unsigned int i = 0; i < model->getNumParameters(); i++)
    {
-     if (rateRuleFor(model, model->getParameter(i)->getIdAttribute()) < 0)
+     const std::string id = model->getParameter(i)->getIdAttribute();
+     if (rateRuleFor(model, id) < 0 && !hasAssignmentRule(model, id))
      {
        params.push_back((int)i);
      }
    }
    return params;
+}
+
+// --- values SBML leaves undefined -------------------------------------------
+//
+// An unset size or value reads back as NaN, and operator<< prints that as the
+// literal `nan` -- a number in none of the six targets, so the generated code
+// failed with "object 'nan' not found" or a compile error that says nothing
+// about the model.
+
+// A number as a target spells it, so a NaN that remains comes out as that
+// target's not-a-number -- `NaN`, or `NAN` in C++ -- rather than `nan`.
+struct Num
+{
+   double      value;
+   const char* nan;
+};
+
+static std::ostream& operator<<(std::ostream& out, const Num& n)
+{
+   if (std::isnan(n.value)) return out << n.nan;
+   return out << n.value;
+}
+
+// What is left without a value after the converters have expanded initial
+// assignments.  An algebraic rule may determine it, but algebraicStates()
+// only matches species, so nothing here solves for it.  Writing 1 instead
+// would be a plausible wrong answer; NaN plus this warning is not.
+static void warnUndefinedValues(Model* model, const std::string& target)
+{
+   std::string list;
+   for (unsigned int i = 0; i < model->getNumCompartments(); i++)
+   {
+     const Compartment* c = model->getCompartment(i);
+     if (std::isnan(compartmentValue(c)) && !hasAssignmentRule(model, c->getIdAttribute()))
+     {
+       list += (list.empty() ? "" : ", ") + c->getIdAttribute();
+     }
+   }
+   for (unsigned int i = 0; i < model->getNumParameters(); i++)
+   {
+     const Parameter* p = model->getParameter(i);
+     if (std::isnan(p->getValue()) && !hasAssignmentRule(model, p->getIdAttribute()))
+     {
+       list += (list.empty() ? "" : ", ") + p->getIdAttribute();
+     }
+   }
+   if (list.empty()) return;
+
+   Rcpp::warning("No value is defined for " + list + ", so " + target +
+                 " receives NaN for it. If an algebraic rule determines it, "
+                 "r2sbml does not solve for that yet: only species are "
+                 "matched to algebraic rules.");
 }
 
 // A varying compartment must not also be emitted as a constant: one with a
@@ -509,6 +579,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
 
    const std::vector<RateState> rateStates = integratedRateStates(model);
    warnAssignmentRuleCompartment(model, "deSolve");
+   warnUndefinedValues(model, "deSolve");
 
    // auto now = std::chrono::system_clock::now();
    out << "## Automatically generated model file by r2sbml at " << endl;
@@ -549,7 +620,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    for (int i = 0; i < numCmt; i++){
         // a varying compartment is a state or a local, not a constant
         if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
-        out <<  model->getCompartment(i)->getId() << " = " << model->getCompartment(i)->getVolume() << endl; //" # (" << model->getCompartment(i)->getUnits() << ")" << endl;
+        out <<  model->getCompartment(i)->getId() << " = " << Num{compartmentValue(model->getCompartment(i)), "NaN"} << endl; //" # (" << model->getCompartment(i)->getUnits() << ")" << endl;
    }
 
    out << endl;
@@ -564,7 +635,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    }
    for (size_t i = 0; i < rateStates.size(); i++){
       const RateState& c = rateStates[i];
-      out << "         " << c.id << " = " << c.initial
+      out << "         " << c.id << " = " << Num{c.initial, "NaN"}
           << ((int)(numStates + i + 1) < numEntries ? "," : "")
           << "   ## " << c.what << ", integrated" << endl;
    }
@@ -579,7 +650,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    const int numParams = (int)params.size();
    for (int i = 0; i < numParams; i++){
       const Parameter* p = model->getParameter(params[i]);
-      out << "         " << p->getIdAttribute() << " = " << p->getValue()
+      out << "         " << p->getIdAttribute() << " = " << Num{p->getValue(), "NaN"}
           << (i + 1 < numParams ? "," : "") << endl;
    }
 
@@ -610,7 +681,19 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
      // algebraic rows are never read, so they stay 0.
      out << "## Consistent initial derivatives for daspk.  The components for" << endl;
      out << "## states fixed by an algebraic rule are not read." << endl;
-     out << "InitialDerivatives <- with(as.list(c(InitialAmounts, parameters)), c(" << endl;
+     // A parameter or species an assignment rule sets is in neither
+     // InitialAmounts nor parameters, so the rules have to run first, in the
+     // order massBalances runs them.
+     out << "InitialDerivatives <- with(as.list(c(InitialAmounts, parameters)), {" << endl;
+     out << "   time = 0" << endl;
+     for (unsigned int i = 0; i < model->getNumRules(); i++){
+       const Rule* r = model->getRule(i);
+       if (r->isAssignment()){
+         out << "   " << r->getVariable() << " = "
+             << r2sbml::formulaToInfix(r->getMath()) << endl;
+       }
+     }
+     out << "   c(" << endl;
      for (int i = 0; i < numStates; i++){
        const Species* sp = model->getSpecies(states[i]);
        out << "         " << sp->getIdAttribute() << " = "
@@ -623,7 +706,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
            << r2sbml::formulaToInfix(c.rate)
            << ((int)(numStates + i + 1) < numEntries ? "," : "") << endl;
      }
-     out << "                    ))" << endl << endl;
+     out << "   )})" << endl << endl;
 
      out << "## Solve with:" << endl;
      out << "##   solution <- daspk(y = InitialAmounts, dy = InitialDerivatives," << endl;
@@ -791,6 +874,7 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
    const int numStates = (int)states.size();
    const std::vector<RateState> rateStates = integratedRateStates(model);
    warnAssignmentRuleCompartment(model, "mrgsolve");
+   warnUndefinedValues(model, "mrgsolve");
 
    out << "## Automatically generated mrgsolve model file by r2sbml\n" << endl;
    out << "$PROB\n" << endl;
@@ -799,7 +883,7 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
    const std::vector<int> params = constantParameters(model);
    for (size_t i = 0; i < params.size(); i++){
         const Parameter* p = model->getParameter(params[i]);
-        out << p->getIdAttribute() << " = " << p->getValue() << "\n";
+        out << p->getIdAttribute() << " = " << Num{p->getValue(), "NaN"} << "\n";
    }
 
    out << "\n$CMT\n";
@@ -818,13 +902,13 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
    }
    for (size_t i = 0; i < rateStates.size(); i++){
         const RateState& c = rateStates[i];
-        out << c.id << "_0 = " << c.initial << ";\n";
+        out << c.id << "_0 = " << Num{c.initial, "NAN"} << ";\n";
    }
 
    int numCmt = model->getNumCompartments();
    for (int i = 0; i < numCmt; i++){
         if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
-        out <<  model->getCompartment(i)->getId() << " = " << model->getCompartment(i)->getVolume() << ";\n";
+        out <<  model->getCompartment(i)->getId() << " = " << Num{compartmentValue(model->getCompartment(i)), "NAN"} << ";\n";
    }
 
    out << "\n$ODE\n";
@@ -884,6 +968,7 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
    const int numStates = (int)states.size();
    const std::vector<RateState> rateStates = integratedRateStates(model);
    warnAssignmentRuleCompartment(model, "rxode2");
+   warnUndefinedValues(model, "rxode2");
 
    out << "## Automatically generated nlmixr2/rxode model file by r2sbml\n" << endl;
    out << "model <- function() {\n";
@@ -892,7 +977,7 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
    const std::vector<int> params = constantParameters(model);
    for (size_t i = 0; i < params.size(); i++){
         const Parameter* p = model->getParameter(params[i]);
-        out << "    " << p->getIdAttribute() << " <- " << p->getValue() << "\n";
+        out << "    " << p->getIdAttribute() << " <- " << Num{p->getValue(), "NaN"} << "\n";
    }
 
    out << "  })\n";
@@ -901,7 +986,7 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
    int numCmt = model->getNumCompartments();
    for (int i = 0; i < numCmt; i++){
         if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
-        out << "    " << model->getCompartment(i)->getId() << " <- " << model->getCompartment(i)->getVolume() << "\n";
+        out << "    " << model->getCompartment(i)->getId() << " <- " << Num{compartmentValue(model->getCompartment(i)), "NaN"} << "\n";
    }
 
    for (int i = 0; i < numStates; i++){
@@ -911,7 +996,7 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
    // a compartment or parameter with a rate rule is integrated alongside the species
    for (size_t i = 0; i < rateStates.size(); i++){
         const RateState& c = rateStates[i];
-        out << "    " << c.id << "(0) <- " << c.initial << "\n";
+        out << "    " << c.id << "(0) <- " << Num{c.initial, "NaN"} << "\n";
    }
 
    out << "\n";
@@ -1006,6 +1091,7 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    const std::vector<RateState> rateStates = integratedRateStates(model);
    const int numEntries = numStates + (int)rateStates.size();
    warnAssignmentRuleCompartment(model, "MATLAB");
+   warnUndefinedValues(model, "MATLAB");
 
    int numParams = model->getNumParameters();
    int numCmt    = model->getNumCompartments();
@@ -1041,7 +1127,7 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    for (int i = 0; i < numCmt; i++){
      if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
      out << "    " << model->getCompartment(i)->getId() << " = "
-         << model->getCompartment(i)->getVolume() << ";\n";
+         << Num{compartmentValue(model->getCompartment(i)), "NaN"} << ";\n";
    }
    out << "\n";
 
@@ -1049,7 +1135,7 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    const std::vector<int> params = constantParameters(model);
    for (size_t i = 0; i < params.size(); i++){
      out << "    " << model->getParameter(params[i])->getIdAttribute() << " = "
-         << model->getParameter(params[i])->getValue() << ";\n";
+         << Num{model->getParameter(params[i])->getValue(), "NaN"} << ";\n";
    }
    out << "\n";
 
@@ -1062,7 +1148,7 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    }
    for (size_t i = 0; i < rateStates.size(); i++){
      const RateState& c = rateStates[i];
-     out << "            " << c.initial << "; % " << c.id
+     out << "            " << Num{c.initial, "NaN"} << "; % " << c.id
          << " (" << c.what << ")\n";
    }
    out << "        ];\n";
@@ -1180,6 +1266,7 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    const std::vector<RateState> rateStates = integratedRateStates(model);
    const int numEntries = numStates + (int)rateStates.size();
    warnAssignmentRuleCompartment(model, "Julia");
+   warnUndefinedValues(model, "Julia");
 
    int numParams = model->getNumParameters();
    int numCmt    = model->getNumCompartments();
@@ -1222,7 +1309,7 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    for (int i = 0; i < numCmt; i++){
      if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
      out << "    " << model->getCompartment(i)->getId() << " = "
-         << model->getCompartment(i)->getVolume() << "\n";
+         << Num{compartmentValue(model->getCompartment(i)), "NaN"} << "\n";
    }
    out << "\n";
 
@@ -1310,14 +1397,14 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
          << (i + 1 < numEntries ? ", " : "");
    }
    for (size_t i = 0; i < rateStates.size(); i++){
-     out << rateStates[i].initial
+     out << Num{rateStates[i].initial, "NaN"}
          << ((int)(numStates + i + 1) < numEntries ? ", " : "");
    }
    out << "]\n";
 
    out << "p = Float64[";
    for (size_t i = 0; i < params.size(); i++){
-     out << model->getParameter(params[i])->getValue() << (i + 1 < params.size() ? ", " : "");
+     out << Num{model->getParameter(params[i])->getValue(), "NaN"} << (i + 1 < params.size() ? ", " : "");
    }
    out << "]\n";
 
@@ -1357,6 +1444,7 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
    const int numStates = (int)states.size();
    const std::vector<RateState> rateStates = integratedRateStates(model);
    warnAssignmentRuleCompartment(model, "ubiquity");
+   warnUndefinedValues(model, "ubiquity");
 
    int numParams = model->getNumParameters();
    int numCmt    = model->getNumCompartments();
@@ -1413,7 +1501,7 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
      // a varying compartment is a state (<I>/<ODE:>) or a dynamic secondary
      // parameter (<Ad>), not a constant
      if (compartmentIsVarying(model, c->getIdAttribute())) continue;
-     out << "<P> " << c->getId() << " " << c->getVolume()
+     out << "<P> " << c->getId() << " " << Num{compartmentValue(c), "NaN"}
          << " -inf inf " << (c->isSetUnits() ? c->getUnits() : "1")
          << " yes System\n";
    }
@@ -1423,7 +1511,7 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
    const std::vector<int> params = constantParameters(model);
    for (size_t i = 0; i < params.size(); i++){
      const Parameter* p = model->getParameter(params[i]);
-     out << "<P> " << p->getIdAttribute() << " " << p->getValue()
+     out << "<P> " << p->getIdAttribute() << " " << Num{p->getValue(), "NaN"}
          << " -inf inf " << (p->isSetUnits() ? p->getUnits() : "1")
          << " yes System\n";
    }
@@ -1436,7 +1524,7 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
    }
    for (size_t i = 0; i < rateStates.size(); i++){
      const RateState& c = rateStates[i];
-     out << "<I> " << c.id << " = " << c.initial
+     out << "<I> " << c.id << " = " << Num{c.initial, "NaN"}
          << "   # " << c.what << ", integrated\n";
    }
    out << "\n";

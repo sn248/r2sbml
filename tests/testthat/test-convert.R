@@ -602,3 +602,251 @@ test_that("a ramping rate constant reproduces its analytic solution", {
     expect_equal(d$k, 0.5 + 0.2 * times, tolerance = 1e-8)
     expect_equal(d$A, 2 * exp(-(0.5 * times + 0.1 * times^2)), tolerance = 1e-7)
 })
+
+# --- values the model leaves unset ----------------------------------------
+#
+# An unset compartment size or parameter value reads back from libSBML as NaN,
+# which operator<< prints as the literal `nan` -- a number in none of the six
+# targets, so the generated R died at source() with "object 'nan' not found".
+# The SBML Test Suite has 86 such cases.  Each kind of unset value has its own
+# right answer, tested below.
+
+# A minimal L3V2 model.  `cmt`, `species`, `params`, `rules` and `reactions`
+# are spliced in verbatim, so each test states exactly what it relies on.
+unset_value_model <- function(cmt, species, params = "", rules = "", reactions = "") {
+    xml <- sprintf('<?xml version="1.0" encoding="UTF-8" ?>
+<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2">
+<model substanceUnits="mole" volumeUnits="litre" timeUnits="second" extentUnits="mole">
+<listOfCompartments>%s</listOfCompartments>
+<listOfSpecies>%s</listOfSpecies>
+<listOfParameters>%s</listOfParameters>
+<listOfRules>%s</listOfRules>
+<listOfReactions>%s</listOfReactions>
+</model>
+</sbml>', cmt, species, params, rules, reactions)
+    f <- tempfile(fileext = ".xml")
+    writeLines(xml, f)
+    f
+}
+
+# First-order decay of A with rate law `law`.
+decay_reaction <- function(law) sprintf(
+'<reaction id="decay" reversible="false">
+<listOfReactants><speciesReference species="A" stoichiometry="1" constant="true"/></listOfReactants>
+<kineticLaw><math xmlns="http://www.w3.org/1998/Math/MathML">%s</math></kineticLaw>
+</reaction>', law)
+
+# An assignment rule k = 0.5.
+k_assignment <- '<assignmentRule variable="k"><math xmlns="http://www.w3.org/1998/Math/MathML">
+<cn>0.5</cn></math></assignmentRule>'
+
+# The lines of `lines` strictly between the first line matching `from` and the
+# next line after it matching `to` -- one section of a generated file.
+file_section <- function(lines, from, to) {
+    i <- grep(from, lines)[1]
+    if (is.na(i)) return(character())
+    rest <- lines[-seq_len(i)]
+    j <- grep(to, rest)[1]
+    if (is.na(j)) rest else rest[seq_len(j - 1)]
+}
+
+# Generated output for every target, as a named list of character vectors.
+all_targets <- function(sbml) {
+    exts <- c(R = ".R", mrgsolve = ".cpp", nlmixr2 = ".R", MATLAB = ".m",
+              Julia = ".jl", ubiquity = ".txt")
+    lapply(setNames(names(exts), names(exts)), function(fmt) {
+        o <- tempfile(fileext = exts[[fmt]])
+        convertReactions(sbml, o, format = fmt)
+        readLines(o)
+    })
+}
+
+# Lowercase `nan` only: NaN and NAN are the deliberate spellings.
+has_bare_nan <- function(lines) any(grepl("\\bnan\\b", lines))
+
+zero_d_model <- function() unset_value_model(
+    cmt = '<compartment id="C" spatialDimensions="0" constant="true"/>',
+    species = '<species id="A" compartment="C" initialAmount="2" boundaryCondition="false"
+               hasOnlySubstanceUnits="true" constant="false"/>',
+    params = '<parameter id="k" value="0.5" constant="true"/>',
+    reactions = decay_reaction("<apply><times/><ci>k</ci><ci>A</ci></apply>"))
+
+test_that("a 0-dimensional compartment with no size is written as 1", {
+    # It has no volume to have a value; the species in it count amounts, so
+    # the compartment never enters the maths.  1 is what speciesInitialValue()
+    # already converts through.
+    out <- expect_no_warning(all_targets(zero_d_model()))
+    for (fmt in names(out)) expect_false(has_bare_nan(out[[fmt]]), info = fmt)
+
+    expect_true(any(grepl("^C = 1$", out$R)))
+    expect_true(any(grepl("^C = 1;$", file_section(out$mrgsolve, "^\\$MAIN", "^\\$ODE"))))
+    expect_true(any(grepl("^\\s*C <- 1$", out$nlmixr2)))
+    expect_true(any(grepl("^\\s*C = 1;$", out$MATLAB)))
+    expect_true(any(grepl("^\\s*C = 1$", out$Julia)))
+    expect_true(any(grepl("^<P> C 1 ", out$ubiquity)))
+})
+
+test_that("a 0-dimensional compartment reproduces its analytic solution", {
+    skip_if_not_installed("deSolve")
+
+    out <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(zero_d_model(), out, format = "R"))
+    env <- new.env(); source(out, local = env)
+    times <- c(0, 1, 3, 7)
+    d <- as.data.frame(deSolve::ode(y = env$InitialAmounts, times = times,
+                                    func = env$massBalances, parms = env$parameters,
+                                    rtol = 1e-10, atol = 1e-10))
+    expect_equal(d$A, 2 * exp(-0.5 * times), tolerance = 1e-7)
+})
+
+# A decay whose rate constant k is set by an assignment rule.  `k_value` is the
+# value attribute k declares, or NULL for none.
+assigned_k_model <- function(k_value = NULL) unset_value_model(
+    cmt = '<compartment id="c" size="1" spatialDimensions="3" constant="true"/>',
+    species = '<species id="A" compartment="c" initialConcentration="2" boundaryCondition="false"
+               hasOnlySubstanceUnits="false" constant="false"/>',
+    params = sprintf('<parameter id="k" %s constant="false"/>',
+                     if (is.null(k_value)) "" else sprintf('value="%s"', k_value)),
+    rules = k_assignment,
+    reactions = decay_reaction("<apply><times/><ci>k</ci><ci>A</ci><ci>c</ci></apply>"))
+
+# k is recomputed in the RHS from its rule, so like an assignment-rule species
+# it has no place among the constants -- every target's parameter list must
+# leave it out, whatever value (if any) the model declares for it.
+expect_assigned_k_dropped <- function(out) {
+    for (fmt in names(out)) expect_false(has_bare_nan(out[[fmt]]), info = fmt)
+
+    # R: not in parameters, not unpacked from params, but still assigned
+    expect_false(any(grepl("^\\s*k =", file_section(out$R, "^parameters <- c\\($", "^\\s*\\)$"))))
+    expect_false(any(grepl('k = params\\[\\["k"\\]\\]', out$R)))
+    expect_true(any(grepl("^\\s*k = 0.5$", out$R)))
+
+    # mrgsolve: not in $PARAM, still a local in $ODE
+    expect_false(any(grepl("^k =", file_section(out$mrgsolve, "^\\$PARAM", "^\\$CMT"))))
+    expect_true(any(grepl("^double k = 0.5;", out$mrgsolve)))
+
+    # nlmixr2: not in ini()
+    expect_false(any(grepl("^\\s*k <-", file_section(out$nlmixr2, "ini\\(\\{", "^\\s*\\}\\)"))))
+
+    # MATLAB: not among the parameters
+    expect_false(any(grepl("^\\s*k =", file_section(out$MATLAB, "% Parameters", "^\\s*$"))))
+
+    # Julia: not read from p, and p does not carry it
+    expect_false(any(grepl("^\\s*k = p\\[", out$Julia)))
+    expect_true(any(grepl("^p = Float64\\[\\]$", out$Julia)))
+
+    # ubiquity: a dynamic secondary parameter, not a <P>
+    expect_false(any(grepl("^<P> k ", out$ubiquity)))
+    expect_true(any(grepl("^<Ad> k = ", out$ubiquity)))
+}
+
+test_that("an unvalued assignment-rule parameter is left out of every parameter list", {
+    expect_assigned_k_dropped(expect_no_warning(all_targets(assigned_k_model())))
+})
+
+test_that("an assignment-rule parameter is left out even when it declares a value", {
+    # the declared 3 is overridden by the rule at every time point, so passing
+    # it in as a constant would only offer a value the model never uses
+    out <- expect_no_warning(all_targets(assigned_k_model(k_value = 3)))
+    expect_assigned_k_dropped(out)
+    expect_false(any(grepl("\\b3\\b", file_section(out$R, "^parameters <- c\\($", "^\\s*\\)$"))))
+})
+
+test_that("an assignment-rule parameter still drives the simulation", {
+    skip_if_not_installed("deSolve")
+
+    out <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(assigned_k_model(), out, format = "R"))
+    env <- new.env(); source(out, local = env)
+    times <- c(0, 1, 3, 7)
+    d <- as.data.frame(deSolve::ode(y = env$InitialAmounts, times = times,
+                                    func = env$massBalances, parms = env$parameters,
+                                    rtol = 1e-10, atol = 1e-10))
+    expect_equal(d$A, 2 * exp(-0.5 * times), tolerance = 1e-7)
+})
+
+# A square DAE whose rate expressions read an assignment-rule parameter.  S
+# decays at rate k; B is a non-constant boundary species with no rate rule, so
+# it is the one undetermined state, and the algebraic rule 0 = B - 2*S fixes it.
+dae_assigned_k_model <- function() unset_value_model(
+    cmt = '<compartment id="c" size="1" spatialDimensions="3" constant="true"/>',
+    species = '<species id="S" compartment="c" initialConcentration="1" boundaryCondition="false"
+               hasOnlySubstanceUnits="false" constant="false"/>
+               <species id="B" compartment="c" initialConcentration="2" boundaryCondition="true"
+               hasOnlySubstanceUnits="false" constant="false"/>',
+    params = '<parameter id="k" constant="false"/>',
+    rules = paste0(k_assignment,
+        '<algebraicRule><math xmlns="http://www.w3.org/1998/Math/MathML">
+         <apply><minus/><ci>B</ci><apply><times/><cn>2</cn><ci>S</ci></apply></apply>
+         </math></algebraicRule>'),
+    reactions = sub('species="A"', 'species="S"',
+                    decay_reaction("<apply><times/><ci>k</ci><ci>S</ci><ci>c</ci></apply>")))
+
+test_that("InitialDerivatives evaluates assignment rules the parameters no longer carry", {
+    # InitialDerivatives is computed at file level from InitialAmounts and
+    # parameters alone; once k leaves `parameters`, its assignment rule has to
+    # be evaluated there too, or this fails with "object 'k' not found".
+    out <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(dae_assigned_k_model(), out, format = "R"))
+    expect_false(has_bare_nan(readLines(out)))
+    env <- new.env()
+    expect_no_error(source(out, local = env))
+    expect_true(is.numeric(env$InitialDerivatives))
+    expect_true(all(is.finite(env$InitialDerivatives)))
+    expect_equal(unname(env$InitialDerivatives[["S"]]), -0.5)
+
+    skip_if_not_installed("deSolve")
+    times <- seq(0, 5, by = 1)
+    d <- as.data.frame(deSolve::daspk(y = env$InitialAmounts, dy = env$InitialDerivatives,
+                                      times = times, res = env$massBalances,
+                                      parms = env$parameters))
+    expect_equal(nrow(d), length(times))
+    expect_equal(d$S, exp(-0.5 * times), tolerance = 1e-5)
+    expect_lt(max(abs(d$B - 2 * d$S)), 1e-6)   # the constraint holds throughout
+})
+
+test_that("a value nothing sets is written as NaN, with a warning naming it", {
+    # No rule, initial assignment or size gives these a value, so there is no
+    # right number to write.  1 would be a plausible wrong answer; each target's
+    # own not-a-number keeps the file valid and the warning says why.
+    unsized <- unset_value_model(
+        cmt = '<compartment id="cell" spatialDimensions="3" constant="true"/>',
+        species = '<species id="A" compartment="cell" initialAmount="1" boundaryCondition="false"
+                   hasOnlySubstanceUnits="false" constant="false"/>',
+        params = '<parameter id="k" value="0.5" constant="true"/>',
+        reactions = decay_reaction("<apply><times/><ci>k</ci><ci>A</ci><ci>cell</ci></apply>"))
+    unvalued <- unset_value_model(
+        cmt = '<compartment id="c" size="1" spatialDimensions="3" constant="true"/>',
+        species = '<species id="A" compartment="c" initialAmount="1" boundaryCondition="false"
+                   hasOnlySubstanceUnits="false" constant="false"/>',
+        params = '<parameter id="kx" constant="true"/>',
+        reactions = decay_reaction("<apply><times/><ci>kx</ci><ci>A</ci><ci>c</ci></apply>"))
+
+    exts <- c(R = ".R", mrgsolve = ".cpp", nlmixr2 = ".R", MATLAB = ".m",
+              Julia = ".jl", ubiquity = ".txt")
+    gen <- function(sbml, id) {
+        lapply(setNames(names(exts), names(exts)), function(fmt) {
+            o <- tempfile(fileext = exts[[fmt]])
+            expect_warning(convertReactions(sbml, o, format = fmt), id, info = fmt)
+            readLines(o)
+        })
+    }
+
+    cmt <- gen(unsized, "cell")
+    for (fmt in names(cmt)) expect_false(has_bare_nan(cmt[[fmt]]), info = fmt)
+    expect_true(any(grepl("^cell = NaN$", cmt$R)))
+    expect_true(any(grepl("^cell = NAN;$", file_section(cmt$mrgsolve, "^\\$MAIN", "^\\$ODE"))))
+    expect_true(any(grepl("^\\s*cell <- NaN$", cmt$nlmixr2)))
+    expect_true(any(grepl("^\\s*cell = NaN;$", cmt$MATLAB)))
+    expect_true(any(grepl("^\\s*cell = NaN$", cmt$Julia)))
+    expect_true(any(grepl("^<P> cell NaN ", cmt$ubiquity)))
+
+    par <- gen(unvalued, "kx")
+    for (fmt in names(par)) expect_false(has_bare_nan(par[[fmt]]), info = fmt)
+    expect_true(any(grepl("^\\s*kx = NaN$", file_section(par$R, "^parameters <- c\\($", "^\\s*\\)$"))))
+    expect_true(any(grepl("^kx = NaN$", file_section(par$mrgsolve, "^\\$PARAM", "^\\$CMT"))))
+    expect_true(any(grepl("^\\s*kx <- NaN$", par$nlmixr2)))
+    expect_true(any(grepl("^\\s*kx = NaN;$", par$MATLAB)))
+    expect_true(any(grepl("^p = Float64\\[NaN\\]$", par$Julia)))
+    expect_true(any(grepl("^<P> kx NaN ", par$ubiquity)))
+})

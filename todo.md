@@ -26,7 +26,10 @@ Two related gaps in what *is* implemented:
   compartment is never matched, so the counts disagree and the model falls
   back to comments and a warning. SBML Test Suite cases 00182, 00184, 00573
   and 00576 are all of this shape: parameters only, with rate rules and one
-  algebraic rule.
+  algebraic rule. Another 19 (e.g. 00533, 00539, 00547) declare the
+  compartment or parameter with no size or value at all, leaving the
+  algebraic rule as the only thing that defines it; those are written as
+  `NaN` with a warning naming the variable (`warnUndefinedValues()`).
 - Consistent initial conditions are assumed, not checked.
   `inst/examples/sbmlalgebraicrules.xml` happens to start on the constraint
   manifold. A model that does not will have `daspk` fail at t = 0, and
@@ -86,22 +89,10 @@ DAE) and comparing against each case's `results.csv` within the tolerances in
 its `settings.txt`. Cases using events, `delay`, `rateOf`, fast reactions,
 `stoichiometryMath` or any SBML package were skipped, leaving 766; 494 passed.
 Making rate-rule parameters into states (they were frozen at their initial
-value) raised that to 526, with no case that passed before failing after.
+value) raised that to 526, and no longer writing unset sizes and values as
+`nan` to 581, in each case with no case that passed before failing after.
 The numbers below are suite case ids, so each item can be reproduced from the
 case directory of the same name.
-
-### `nan` written as a value
-
-86 cases fail to source with `object 'nan' not found`. Two causes:
-
-- A compartment with no `size` (40 cases, e.g. 00048) is emitted as
-  `compartment = nan`. `speciesInitialValue()` already treats an unset size as
-  a volume of 1, but the compartment constant itself is written straight from
-  `getVolume()`.
-- A parameter with no `value` that an assignment rule sets (e.g. 00147,
-  00181) is written into the parameter list as `nan`, even though the RHS then
-  recomputes it. It should not be in the parameter list at all, any more than
-  an assignment-rule species is in the state vector.
 
 ### Assignment-rule species are not observable
 
