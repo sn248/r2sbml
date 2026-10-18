@@ -64,81 +64,183 @@ inline std::string serialiseL3(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* ma
 }
 
 /**
- * Rename natural log below @p node from `ln` to `log`.
- *
- * MathML's <ln> serialises as `ln(x)`, which is not a function in R, rxode2,
- * MATLAB, Julia or C++ -- all five spell natural log `log`.  (Base-10 log is
- * unaffected: MathML <log> already serialises as `log10(x)`, which all five
- * understand.)
+ * The four infix languages the Level 3 writer's output is adapted to.  R
+ * covers rxode2 too: its model syntax takes the same spellings.
  */
-inline void naturalLogToLog(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node)
+enum class Dialect { R, C, Matlab, Julia };
+
+/**
+ * Name of the call a piecewise becomes.  R and Julia have a three-argument
+ * ifelse(); C++ and MATLAB have no conditional *expression* (C++'s ?: has no
+ * AST node to retype into, MATLAB has nothing), so they call a one-line helper
+ * the writer emits alongside the model -- see usesPiecewise().
+ */
+inline const char* ifelseName(Dialect d)
 {
-  if (node == NULL) return;
+  return (d == Dialect::R || d == Dialect::Julia) ? "ifelse" : "r2sbml_ifelse";
+}
+
+/** The dialect's spelling of a non-finite number. */
+inline const char* infinityName(Dialect d) { return d == Dialect::C ? "INFINITY" : "Inf"; }
+inline const char* nanName(Dialect d)      { return d == Dialect::C ? "NAN"      : "NaN"; }
+
+/** A bare name node, for spellings the Level 3 writer must pass through. */
+inline LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* nameNode(const char* name)
+{
+  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n =
+      new LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode(AST_NAME);
+  n->setName(name);
+  return n;
+}
+
+/**
+ * Rewrite the subtree at @p node into what @p d can run, and return its new
+ * root -- @p node itself unless the root had to be replaced, in which case
+ * the caller owns the old one.  Children are rewritten first, so every
+ * construct below composes: a power or a piecewise nested anywhere converts.
+ *
+ * - `ln(x)` is `log(x)` in all four.  (MathML <log> already serialises as
+ *   `log10(x)`, which all four understand.)
+ * - `a^b` is bitwise XOR in C++, so it becomes pow(a, b).  The node is
+ *   retyped to AST_FUNCTION (a plain named call) rather than
+ *   AST_FUNCTION_POWER, because the Level 3 writer spells both power types as
+ *   `a^b`; only a named call comes back out as `pow(a, b)`.
+ * - `ceiling` serialises as `ceil`, which is right in C++, MATLAB and Julia;
+ *   R's function is `ceiling`.  Likewise `true`/`false` are R's TRUE/FALSE.
+ * - Infinity and NaN serialise as `INF` and `NaN`.  `INF` is a number in none
+ *   of the four, and C++ needs `NAN` too.
+ * - piecewise(v1, c1, v2, c2, ..., otherwise) serialises unchanged, and is a
+ *   function in none of the four.  It becomes a nested three-argument call,
+ *   ifelse(c1, v1, ifelse(c2, v2, otherwise)), evaluated eagerly -- which is
+ *   what R's ifelse does anyway.  With no `otherwise`, SBML leaves the value
+ *   undefined when no condition holds, so the last fallback is NaN.
+ */
+inline LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode*
+rewriteForDialect(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node, Dialect d)
+{
+  if (node == NULL) return NULL;
 
   for (unsigned int i = 0; i < node->getNumChildren(); ++i)
   {
-    naturalLogToLog(node->getChild(i));
+    LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* child = node->getChild(i);
+    LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* now   = rewriteForDialect(child, d);
+    if (now != child) node->replaceChild(i, now, true);
   }
 
-  if (node->getType() == AST_FUNCTION_LN)
+  switch (node->getType())
   {
-    node->setType(AST_FUNCTION);
-    node->setName("log");
+    case AST_FUNCTION_LN:
+      node->setType(AST_FUNCTION);
+      node->setName("log");
+      return node;
+
+    case AST_POWER:
+    case AST_FUNCTION_POWER:
+      if (d == Dialect::C)
+      {
+        node->setType(AST_FUNCTION);
+        node->setName("pow");
+      }
+      return node;
+
+    case AST_FUNCTION_CEILING:
+      if (d == Dialect::R)
+      {
+        node->setType(AST_FUNCTION);
+        node->setName("ceiling");
+      }
+      return node;
+
+    // `true`/`false` are right in C++, MATLAB and Julia; R's are upper case,
+    // and a piecewise condition is where they turn up.
+    case AST_CONSTANT_TRUE:
+      return d == Dialect::R ? nameNode("TRUE") : node;
+    case AST_CONSTANT_FALSE:
+      return d == Dialect::R ? nameNode("FALSE") : node;
+
+    case AST_FUNCTION_PIECEWISE:
+    {
+      const unsigned int kids  = node->getNumChildren();
+      const unsigned int pairs = kids / 2;
+
+      LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* rest =
+          (kids % 2 == 1) ? node->getChild(kids - 1)->deepCopy() : nameNode(nanName(d));
+      for (unsigned int p = pairs; p-- > 0; )
+      {
+        LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* call =
+            new LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode(AST_FUNCTION);
+        call->setName(ifelseName(d));
+        call->addChild(node->getChild(2 * p + 1)->deepCopy());   // condition
+        call->addChild(node->getChild(2 * p)->deepCopy());       // value
+        call->addChild(rest);
+        rest = call;
+      }
+      return rest;
+    }
+
+    default: break;
   }
+
+  if (node->isNumber())
+  {
+    if (node->isNaN()) return nameNode(nanName(d));
+    if (node->isInfinity()) return nameNode(infinityName(d));
+    if (node->isNegInfinity())
+    {
+      LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* minus =
+          new LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode(AST_MINUS);
+      minus->addChild(nameNode(infinityName(d)));
+      return minus;
+    }
+  }
+  return node;
 }
 
-/** Serialise @p math as Level 3 infix.  Returns "" when @p math is null. */
-inline std::string formulaToInfix(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math)
+/** Serialise @p math for @p d.  Works on a copy, so the model is untouched. */
+inline std::string formulaToDialect(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math,
+                                    Dialect d)
 {
   if (math == NULL) return std::string();
 
   LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* copy = math->deepCopy();
-  naturalLogToLog(copy);
-  std::string formula = serialiseL3(copy);
-  delete copy;
+  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* root = rewriteForDialect(copy, d);
+  std::string formula = serialiseL3(root);
+  if (root != copy) delete copy;
+  delete root;
   return formula;
 }
 
-/**
- * Rewrite every exponentiation below @p node into a call to pow().
- *
- * Retyping to AST_FUNCTION (a plain named call) rather than
- * AST_FUNCTION_POWER is deliberate: the Level 3 writer spells both AST_POWER
- * and AST_FUNCTION_POWER as `a^b`, and only a named call comes back out as
- * `pow(a, b)`.  Children are visited first so that nested and
- * right-associative powers convert too: `a^b^c` becomes pow(a, pow(b, c)).
- */
-inline void powersToCalls(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node)
+/** Serialise @p math as Level 3 infix for R and rxode2.  "" when null. */
+inline std::string formulaToInfix(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math)
 {
-  if (node == NULL) return;
-
-  for (unsigned int i = 0; i < node->getNumChildren(); ++i)
-  {
-    powersToCalls(node->getChild(i));
-  }
-
-  if (node->getType() == AST_POWER || node->getType() == AST_FUNCTION_POWER)
-  {
-    node->setType(AST_FUNCTION);
-    node->setName("pow");
-  }
+  return formulaToDialect(math, Dialect::R);
 }
 
 /**
- * Serialise @p math as Level 3 infix with `a^b` written as `pow(a, b)`, for
- * targets whose model code is C++.  Works on a copy, so the model is
- * untouched.  Returns "" when @p math is null.
+ * Serialise @p math for targets whose model code is C++, with `a^b` written
+ * as `pow(a, b)`.  Returns "" when @p math is null.
  */
 inline std::string formulaToInfixC(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math)
 {
-  if (math == NULL) return std::string();
+  return formulaToDialect(math, Dialect::C);
+}
 
-  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* copy = math->deepCopy();
-  naturalLogToLog(copy);
-  powersToCalls(copy);
-  std::string formula = serialiseL3(copy);
-  delete copy;
-  return formula;
+/** Serialise @p math for Julia, which differs from R only in `ceil`. */
+inline std::string formulaToInfixJulia(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math)
+{
+  return formulaToDialect(math, Dialect::Julia);
+}
+
+/** True when a piecewise occurs anywhere below @p node. */
+inline bool hasPiecewise(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node)
+{
+  if (node == NULL) return false;
+  if (node->getType() == AST_FUNCTION_PIECEWISE) return true;
+  for (unsigned int i = 0; i < node->getNumChildren(); ++i)
+  {
+    if (hasPiecewise(node->getChild(i))) return true;
+  }
+  return false;
 }
 
 /**
@@ -156,7 +258,7 @@ inline std::string formulaToInfixC(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode
  */
 inline std::string formulaToInfixMatlab(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math)
 {
-  std::string formula = formulaToInfix(math);
+  std::string formula = formulaToDialect(math, Dialect::Matlab);
 
   std::string::size_type at = 0;
   while ((at = formula.find("!=", at)) != std::string::npos)
@@ -185,8 +287,12 @@ inline std::string formulaToInfixMatlab(const LIBSBML_CPP_NAMESPACE_QUALIFIER AS
  * Arithmetic stays infix.  Every operand is parenthesised rather than tracking
  * precedence, which is verbose but cannot get the grouping wrong.
  *
- * Anything with no ubiquity spelling -- root, piecewise, factorial, delay,
- * and the trigonometric functions -- is emitted as a plain `name(args)` call
+ * piecewise never reaches here: ubiquity's conditional is a statement, not an
+ * expression, so the writer hoists each one into a secondary parameter first
+ * (see hoistPiecewise() in convertReactions.cpp).
+ *
+ * Anything with no ubiquity spelling -- root, factorial, delay, and the
+ * trigonometric functions -- is emitted as a plain `name(args)` call
  * and flagged by ubiquityUnsupported() so the caller can warn.  ubiquity will
  * reject those files, which is the honest outcome: silently emitting
  * something that parses but computes the wrong thing would be worse.
@@ -202,7 +308,6 @@ inline void ubiquityUnsupported(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n
   switch (node->getType())
   {
     case AST_FUNCTION_ROOT:      found.push_back("root");      break;
-    case AST_FUNCTION_PIECEWISE: found.push_back("piecewise"); break;
     case AST_FUNCTION_FACTORIAL: found.push_back("factorial"); break;
     case AST_FUNCTION_DELAY:     found.push_back("delay");     break;
     case AST_LOGICAL_OR:         found.push_back("or");        break;
@@ -313,6 +418,18 @@ inline std::string formulaToUbiquity(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNo
     case AST_CONSTANT_FALSE: return "0";
 
     default: break;
+  }
+
+  // ubiquity pastes anything outside its SIMINT_* table verbatim into both
+  // the R and the C model it generates, so a spelling has to be valid in
+  // both.  No name for infinity, NaN or the ceiling function is; IEEE
+  // division and floor() are.
+  if (n->isNumber() && n->isNaN())         return "(0.0/0.0)";
+  if (n->isNumber() && n->isInfinity())    return "(1.0/0.0)";
+  if (n->isNumber() && n->isNegInfinity()) return "(-(1.0/0.0))";
+  if (n->getType() == AST_FUNCTION_CEILING && kids == 1)
+  {
+    return "(-floor(-(" + formulaToUbiquity(n->getChild(0)) + ")))";
   }
 
   if (n->isNumber() || n->isName())

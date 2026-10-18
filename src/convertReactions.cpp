@@ -253,17 +253,37 @@ static std::vector<int> constantParameters(Model* model)
 // failed with "object 'nan' not found" or a compile error that says nothing
 // about the model.
 
-// A number as a target spells it, so a NaN that remains comes out as that
-// target's not-a-number -- `NaN`, or `NAN` in C++ -- rather than `nan`.
+// A number as a target spells it, so a NaN or an infinity comes out as that
+// target's spelling -- `NaN`/`Inf`, or `NAN`/`INFINITY` in C++ -- rather
+// than the `nan`/`inf` operator<< writes, which none of them accepts.  SBML
+// allows value="INF", so a parameter may legitimately be infinite.
+struct Spelling
+{
+   const char* nan;
+   const char* inf;
+};
+
+// R, rxode2, MATLAB and Julia agree; C++ has its own macros.  ubiquity
+// copies an *expression* -- <I>, <Ad>, <IF> -- verbatim into the R and the C
+// model it generates (its build script only rewrites SIMINT_* calls), and no
+// name is a number in both; IEEE division is, in C, R, Julia and MATLAB.
+// A <P> value is data: it reaches the C model through parms[] at run time and
+// is pasted only into R-like files, so it takes the plain spelling.  (`inf`
+// is translated in the bounds columns alone -- not in the value.)
+static const Spelling kSpellDefault  = {"NaN", "Inf"};
+static const Spelling kSpellC        = {"NAN", "INFINITY"};
+static const Spelling kSpellUbiquity = {"(0.0/0.0)", "(1.0/0.0)"};
+
 struct Num
 {
-   double      value;
-   const char* nan;
+   double          value;
+   const Spelling& spelling;
 };
 
 static std::ostream& operator<<(std::ostream& out, const Num& n)
 {
-   if (std::isnan(n.value)) return out << n.nan;
+   if (std::isnan(n.value)) return out << n.spelling.nan;
+   if (std::isinf(n.value)) return out << (n.value < 0 ? "-" : "") << n.spelling.inf;
    return out << n.value;
 }
 
@@ -340,6 +360,18 @@ static std::string speciesDerivative(Model* model, const Species* species,
 // An assignment-rule compartment gets its volume right but not its dilution:
 // that needs dV/dt, and differentiating the assignment expression symbolically
 // is beyond what this does. Say so rather than emit a plausible wrong answer.
+// True when any rule uses piecewise.  C++ and MATLAB have no conditional
+// expression for it to become, so their writers emit a one-line
+// r2sbml_ifelse() helper -- only when this says one is called.
+static bool usesPiecewise(Model* model)
+{
+   for (unsigned int i = 0; i < model->getNumRules(); i++)
+   {
+     if (r2sbml::hasPiecewise(model->getRule(i)->getMath())) return true;
+   }
+   return false;
+}
+
 static void warnAssignmentRuleCompartment(Model* model, const std::string& target)
 {
    std::string list;
@@ -620,7 +652,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    for (int i = 0; i < numCmt; i++){
         // a varying compartment is a state or a local, not a constant
         if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
-        out <<  model->getCompartment(i)->getId() << " = " << Num{compartmentValue(model->getCompartment(i)), "NaN"} << endl; //" # (" << model->getCompartment(i)->getUnits() << ")" << endl;
+        out <<  model->getCompartment(i)->getId() << " = " << Num{compartmentValue(model->getCompartment(i)), kSpellDefault} << endl; //" # (" << model->getCompartment(i)->getUnits() << ")" << endl;
    }
 
    out << endl;
@@ -635,7 +667,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    }
    for (size_t i = 0; i < rateStates.size(); i++){
       const RateState& c = rateStates[i];
-      out << "         " << c.id << " = " << Num{c.initial, "NaN"}
+      out << "         " << c.id << " = " << Num{c.initial, kSpellDefault}
           << ((int)(numStates + i + 1) < numEntries ? "," : "")
           << "   ## " << c.what << ", integrated" << endl;
    }
@@ -650,7 +682,7 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
    const int numParams = (int)params.size();
    for (int i = 0; i < numParams; i++){
       const Parameter* p = model->getParameter(params[i]);
-      out << "         " << p->getIdAttribute() << " = " << Num{p->getValue(), "NaN"}
+      out << "         " << p->getIdAttribute() << " = " << Num{p->getValue(), kSpellDefault}
           << (i + 1 < numParams ? "," : "") << endl;
    }
 
@@ -878,12 +910,17 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
 
    out << "## Automatically generated mrgsolve model file by r2sbml\n" << endl;
    out << "$PROB\n" << endl;
+   if (usesPiecewise(model)){
+     // piecewise becomes nested r2sbml_ifelse(cond, value, otherwise) calls.
+     out << "$GLOBAL\n";
+     out << "inline double r2sbml_ifelse(bool c, double a, double b) { return c ? a : b; }\n\n";
+   }
    out << "$PARAM\n";
 
    const std::vector<int> params = constantParameters(model);
    for (size_t i = 0; i < params.size(); i++){
         const Parameter* p = model->getParameter(params[i]);
-        out << p->getIdAttribute() << " = " << Num{p->getValue(), "NaN"} << "\n";
+        out << p->getIdAttribute() << " = " << Num{p->getValue(), kSpellDefault} << "\n";
    }
 
    out << "\n$CMT\n";
@@ -902,13 +939,13 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
    }
    for (size_t i = 0; i < rateStates.size(); i++){
         const RateState& c = rateStates[i];
-        out << c.id << "_0 = " << Num{c.initial, "NAN"} << ";\n";
+        out << c.id << "_0 = " << Num{c.initial, kSpellC} << ";\n";
    }
 
    int numCmt = model->getNumCompartments();
    for (int i = 0; i < numCmt; i++){
         if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
-        out <<  model->getCompartment(i)->getId() << " = " << Num{compartmentValue(model->getCompartment(i)), "NAN"} << ";\n";
+        out <<  model->getCompartment(i)->getId() << " = " << Num{compartmentValue(model->getCompartment(i)), kSpellC} << ";\n";
    }
 
    out << "\n$ODE\n";
@@ -977,7 +1014,7 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
    const std::vector<int> params = constantParameters(model);
    for (size_t i = 0; i < params.size(); i++){
         const Parameter* p = model->getParameter(params[i]);
-        out << "    " << p->getIdAttribute() << " <- " << Num{p->getValue(), "NaN"} << "\n";
+        out << "    " << p->getIdAttribute() << " <- " << Num{p->getValue(), kSpellDefault} << "\n";
    }
 
    out << "  })\n";
@@ -986,7 +1023,7 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
    int numCmt = model->getNumCompartments();
    for (int i = 0; i < numCmt; i++){
         if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
-        out << "    " << model->getCompartment(i)->getId() << " <- " << Num{compartmentValue(model->getCompartment(i)), "NaN"} << "\n";
+        out << "    " << model->getCompartment(i)->getId() << " <- " << Num{compartmentValue(model->getCompartment(i)), kSpellDefault} << "\n";
    }
 
    for (int i = 0; i < numStates; i++){
@@ -996,7 +1033,7 @@ int writeFileNlmixr2(SBMLDocument* document, std::string outfilename)
    // a compartment or parameter with a rate rule is integrated alongside the species
    for (size_t i = 0; i < rateStates.size(); i++){
         const RateState& c = rateStates[i];
-        out << "    " << c.id << "(0) <- " << Num{c.initial, "NaN"} << "\n";
+        out << "    " << c.id << "(0) <- " << Num{c.initial, kSpellDefault} << "\n";
    }
 
    out << "\n";
@@ -1127,7 +1164,7 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    for (int i = 0; i < numCmt; i++){
      if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
      out << "    " << model->getCompartment(i)->getId() << " = "
-         << Num{compartmentValue(model->getCompartment(i)), "NaN"} << ";\n";
+         << Num{compartmentValue(model->getCompartment(i)), kSpellDefault} << ";\n";
    }
    out << "\n";
 
@@ -1135,7 +1172,7 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    const std::vector<int> params = constantParameters(model);
    for (size_t i = 0; i < params.size(); i++){
      out << "    " << model->getParameter(params[i])->getIdAttribute() << " = "
-         << Num{model->getParameter(params[i])->getValue(), "NaN"} << ";\n";
+         << Num{model->getParameter(params[i])->getValue(), kSpellDefault} << ";\n";
    }
    out << "\n";
 
@@ -1148,7 +1185,7 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    }
    for (size_t i = 0; i < rateStates.size(); i++){
      const RateState& c = rateStates[i];
-     out << "            " << Num{c.initial, "NaN"} << "; % " << c.id
+     out << "            " << Num{c.initial, kSpellDefault} << "; % " << c.id
          << " (" << c.what << ")\n";
    }
    out << "        ];\n";
@@ -1244,6 +1281,18 @@ int writeFileMatlab(SBMLDocument* document, std::string outfilename)
    out << "    end\n";
    out << "end\n";
 
+   // A local function after the main one: MATLAB has no conditional
+   // expression, and piecewise becomes nested r2sbml_ifelse() calls.
+   if (usesPiecewise(model)){
+     out << "\nfunction v = r2sbml_ifelse(c, a, b)\n";
+     out << "    if c\n";
+     out << "        v = a;\n";
+     out << "    else\n";
+     out << "        v = b;\n";
+     out << "    end\n";
+     out << "end\n";
+   }
+
    out.close();
    return 0;
 }
@@ -1309,7 +1358,7 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    for (int i = 0; i < numCmt; i++){
      if (compartmentIsVarying(model, model->getCompartment(i)->getIdAttribute())) continue;
      out << "    " << model->getCompartment(i)->getId() << " = "
-         << Num{compartmentValue(model->getCompartment(i)), "NaN"} << "\n";
+         << Num{compartmentValue(model->getCompartment(i)), kSpellDefault} << "\n";
    }
    out << "\n";
 
@@ -1340,7 +1389,7 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
      if (r->isAssignment()){
        if (!anyAssignment){ out << "    # Assignment rules\n"; anyAssignment = true; }
        out << "    " << r->getVariable() << " = "
-           << r2sbml::formulaToInfix(r->getMath()) << "\n";
+           << r2sbml::formulaToInfixJulia(r->getMath()) << "\n";
      }
    }
    if (anyAssignment) out << "\n";
@@ -1354,14 +1403,14 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
      const bool diluted = !dilutingCompartment(model, sp).empty();
      if (rule >= 0 || diluted){
        out << "    du[" << i + 1 << "] = "
-           << speciesDerivative(model, sp, r2sbml::formulaToInfix)
+           << speciesDerivative(model, sp, r2sbml::formulaToInfixJulia)
            << "  # " << id << (diluted ? ", with dilution" : "") << "\n";
      } else if (dae && nextAlgRule < algRules.size() &&
                 std::find(algStates.begin(), algStates.end(), i) != algStates.end()){
        // Paired with a zero row of M, so this row reads 0 = residual.
        const Rule* r = model->getRule(algRules[nextAlgRule++]);
        out << "    du[" << i + 1 << "] = "
-           << r2sbml::formulaToInfix(r->getMath())
+           << r2sbml::formulaToInfixJulia(r->getMath())
            << "  # algebraic rule fixing " << id << "\n";
      } else {
        out << "    du[" << i + 1 << "] = 0.0  # " << id
@@ -1371,7 +1420,7 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    for (size_t i = 0; i < rateStates.size(); i++){
      const std::string cid = rateStates[i].id;
      out << "    du[" << numStates + (int)i + 1 << "] = "
-         << r2sbml::formulaToInfix(rateStates[i].rate)
+         << r2sbml::formulaToInfixJulia(rateStates[i].rate)
          << "  # " << cid << " (" << rateStates[i].what << ")\n";
    }
 
@@ -1380,7 +1429,7 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
        const Rule* r = model->getRule(i);
        if (r->isAlgebraic()){
          out << "    # Algebraic rule, NOT enforced here: 0 = "
-             << r2sbml::formulaToInfix(r->getMath()) << "\n";
+             << r2sbml::formulaToInfixJulia(r->getMath()) << "\n";
        }
      }
    }
@@ -1397,14 +1446,14 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
          << (i + 1 < numEntries ? ", " : "");
    }
    for (size_t i = 0; i < rateStates.size(); i++){
-     out << Num{rateStates[i].initial, "NaN"}
+     out << Num{rateStates[i].initial, kSpellDefault}
          << ((int)(numStates + i + 1) < numEntries ? ", " : "");
    }
    out << "]\n";
 
    out << "p = Float64[";
    for (size_t i = 0; i < params.size(); i++){
-     out << Num{model->getParameter(params[i])->getValue(), "NaN"} << (i + 1 < params.size() ? ", " : "");
+     out << Num{model->getParameter(params[i])->getValue(), kSpellDefault} << (i + 1 < params.size() ? ", " : "");
    }
    out << "]\n";
 
@@ -1433,12 +1482,85 @@ int writeFileJulia(SBMLDocument* document, std::string outfilename)
    return 0;
 }
 
+// --- piecewise in ubiquity -------------------------------------------------
+//
+// ubiquity has no conditional *expression*.  Its conditional is a statement
+// that defines a whole dynamic secondary parameter:
+//
+//     <Ad> kel = 0.0
+//     <IF:kel:COND> SIMINT_GT[Cp][Cth]; kelf
+//     <IF:kel:ELSE> kels
+//
+// So every piecewise is hoisted out into a parameter of its own, named
+// r2sbml_pw<n>, and the expression reads that name instead.  Children are
+// hoisted first, so a piecewise nested inside another is defined before the
+// one that reads it.
+
+typedef std::vector<std::pair<std::string, ASTNode*> > HoistedPiecewise;
+
+static ASTNode* hoistPiecewise(ASTNode* node, HoistedPiecewise& hoisted, int& counter)
+{
+   for (unsigned int i = 0; i < node->getNumChildren(); i++)
+   {
+     ASTNode* child = node->getChild(i);
+     ASTNode* now   = hoistPiecewise(child, hoisted, counter);
+     if (now != child) node->replaceChild(i, now, true);
+   }
+   if (node->getType() != AST_FUNCTION_PIECEWISE) return node;
+
+   const std::string name = "r2sbml_pw" + std::to_string(++counter);
+   hoisted.push_back(std::make_pair(name, node->deepCopy()));
+   return r2sbml::nameNode(name.c_str());
+}
+
+// The <Ad>/<IF> block defining each hoisted piecewise; frees the copies.  With
+// no `otherwise` SBML leaves the value undefined, so ELSE is NaN.
+static void writeHoistedPiecewise(std::ostream& out, HoistedPiecewise& hoisted)
+{
+   for (size_t h = 0; h < hoisted.size(); h++)
+   {
+     const std::string& name = hoisted[h].first;
+     const ASTNode*     pw   = hoisted[h].second;
+     const unsigned int kids = pw->getNumChildren();
+
+     out << "<Ad> " << name << " = 0.0   # piecewise, defined by the <IF> lines below\n";
+     for (unsigned int p = 0; p + 1 < kids; p += 2)
+     {
+       out << "<IF:" << name << ":COND> "
+           << r2sbml::formulaToUbiquity(pw->getChild(p + 1)) << "; "
+           << r2sbml::formulaToUbiquity(pw->getChild(p)) << "\n";
+     }
+     out << "<IF:" << name << ":ELSE> "
+         << (kids % 2 == 1 ? r2sbml::formulaToUbiquity(pw->getChild(kids - 1))
+                           : std::string(kSpellUbiquity.nan)) << "\n";
+     delete hoisted[h].second;
+   }
+   hoisted.clear();
+}
+
 // write output ODEs for ubiquity
 int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
 {
    std::ofstream out(outfilename);
    out << std::setprecision(15);
    Model* model = document->getModel();
+
+   // Hoist every piecewise out of the rules first: the rules' math is what
+   // integratedRateStates() and speciesDerivative() read, and RateState keeps
+   // a pointer into it, so this has to happen before either runs.  Only this
+   // writer sees the converted document, so rewriting it in place is safe.
+   std::vector<HoistedPiecewise> rulePiecewise(model->getNumRules());
+   int pwCounter = 0;
+   for (unsigned int i = 0; i < model->getNumRules(); i++)
+   {
+     Rule* r = model->getRule(i);
+     if (!r->isSetMath() || !r2sbml::hasPiecewise(r->getMath())) continue;
+     ASTNode* copy = r->getMath()->deepCopy();
+     ASTNode* root = hoistPiecewise(copy, rulePiecewise[i], pwCounter);
+     r->setMath(root);
+     if (root != copy) delete copy;
+     delete root;
+   }
 
    const std::vector<int> states = integratedSpecies(model);
    const int numStates = (int)states.size();
@@ -1457,6 +1579,13 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
    for (int i = 0; i < numRules; i++){
      if (model->getRule(i)->isSetMath()){
        r2sbml::ubiquityUnsupported(model->getRule(i)->getMath(), unsupported);
+     }
+     // the hoisted piecewise bodies are written out too
+     for (size_t h = 0; h < rulePiecewise[i].size(); h++){
+       const ASTNode* pw = rulePiecewise[i][h].second;
+       for (unsigned int k = 0; k < pw->getNumChildren(); k++){
+         r2sbml::ubiquityUnsupported(pw->getChild(k), unsupported);
+       }
      }
    }
    std::sort(unsupported.begin(), unsupported.end());
@@ -1501,7 +1630,7 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
      // a varying compartment is a state (<I>/<ODE:>) or a dynamic secondary
      // parameter (<Ad>), not a constant
      if (compartmentIsVarying(model, c->getIdAttribute())) continue;
-     out << "<P> " << c->getId() << " " << Num{compartmentValue(c), "NaN"}
+     out << "<P> " << c->getId() << " " << Num{compartmentValue(c), kSpellDefault}
          << " -inf inf " << (c->isSetUnits() ? c->getUnits() : "1")
          << " yes System\n";
    }
@@ -1511,7 +1640,7 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
    const std::vector<int> params = constantParameters(model);
    for (size_t i = 0; i < params.size(); i++){
      const Parameter* p = model->getParameter(params[i]);
-     out << "<P> " << p->getIdAttribute() << " " << Num{p->getValue(), "NaN"}
+     out << "<P> " << p->getIdAttribute() << " " << Num{p->getValue(), kSpellDefault}
          << " -inf inf " << (p->isSetUnits() ? p->getUnits() : "1")
          << " yes System\n";
    }
@@ -1524,22 +1653,34 @@ int writeFileUbiquity(SBMLDocument* document, std::string outfilename)
    }
    for (size_t i = 0; i < rateStates.size(); i++){
      const RateState& c = rateStates[i];
-     out << "<I> " << c.id << " = " << Num{c.initial, "NaN"}
+     out << "<I> " << c.id << " = " << Num{c.initial, kSpellUbiquity}
          << "   # " << c.what << ", integrated\n";
    }
    out << "\n";
 
    // Assignment rules read states, so they are dynamic secondary parameters.
+   // A hoisted piecewise is defined just before the rule that reads it, so
+   // it can read the assignment rules ahead of that one.
    bool anyAssignment = false;
    for (int i = 0; i < numRules; i++){
      const Rule* r = model->getRule(i);
      if (r->isAssignment()){
        if (!anyAssignment){ out << "# Assignment rules\n"; anyAssignment = true; }
+       writeHoistedPiecewise(out, rulePiecewise[i]);
        out << "<Ad> " << r->getVariable() << " = "
            << r2sbml::formulaToUbiquity(r->getMath()) << "\n";
      }
    }
    if (anyAssignment) out << "\n";
+
+   // Rate and algebraic rules are written below, after every <Ad>.
+   bool anyHoisted = false;
+   for (int i = 0; i < numRules; i++){
+     if (rulePiecewise[i].empty()) continue;
+     if (!anyHoisted){ out << "# piecewise expressions in the mass balances\n"; anyHoisted = true; }
+     writeHoistedPiecewise(out, rulePiecewise[i]);
+   }
+   if (anyHoisted) out << "\n";
 
    out << "# Mass balances\n";
    for (int i = 0; i < numStates; i++){
