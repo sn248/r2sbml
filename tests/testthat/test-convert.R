@@ -521,6 +521,29 @@ test_that("an assignment-rule compartment is diluted through its rule's derivati
     }
 })
 
+test_that("mrgsolve spells time as SOLVERTIME in $ODE and TIME in $TABLE", {
+    # `time` is libc's time() in mrgsolve's C++, so a rule reading SBML's time
+    # did not compile at all
+    o <- tempfile(fileext = ".cpp")
+    expect_no_warning(convertReactions(growing_volume_model(decay = TRUE, assignment = TRUE),
+                                       o, format = "mrgsolve"))
+    code  <- readLines(o)
+    table <- seq_along(code) > match("$TABLE", code)
+    expect_true(any(grepl("\\bSOLVERTIME\\b", code[!table])))
+    expect_true(any(grepl("\\bTIME\\b", code[table])))
+    expect_false(any(grepl("\\btime\\b", code[!grepl("^\\s*(//|#)", code)])))
+
+    skip_on_cran()
+    skip_if_not_installed("mrgsolve")
+    times <- c(0, 1, 3, 7)
+    mod <- suppressMessages(mrgsolve::mcode("r2sbml_time_volume",
+                                            paste(code, collapse = "\n"), quiet = TRUE))
+    s <- mrgsolve::mrgsim_df(mod, tgrid = times, end = -1, rtol = 1e-10, atol = 1e-10)
+    expect_equal(s$A[match(times, s$time)], 2 * exp(-0.5 * times) / (1 + times),
+                 tolerance = 1e-6)
+    expect_equal(s$c[match(times, s$time)], 1 + times, tolerance = 1e-10)
+})
+
 test_that("an assignment rule that does not vary needs no dilution and no warning", {
     for (fmt in c("R", "mrgsolve", "nlmixr2", "MATLAB", "Julia", "ubiquity")) {
         o <- tempfile()

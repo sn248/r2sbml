@@ -81,9 +81,6 @@ plus/times/and/or/xor with zero, one or many operands) is now rewritten by
   avoids that.
 - ubiquity maps a `-inf` lower bound to `.Machine$double.xmin`, the smallest
   *positive* double. Harmless for simulation; wrong for estimation.
-- mrgsolve: the time csymbol is written as `time`, which is not a name in
-  mrgsolve's C++ (`SOLVERTIME` in `$ODE`, `TIME` in `$TABLE`), so any
-  mrgsolve model whose rules read time fails to compile.
 - The rxode2 list in `reservedNames()` holds only what was probed: rxode2
   exports no list of its reserved names.
 - A renamed compartment shows its new name in deSolve too, since compartments

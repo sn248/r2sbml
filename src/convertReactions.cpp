@@ -2292,6 +2292,40 @@ int writeFileR(SBMLDocument* document, std::string outfilename)
 }
 
 // write output ODEs for mrgsolve
+// SBML's time csymbol serialises as `time`, which in mrgsolve's C++ is libc's
+// time() and does not compile.  mrgsolve calls the time SOLVERTIME in $ODE,
+// where the solver may be between output times, and TIME in $TABLE.
+static ASTNode* withTimeNamed(const ASTNode* math, const char* name)
+{
+   ASTNode* copy = math->deepCopy();
+   std::vector<ASTNode*> stack(1, copy);
+   while (!stack.empty())
+   {
+     ASTNode* node = stack.back();
+     stack.pop_back();
+     if (node->getType() == AST_NAME_TIME)
+     {
+       node->setType(AST_NAME);
+       node->setName(name);
+     }
+     for (unsigned int i = 0; i < node->getNumChildren(); i++)
+       stack.push_back(node->getChild(i));
+   }
+   return copy;
+}
+
+static std::string mrgsolveFormula(const ASTNode* math, const char* timeName)
+{
+   if (math == NULL) return std::string();
+   ASTNode* named = withTimeNamed(math, timeName);
+   const std::string formula = r2sbml::formulaToInfixC(named);
+   delete named;
+   return formula;
+}
+
+static std::string mrgsolveOde(const ASTNode* math)   { return mrgsolveFormula(math, "SOLVERTIME"); }
+static std::string mrgsolveTable(const ASTNode* math) { return mrgsolveFormula(math, "TIME"); }
+
 int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
 {
    std::ofstream out(outfilename);
@@ -2355,7 +2389,7 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
      const Rule* r = model->getRule(i);
      if (r->isAssignment()){
        out << "double " << r->getVariable() << " = "
-           << r2sbml::formulaToInfixC(r->getMath()) << ";\n";
+           << mrgsolveOde(r->getMath()) << ";\n";
      }
    }
 
@@ -2367,7 +2401,7 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
      // mrgsolve model blocks are C++, so powers have to be pow() calls.
      if (rule >= 0 || diluted){
        out << "dxdt_" << id << " = "
-           << speciesDerivative(model, sp, r2sbml::formulaToInfixC) << ";"
+           << speciesDerivative(model, sp, mrgsolveOde) << ";"
            << (diluted ? " // includes dilution by the changing volume" : "") << "\n";
      } else {
        out << "dxdt_" << id << " = 0; // " << id
@@ -2377,7 +2411,7 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
    for (size_t i = 0; i < rateStates.size(); i++){
      const std::string cid = rateStates[i].id;
      out << "dxdt_" << cid << " = "
-         << r2sbml::formulaToInfixC(rateStates[i].rate)
+         << mrgsolveOde(rateStates[i].rate)
          << "; // " << rateStates[i].what << "\n";
    }
 
@@ -2385,7 +2419,7 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
    const std::vector<int> algRules = algebraicRules(model);
    for (size_t i = 0; i < algRules.size(); i++){
      out << "// Algebraic rule, NOT enforced here: 0 = "
-         << r2sbml::formulaToInfixC(model->getRule(algRules[i])->getMath()) << "\n";
+         << mrgsolveOde(model->getRule(algRules[i])->getMath()) << "\n";
    }
    if (!algRules.empty()) warnAlgebraicUnsolved("mrgsolve", algRules.size(), true);
 
@@ -2400,7 +2434,7 @@ int writeFileMrgsolve(SBMLDocument* document, std::string outfilename)
        const Rule* r = model->getRule(i);
        if (r->isAssignment()){
          out << r->getVariable() << " = "
-             << r2sbml::formulaToInfixC(r->getMath()) << ";\n";
+             << mrgsolveTable(r->getMath()) << ";\n";
        }
      }
      out << "\n$CAPTURE";
