@@ -109,6 +109,16 @@ strip_g_flag() {
 SBML_CFLAGS=`strip_g_flag "${CFLAGS}"`
 SBML_CXXFLAGS=`strip_g_flag "${CXXFLAGS}"`
 
+# r_config.sh peels a compiler launcher (ccache etc.) off CC/CXX; hand it back
+# to cmake the way cmake expects one.  Needs cmake >= 3.4.
+CMAKE_ADD_LAUNCHERS=""
+if test -n "${CC_LAUNCHER}"; then
+  CMAKE_ADD_LAUNCHERS="-D CMAKE_C_COMPILER_LAUNCHER=${CC_LAUNCHER}"
+fi
+if test -n "${CXX_LAUNCHER}"; then
+  CMAKE_ADD_LAUNCHERS="${CMAKE_ADD_LAUNCHERS} -D CMAKE_CXX_COMPILER_LAUNCHER=${CXX_LAUNCHER}"
+fi
+
 ${RSCRIPT_BIN} --vanilla -e 'getRversion() > "4.0.0"' | grep TRUE > /dev/null
 if [ $? -eq 0 ]; then
   CMAKE_ADD_AR="-D CMAKE_AR=${AR}"
@@ -211,7 +221,7 @@ ${CMAKE_BIN} \
     -D CMAKE_CXX_STANDARD_REQUIRED=OFF \
     -D CMAKE_C_FLAGS="${SBML_CFLAGS} ${EXTRA_C_WARN_FLAGS} -std=gnu17" \
     -D CMAKE_CXX_FLAGS="${SBML_CXXFLAGS} ${EXTRA_CXX_WARN_FLAGS}" \
-    ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ${LIBSBML_DEPENDENCY_DIR_FLAG} ${LIBXML_WIN32_FLAG} ../libsbml-src
+    ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ${CMAKE_ADD_LAUNCHERS} ${LIBSBML_DEPENDENCY_DIR_FLAG} ${LIBXML_WIN32_FLAG} ../libsbml-src
 
 ${CMAKE_BIN} --build . -j${NCORES}
 ${CMAKE_BIN} --install .

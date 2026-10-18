@@ -2,8 +2,31 @@
 
 R_ARCH_BIN=$1
 
-CC=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CC`
+## A compiler launcher -- ccache, sccache, distcc, icecc -- may lead
+## "R CMD config CC"/"CXX", typically put there by a ~/.R/Makevars.  cmake
+## takes the first word as the compiler, so a launcher left in place becomes
+## the compiler and the real one is pushed into the flags, where it fails as
+## "ccache: invalid option -- 'D'".  peel_launcher splits the launcher(s) off
+## into LAUNCHER, as a cmake list, and leaves the rest in PEELED.
+peel_launcher() {
+    LAUNCHER=""
+    PEELED="$1"
+    while :; do
+        _first=`echo "$PEELED" | cut -d' ' -f1`
+        case `basename "$_first" 2>/dev/null` in
+            ccache|sccache|distcc|icecc|buildcache)
+                LAUNCHER="${LAUNCHER:+${LAUNCHER};}${_first}"
+                PEELED=`echo "$PEELED" | cut -s -d' ' -f2-` ;;
+            *) break ;;
+        esac
+    done
+}
+
+peel_launcher "`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CC`"
+CC=$PEELED
+CC_LAUNCHER=$LAUNCHER
 echo set CC=$CC
+echo set CC_LAUNCHER=$CC_LAUNCHER
 export CC
 
 CPPFLAGS=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CPPFLAGS`
@@ -23,6 +46,10 @@ CXX_FULL=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CXX 2>/dev/null`
 if test -z "$CXX_FULL"; then
     CXX_FULL=`"${R_HOME}/bin${R_ARCH_BIN}/R" CMD config CXX11 2>/dev/null`
 fi
+peel_launcher "$CXX_FULL"
+CXX_FULL=$PEELED
+CXX_LAUNCHER=$LAUNCHER
+echo set CXX_LAUNCHER=$CXX_LAUNCHER
 
 ## "R CMD config CXX" returns the compiler together with its standard flag
 ## (e.g. "g++ -std=gnu++20"); cmake wants the binary on its own, so split the
