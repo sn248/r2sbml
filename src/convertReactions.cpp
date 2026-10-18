@@ -201,7 +201,8 @@ static double compartmentValue(const Compartment* c)
 // and every species started a factor of 5 too low.
 
 // Values of the parameters and compartments at t = 0, including those the
-// assignment rules set.  Species are left out on purpose: their values are in
+// assignment rules set.  A rate-rule variable starts at its declared value
+// (SBML Test Suite 00311-00318, whose volume rule reads one).  Species are left out on purpose: their values are in
 // whichever units the file declares, not the units being integrated, so a rule
 // that reads one is left unevaluated rather than evaluated wrongly.
 //
@@ -213,14 +214,14 @@ static std::map<std::string, double> valuesAtStart(const Model* model)
    for (unsigned int i = 0; i < model->getNumParameters(); i++)
    {
      const Parameter* p = model->getParameter(i);
-     if (std::isnan(p->getValue()) || model->getRule(p->getIdAttribute()) != NULL) continue;
+     if (std::isnan(p->getValue()) || model->getAssignmentRule(p->getIdAttribute()) != NULL) continue;
      known[p->getIdAttribute()] = p->getValue();
    }
    for (unsigned int i = 0; i < model->getNumCompartments(); i++)
    {
      const Compartment* c = model->getCompartment(i);
      const double v = compartmentValue(c);
-     if (std::isnan(v) || model->getRule(c->getIdAttribute()) != NULL) continue;
+     if (std::isnan(v) || model->getAssignmentRule(c->getIdAttribute()) != NULL) continue;
      known[c->getIdAttribute()] = v;
    }
 
@@ -440,6 +441,354 @@ static bool compartmentIsVarying(Model* model, const std::string& id)
 // before converting, since afterwards the two look the same.
 static std::set<std::string> ownRateRuleSpecies;
 
+// --- dV/dt for a compartment an assignment rule sets ---------------------------
+//
+// The dilution term needs dV/dt.  A rate rule gives it outright; for an
+// assignment rule V = g it is the total time derivative of g,
+//
+//   dV/dt = dg/dtime + sum over states x of dg/dx * dx/dt,
+//
+// taken once every assignment-rule variable in g has been substituted in
+// (SBML Test Suite 00310-00318, where C = p1 * p2 and p2 has a rate rule).
+// The states are the rate-rule parameters and compartments; anything else g
+// reads is constant and contributes nothing.  A rule that reads a species is
+// refused: the species' own derivative would then depend on the volume's.
+//
+// libSBML's ASTNode::derivative() is not used.  Its power rule returns
+// n * A^(n-1) without the factor dA/dx, so d/dt (1 + g t)^2 came out as
+// 2 + 2 g t, and its callers read a NULL from an unsupported node as a
+// derivative of 0.  differentiate() below covers arithmetic, powers and
+// roots, exp, ln, log and the plain and hyperbolic sine, cosine and tangent;
+// anything else that depends on the variable fails the whole derivative, and
+// the compartment keeps the warning in warnAssignmentRuleCompartment().
+
+// Compartment id -> dV/dt, for each assignment-rule compartment whose rule
+// could be differentiated; NULL when the derivative is identically 0.
+static std::map<std::string, ASTNode*> derivedVolumeRates;
+
+// Differentiating by this name means by the time csymbol.
+static const char* const kTimeVariable = "\x01time";
+
+static bool dependsOn(const ASTNode* node, const std::string& x)
+{
+   if (x == kTimeVariable ? node->getType() == AST_NAME_TIME
+                          : (node->getType() == AST_NAME && node->getName() != NULL &&
+                             x == node->getName())) return true;
+   for (unsigned int i = 0; i < node->getNumChildren(); i++)
+     if (dependsOn(node->getChild(i), x)) return true;
+   return false;
+}
+
+// Builders that take ownership of their arguments.
+static ASTNode* number(double v)
+{
+   ASTNode* n = new ASTNode(AST_REAL);
+   n->setValue(v);
+   return n;
+}
+
+static ASTNode* binary(ASTNodeType_t type, ASTNode* a, ASTNode* b)
+{
+   ASTNode* n = new ASTNode(type);
+   n->addChild(a);
+   n->addChild(b);
+   return n;
+}
+
+static ASTNode* unary(ASTNodeType_t type, ASTNode* a)
+{
+   ASTNode* n = new ASTNode(type);
+   n->addChild(a);
+   return n;
+}
+
+// d(node)/dx, or NULL when it is identically 0.  Sets @p ok to false on a
+// construct it cannot differentiate.
+static ASTNode* differentiate(const ASTNode* node, const std::string& x, bool& ok)
+{
+   if (!ok || !dependsOn(node, x)) return NULL;
+
+   const unsigned int n = node->getNumChildren();
+   ASTNode* u  = n > 0 ? node->getChild(0)->deepCopy() : NULL;
+   ASTNode* du = n > 0 ? differentiate(node->getChild(0), x, ok) : NULL;
+   ASTNode* result = NULL;
+
+   switch (node->getType())
+   {
+     case AST_NAME:
+     case AST_NAME_TIME:
+       result = number(1.0);
+       break;
+
+     case AST_PLUS:
+     {
+       ASTNode* sum = new ASTNode(AST_PLUS);
+       if (du != NULL) { sum->addChild(du); du = NULL; }
+       for (unsigned int i = 1; i < n; i++)
+       {
+         ASTNode* d = differentiate(node->getChild(i), x, ok);
+         if (d != NULL) sum->addChild(d);
+       }
+       if (sum->getNumChildren() == 1) { result = sum->getChild(0)->deepCopy(); delete sum; }
+       else result = sum;
+       break;
+     }
+
+     case AST_MINUS:
+       if (n == 1) { result = du != NULL ? unary(AST_MINUS, du) : NULL; du = NULL; break; }
+       if (n == 2)
+       {
+         ASTNode* dv = differentiate(node->getChild(1), x, ok);
+         if (dv == NULL)      result = du;
+         else if (du == NULL) result = unary(AST_MINUS, dv);
+         else                 result = binary(AST_MINUS, du, dv);
+         du = NULL;
+         break;
+       }
+       ok = false;
+       break;
+
+     case AST_TIMES:
+     {
+       // d(c1 c2 ... cn) = sum over i of dci * (product of the others)
+       ASTNode* sum = new ASTNode(AST_PLUS);
+       for (unsigned int i = 0; i < n; i++)
+       {
+         ASTNode* d = (i == 0) ? du : differentiate(node->getChild(i), x, ok);
+         if (i == 0) du = NULL;
+         if (d == NULL) continue;
+         ASTNode* term = new ASTNode(AST_TIMES);
+         term->addChild(d);
+         for (unsigned int j = 0; j < n; j++)
+           if (j != i) term->addChild(node->getChild(j)->deepCopy());
+         sum->addChild(term);
+       }
+       if (sum->getNumChildren() == 1) { result = sum->getChild(0)->deepCopy(); delete sum; }
+       else result = sum;
+       break;
+     }
+
+     case AST_DIVIDE:
+     {
+       if (n != 2) { ok = false; break; }
+       ASTNode* v  = node->getChild(1)->deepCopy();
+       ASTNode* dv = differentiate(node->getChild(1), x, ok);
+       if (dv == NULL)
+       {
+         result = binary(AST_DIVIDE, du, v);
+       }
+       else
+       {
+         // (du v - u dv) / v^2
+         ASTNode* top = binary(AST_MINUS,
+                               du != NULL ? binary(AST_TIMES, du, v->deepCopy()) : number(0.0),
+                               binary(AST_TIMES, u->deepCopy(), dv));
+         result = binary(AST_DIVIDE, top, binary(AST_POWER, v, number(2.0)));
+       }
+       du = NULL;
+       break;
+     }
+
+     case AST_POWER:
+     case AST_FUNCTION_POWER:
+     case AST_FUNCTION_ROOT:
+     {
+       // root(n, u) is u^(1/n), and sqrt(u) has the single child u.
+       ASTNode* base = NULL;
+       ASTNode* expo = NULL;
+       if (node->getType() == AST_FUNCTION_ROOT)
+       {
+         const bool degree = (n == 2);
+         base = node->getChild(degree ? 1 : 0)->deepCopy();
+         expo = binary(AST_DIVIDE, number(1.0),
+                       degree ? node->getChild(0)->deepCopy() : number(2.0));
+       }
+       else if (n == 2)
+       {
+         base = u->deepCopy();
+         expo = node->getChild(1)->deepCopy();
+       }
+       else { ok = false; break; }
+
+       ASTNode* db = differentiate(base, x, ok);
+       ASTNode* de = differentiate(expo, x, ok);
+       ASTNode* sum = new ASTNode(AST_PLUS);
+       if (db != NULL)   // e * b^(e - 1) * db
+         sum->addChild(binary(AST_TIMES, binary(AST_TIMES, expo->deepCopy(),
+                         binary(AST_POWER, base->deepCopy(),
+                                binary(AST_MINUS, expo->deepCopy(), number(1.0)))), db));
+       if (de != NULL)   // b^e * ln(b) * de
+         sum->addChild(binary(AST_TIMES, binary(AST_TIMES,
+                         binary(AST_POWER, base->deepCopy(), expo->deepCopy()),
+                         unary(AST_FUNCTION_LN, base->deepCopy())), de));
+       delete base;
+       delete expo;
+       if (sum->getNumChildren() == 1) { result = sum->getChild(0)->deepCopy(); delete sum; }
+       else if (sum->getNumChildren() == 0) delete sum;
+       else result = sum;
+       break;
+     }
+
+     case AST_FUNCTION_EXP:
+       if (n != 1 || du == NULL) { ok = ok && n == 1; break; }
+       result = binary(AST_TIMES, du, node->deepCopy());
+       du = NULL;
+       break;
+
+     case AST_FUNCTION_LN:
+       if (n != 1 || du == NULL) { ok = ok && n == 1; break; }
+       result = binary(AST_DIVIDE, du, u->deepCopy());
+       du = NULL;
+       break;
+
+     case AST_FUNCTION_LOG:
+     {
+       // log(base, v); with one child the base is 10
+       const bool based = (n == 2);
+       const ASTNode* arg = node->getChild(based ? 1 : 0);
+       if (based && dependsOn(node->getChild(0), x)) { ok = false; break; }
+       ASTNode* dv = differentiate(arg, x, ok);
+       if (dv == NULL) break;
+       ASTNode* lnBase = unary(AST_FUNCTION_LN,
+                               based ? node->getChild(0)->deepCopy() : number(10.0));
+       result = binary(AST_DIVIDE, dv, binary(AST_TIMES, arg->deepCopy(), lnBase));
+       break;
+     }
+
+     case AST_FUNCTION_SIN:
+     case AST_FUNCTION_COS:
+     case AST_FUNCTION_TAN:
+     case AST_FUNCTION_SINH:
+     case AST_FUNCTION_COSH:
+     case AST_FUNCTION_TANH:
+     {
+       if (n != 1) { ok = false; break; }
+       if (du == NULL) break;
+       ASTNode* outer = NULL;
+       switch (node->getType())
+       {
+         case AST_FUNCTION_SIN:  outer = unary(AST_FUNCTION_COS, u->deepCopy()); break;
+         case AST_FUNCTION_COS:  outer = unary(AST_MINUS, unary(AST_FUNCTION_SIN, u->deepCopy())); break;
+         case AST_FUNCTION_SINH: outer = unary(AST_FUNCTION_COSH, u->deepCopy()); break;
+         case AST_FUNCTION_COSH: outer = unary(AST_FUNCTION_SINH, u->deepCopy()); break;
+         case AST_FUNCTION_TAN:
+           outer = binary(AST_POWER, unary(AST_FUNCTION_COS, u->deepCopy()), number(-2.0)); break;
+         default:
+           outer = binary(AST_POWER, unary(AST_FUNCTION_COSH, u->deepCopy()), number(-2.0)); break;
+       }
+       result = binary(AST_TIMES, outer, du);
+       du = NULL;
+       break;
+     }
+
+     default:
+       ok = false;
+       break;
+   }
+
+   delete u;
+   delete du;
+   if (!ok) { delete result; return NULL; }
+   return result;
+}
+
+static void collectNames(const ASTNode* node, std::set<std::string>& names)
+{
+   if (node == NULL) return;
+   if (node->getType() == AST_NAME && node->getName() != NULL) names.insert(node->getName());
+   for (unsigned int i = 0; i < node->getNumChildren(); i++)
+     collectNames(node->getChild(i), names);
+}
+
+// dV/dt for assignment-rule compartment @p cid; false if it cannot be formed.
+// On success *rate is the derivative (owned by the caller), or NULL for 0.
+static bool assignmentVolumeRate(Model* model, const std::string& cid, ASTNode** rate)
+{
+   *rate = NULL;
+   const Rule* rule = model->getAssignmentRule(cid);
+   if (rule == NULL || !rule->isSetMath()) return false;
+
+   // Substitute assignment-rule variables until none is left; the bound
+   // stops a cycle, which SBML forbids anyway.
+   ASTNode* g = rule->getMath()->deepCopy();
+   for (int pass = 0; ; pass++)
+   {
+     std::set<std::string> names;
+     collectNames(g, names);
+     bool replaced = false;
+     for (std::set<std::string>::const_iterator it = names.begin(); it != names.end(); ++it)
+     {
+       const Rule* ar = model->getAssignmentRule(*it);
+       if (ar == NULL || !ar->isSetMath()) continue;
+       g->replaceArgument(*it, const_cast<ASTNode*>(ar->getMath()));
+       replaced = true;
+     }
+     if (!replaced) break;
+     if (pass > 100) { delete g; return false; }
+   }
+
+   std::set<std::string> names;
+   collectNames(g, names);
+   bool ok = true;
+   ASTNode* sum = new ASTNode(AST_PLUS);
+   ASTNode* dt  = differentiate(g, kTimeVariable, ok);
+   if (dt != NULL) sum->addChild(dt);
+   for (std::set<std::string>::const_iterator it = names.begin(); ok && it != names.end(); ++it)
+   {
+     if (model->getSpecies(*it) != NULL) { ok = false; break; }
+     const int rr = rateRuleFor(model, *it);
+     if (rr < 0 || !model->getRule(rr)->isSetMath()) continue;
+     ASTNode* dx = differentiate(g, *it, ok);
+     if (dx == NULL) continue;
+     sum->addChild(binary(AST_TIMES, dx, model->getRule(rr)->getMath()->deepCopy()));
+   }
+   delete g;
+
+   if (!ok) { delete sum; return false; }
+   if (sum->getNumChildren() == 0) { delete sum; return true; }
+   ASTNode* result = sum;
+   if (sum->getNumChildren() == 1)
+   {
+     result = sum->getChild(0)->deepCopy();
+     delete sum;
+   }
+   // C++, MATLAB and ubiquity spell piecewise through a helper or a hoisted
+   // <Ad> that only the rules themselves are given.
+   if (r2sbml::hasPiecewise(result)) { delete result; return false; }
+   *rate = result;
+   return true;
+}
+
+static void clearDerivedVolumeRates()
+{
+   for (std::map<std::string, ASTNode*>::iterator it = derivedVolumeRates.begin();
+        it != derivedVolumeRates.end(); ++it) delete it->second;
+   derivedVolumeRates.clear();
+}
+
+// Run once the model is final, before any writer.
+static void deriveVolumeRates(Model* model)
+{
+   clearDerivedVolumeRates();
+   for (unsigned int i = 0; i < model->getNumCompartments(); i++)
+   {
+     const std::string id = model->getCompartment(i)->getIdAttribute();
+     if (!hasAssignmentRule(model, id)) continue;
+     ASTNode* rate = NULL;
+     if (assignmentVolumeRate(model, id, &rate)) derivedVolumeRates[id] = rate;
+   }
+}
+
+// dV/dt for a varying compartment: its rate rule, or the derived derivative of
+// its assignment rule.  NULL when the volume does not change.
+static const ASTNode* volumeRate(Model* model, const std::string& cid)
+{
+   const int rr = rateRuleFor(model, cid);
+   if (rr >= 0) return model->getRule(rr)->getMath();
+   std::map<std::string, ASTNode*>::const_iterator it = derivedVolumeRates.find(cid);
+   return it == derivedVolumeRates.end() ? NULL : it->second;
+}
+
 // The compartment whose changing volume dilutes @p species, or "" for none.
 // What is conserved, absent reactions, is the *amount*: so a species with no
 // rule is diluted even when constant or a boundary species (SBML Test Suite
@@ -451,7 +800,7 @@ static std::string dilutingCompartment(Model* model, const Species* species)
    if (species->getHasOnlySubstanceUnits() ||
        ownRateRuleSpecies.count(species->getIdAttribute())) return "";
    const std::string cid = species->getCompartment();
-   return rateRuleFor(model, cid) >= 0 ? cid : "";
+   return volumeRate(model, cid) != NULL ? cid : "";
 }
 
 // Right-hand side for a species, with the dilution term when one applies.
@@ -468,16 +817,12 @@ static std::string speciesDerivative(Model* model, const Species* species,
        (rule >= 0) ? serialise(model->getRule(rule)->getMath()) : std::string("0");
    if (cid.empty()) return reaction;
 
-   const std::string dV =
-       serialise(model->getRule(rateRuleFor(model, cid))->getMath());
+   const std::string dV = serialise(volumeRate(model, cid));
    const std::string dilution = id + " * (" + dV + ") / " + cid;
 
    return (rule >= 0) ? "(" + reaction + ") - " + dilution : "-" + dilution;
 }
 
-// An assignment-rule compartment gets its volume right but not its dilution:
-// that needs dV/dt, and differentiating the assignment expression symbolically
-// is beyond what this does. Say so rather than emit a plausible wrong answer.
 // True when any rule uses piecewise.  C++ and MATLAB have no conditional
 // expression for it to become, so their writers emit a one-line
 // r2sbml_ifelse() helper -- only when this says one is called.
@@ -490,24 +835,29 @@ static bool usesPiecewise(Model* model)
    return false;
 }
 
+// An assignment-rule compartment whose rule assignmentVolumeRate() could not
+// differentiate gets its volume right but not its dilution.  Say so rather
+// than emit a plausible wrong answer.
 static void warnAssignmentRuleCompartment(Model* model, const std::string& target)
 {
    std::string list;
    for (unsigned int i = 0; i < model->getNumCompartments(); i++)
    {
      const std::string id = model->getCompartment(i)->getIdAttribute();
-     if (hasAssignmentRule(model, id))
+     if (hasAssignmentRule(model, id) && !derivedVolumeRates.count(id))
      {
        if (!list.empty()) list += ", ";
        list += id;
      }
    }
-   if (list.empty()) return;
 
-   Rcpp::warning("Compartment(s) " + list + " follow an assignment rule, so " +
-                 target + " receives the right volume but no dilution term for "
-                 "the species inside them. d[S]/dt is missing -[S]*(dV/dt)/V, "
-                 "which needs a symbolic time derivative of the rule.");
+   if (!list.empty())
+     Rcpp::warning("Compartment(s) " + list + " follow an assignment rule, so " +
+                   target + " receives the right volume but no dilution term for "
+                   "the species inside them. d[S]/dt is missing -[S]*(dV/dt)/V: "
+                   "the rule could not be differentiated (it reads a species, or "
+                   "uses piecewise, min, max, abs or another function r2sbml "
+                   "does not differentiate).");
 
    // The starting volume is the rule's value at t = 0 when that can be worked
    // out from the parameters and compartments alone.  A rule that reads a
@@ -1282,14 +1632,6 @@ static int linearIn(const ASTNode* node, const std::string& x)
    }
 }
 
-static void collectNames(const ASTNode* node, std::set<std::string>& names)
-{
-   if (node == NULL) return;
-   if (node->getType() == AST_NAME) names.insert(node->getName());
-   for (unsigned int i = 0; i < node->getNumChildren(); i++)
-     collectNames(node->getChild(i), names);
-}
-
 static std::set<std::string> undeterminedVariables(Model* model)
 {
    std::set<std::string> ids;
@@ -1518,6 +1860,7 @@ static void solveLinearAlgebraicRules(Model* model)
    }
 
    renameReservedIds(document->getModel(), format);
+   deriveVolumeRates(document->getModel());
 
    // make names equal to ID if name doesn't exist
 

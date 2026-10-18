@@ -394,11 +394,22 @@ test_that("the generated model reproduces a known analytic solution", {
 # A species in a compartment whose volume grows at a constant rate g, with
 # optional first-order decay.  [A] = n/V, so the concentration falls even with
 # no reaction at all.  `assignment` drives the volume by an assignment rule
-# instead of a rate rule, which is the case dilution cannot be derived for.
+# instead of a rate rule: TRUE is V = 1 + g * time, the same volume, whose
+# derivative the converter forms itself; "constant" is V = 1 + g, which needs
+# no dilution; "piecewise" wraps the first in a construct it cannot
+# differentiate.
 growing_volume_model <- function(decay = FALSE, assignment = FALSE) {
-    volume_rule <- if (assignment) {
-        '<assignmentRule variable="c"><math xmlns="http://www.w3.org/1998/Math/MathML">
-         <apply><plus/><cn>1</cn><ci>g</ci></apply></math></assignmentRule>'
+    time <- '<csymbol encoding="text" definitionURL="http://www.sbml.org/sbml/symbols/time">time</csymbol>'
+    linear <- sprintf('<apply><plus/><cn>1</cn><apply><times/><ci>g</ci>%s</apply></apply>', time)
+    volume_math <- switch(as.character(assignment),
+        "TRUE"      = linear,
+        "constant"  = '<apply><plus/><cn>1</cn><ci>g</ci></apply>',
+        "piecewise" = sprintf('<piecewise><piece>%s<apply><lt/>%s<cn>100</cn></apply></piece>
+                               <otherwise><cn>101</cn></otherwise></piecewise>', linear, time),
+        NULL)
+    volume_rule <- if (!is.null(volume_math)) {
+        sprintf('<assignmentRule variable="c"><math xmlns="http://www.w3.org/1998/Math/MathML">
+         %s</math></assignmentRule>', volume_math)
     } else {
         '<rateRule variable="c"><math xmlns="http://www.w3.org/1998/Math/MathML">
          <ci>g</ci></math></rateRule>'
@@ -482,14 +493,118 @@ test_that("species in a varying compartment get the dilution term", {
     expect_false(any(grepl("dcomp_dt", lines3)))
 })
 
-test_that("an assignment-rule compartment warns that dilution is missing", {
-    # dV/dt would need a symbolic time derivative of the rule, so the volume is
-    # right but the dilution term cannot be formed
+test_that("an assignment-rule compartment is diluted through its rule's derivative", {
+    # dV/dt is the time derivative of the rule, here d(1 + g t)/dt = g
+    for (spec in list(c("R",        "dA_dt = -A \\* \\(.*g.*\\) / c"),
+                      c("mrgsolve", "dxdt_A = -A \\* \\(.*g.*\\) / c;"),
+                      c("nlmixr2",  "d/dt\\(A\\) <- -A \\* \\(.*g.*\\) / c"),
+                      c("MATLAB",   "dydt\\(1\\) = -A \\* \\(.*g.*\\) / c;"),
+                      c("Julia",    "du\\[1\\] = -A \\* \\(.*g.*\\) / c"),
+                      c("ubiquity", "<ODE:A> -A \\* \\(.*g.*\\) / c"))) {
+        o <- tempfile()
+        expect_no_warning(convertReactions(growing_volume_model(assignment = TRUE), o,
+                                           format = spec[1]))
+        expect_true(any(grepl(spec[2], readLines(o))), info = spec[1])
+    }
+
+    skip_if_not_installed("deSolve")
+    times <- c(0, 1, 3, 7)
+    for (decay in c(FALSE, TRUE)) {
+        out <- tempfile(fileext = ".R")
+        convertReactions(growing_volume_model(decay = decay, assignment = TRUE), out)
+        env <- new.env(); source(out, local = env)
+        d <- as.data.frame(deSolve::ode(y = env$InitialAmounts, times = times,
+                                        func = env$massBalances, parms = env$parameters,
+                                        rtol = 1e-10, atol = 1e-10))
+        k <- if (decay) 0.5 else 0
+        expect_equal(d$A, 2 * exp(-k * times) / (1 + times), tolerance = 1e-7)
+    }
+})
+
+test_that("an assignment rule that does not vary needs no dilution and no warning", {
+    for (fmt in c("R", "mrgsolve", "nlmixr2", "MATLAB", "Julia", "ubiquity")) {
+        o <- tempfile()
+        expect_no_warning(convertReactions(growing_volume_model(assignment = "constant"), o,
+                                           format = fmt))
+        expect_false(any(grepl("dilution", readLines(o))), info = fmt)
+    }
+})
+
+test_that("an assignment-rule compartment it cannot differentiate still warns", {
+    # piecewise has no derivative here, so the volume is right but the
+    # dilution term cannot be formed
     for (fmt in c("R", "mrgsolve", "nlmixr2", "MATLAB", "Julia", "ubiquity")) {
         expect_warning(
-            convertReactions(growing_volume_model(assignment = TRUE), tempfile(), format = fmt),
-            "assignment rule")
+            convertReactions(growing_volume_model(assignment = "piecewise"), tempfile(),
+                             format = fmt),
+            "could not be differentiated")
     }
+})
+
+# V = p^2 with dp/dt = g and p(0) = 1, so V = (1 + g t)^2 and, with first-order
+# decay, [A] = 2 exp(-k t) / (1 + g t)^2.  Exercises the chain rule through a
+# rate-rule state and through a power whose base is not the variable itself,
+# which libSBML's own ASTNode::derivative() gets wrong.
+squared_volume_model <- function() {
+    xml <- '<?xml version="1.0" encoding="UTF-8" ?>
+<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2">
+<model substanceUnits="mole" volumeUnits="litre" timeUnits="second" extentUnits="mole">
+<listOfCompartments><compartment id="c" size="1" spatialDimensions="3" constant="false"/></listOfCompartments>
+<listOfSpecies><species id="A" compartment="c" initialConcentration="2" boundaryCondition="false"
+hasOnlySubstanceUnits="false" constant="false"/></listOfSpecies>
+<listOfParameters>
+<parameter id="g" value="2" constant="true"/>
+<parameter id="k" value="0.5" constant="true"/>
+<parameter id="p" value="1" constant="false"/>
+</listOfParameters>
+<listOfRules>
+<assignmentRule variable="c"><math xmlns="http://www.w3.org/1998/Math/MathML">
+<apply><power/><ci>p</ci><cn>2</cn></apply></math></assignmentRule>
+<rateRule variable="p"><math xmlns="http://www.w3.org/1998/Math/MathML"><ci>g</ci></math></rateRule>
+</listOfRules>
+<listOfReactions><reaction id="decay" reversible="false">
+<listOfReactants><speciesReference species="A" stoichiometry="1" constant="true"/></listOfReactants>
+<kineticLaw><math xmlns="http://www.w3.org/1998/Math/MathML">
+<apply><times/><ci>k</ci><ci>A</ci><ci>c</ci></apply></math></kineticLaw>
+</reaction></listOfReactions>
+</model>
+</sbml>'
+    f <- tempfile(fileext = ".xml")
+    writeLines(xml, f)
+    f
+}
+
+test_that("a nonlinear assignment-rule volume reproduces its analytic solution", {
+    times <- c(0, 1, 3, 7)
+    exact <- 2 * exp(-0.5 * times) / (1 + 2 * times)^2
+
+    skip_if_not_installed("deSolve")
+    out <- tempfile(fileext = ".R")
+    expect_no_warning(convertReactions(squared_volume_model(), out))
+    env <- new.env(); source(out, local = env)
+    d <- as.data.frame(deSolve::ode(y = env$InitialAmounts, times = times,
+                                    func = env$massBalances, parms = env$parameters,
+                                    rtol = 1e-10, atol = 1e-10))
+    expect_equal(d$A, exact, tolerance = 1e-6)
+    expect_equal(d$c, (1 + 2 * times)^2, tolerance = 1e-6)
+
+    skip_on_cran()
+    skip_if_not_installed("mrgsolve")
+    o <- tempfile(fileext = ".cpp")
+    convertReactions(squared_volume_model(), o, format = "mrgsolve")
+    mod <- suppressMessages(mrgsolve::mcode("r2sbml_squared_volume",
+                                            paste(readLines(o), collapse = "\n"), quiet = TRUE))
+    s <- mrgsolve::mrgsim_df(mod, tgrid = times, end = -1, rtol = 1e-10, atol = 1e-10)
+    expect_equal(s$A[match(times, s$time)], exact, tolerance = 1e-6)
+
+    skip_if_not_installed("rxode2")
+    o2 <- tempfile(fileext = ".R")
+    convertReactions(squared_volume_model(), o2, format = "rxode2")
+    env2 <- new.env(); source(o2, local = env2)
+    fn <- Filter(function(n) is.function(env2[[n]]), ls(env2))[1]
+    r <- suppressMessages(rxode2::rxSolve(env2[[fn]], events = rxode2::et(times),
+                                          rtol = 1e-10, atol = 1e-10))
+    expect_equal(r$A, exact, tolerance = 1e-6)
 })
 
 test_that("a growing compartment reproduces its analytic solution", {
