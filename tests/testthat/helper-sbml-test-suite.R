@@ -109,7 +109,11 @@ sts_run_case <- function(dir) {
         }
         if (v %in% sp_id) {
             cid <- sp_cmt[[v]]
-            V <- if (cid %in% names(sol)) sol[[cid]] else vol[[cid]]
+            # The generated file's own value, not the XML's size attribute,
+            # which an initial assignment may override (00471 and others).
+            V <- if (cid %in% names(sol)) sol[[cid]]
+                 else if (exists(cid, envir = env, inherits = FALSE)) get(cid, envir = env)
+                 else vol[[cid]]
             if (v %in% st$amount && !sp_hosu[[v]]) got <- got * V
             if (v %in% st$conc   &&  sp_hosu[[v]]) got <- got / V
         }
