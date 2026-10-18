@@ -142,15 +142,17 @@ test_that("a piecewise with no otherwise is NaN where no condition holds", {
     expect_true(any(grepl("^<IF:r2sbml_pw1:ELSE> \\(0.0/0.0\\)$", out$ubiquity)))
 })
 
-test_that("true and false are spelled TRUE and FALSE for R", {
+test_that("true and false are spelled 1 and 0 for R", {
     # SBML Test Suite cases 00190 and 00195 put a bare <true/> or <false/> in
-    # a piecewise condition
+    # a piecewise condition.  R would take TRUE/FALSE, but rxode2 reads them
+    # as undefined parameters.
     m <- spelling_model(assign_rule("k",
         '<piecewise><piece><cn>1</cn><true/></piece><piece><cn>2</cn><false/></piece>
          <otherwise><cn>3</cn></otherwise></piecewise>'))
     out <- spelled_targets(m)
     for (fmt in c("R", "nlmixr2")) {
-        expect_true(any(grepl("ifelse\\(TRUE, 1, ifelse\\(FALSE, 2, 3\\)\\)", out[[fmt]])), info = fmt)
+        expect_true(any(grepl("ifelse\\(1, 1, ifelse\\(0, 2, 3\\)\\)", out[[fmt]])), info = fmt)
+        expect_false(any(grepl("TRUE|FALSE", out[[fmt]])), info = fmt)
     }
     expect_true(any(grepl("ifelse\\(true, 1, ifelse\\(false, 2, 3\\)\\)", out$Julia)))
     expect_true(any(grepl("r2sbml_ifelse\\(true, 1, r2sbml_ifelse\\(false, 2, 3\\)\\)", out$mrgsolve)))
@@ -243,4 +245,122 @@ test_that("the switching piecewise runs in rxode2", {
     t1 <- log(2) / 2
     closed <- ifelse(times < t1, exp(-2 * times), 0.5 * exp(-0.5 * (times - t1)))
     expect_equal(s$A, closed, tolerance = 1e-5)
+})
+
+# --- the Level 3 Version 2 MathML ---------------------------------------------
+#
+# None of sec, arccot, quotient, rem, implies, exponentiale or the avogadro
+# csymbol is a function or name in any target, and plus/times/xor may have
+# zero, one or many operands.  expandMathML() rewrites them all into what every
+# target has.  Each rule below is a function of A = exp(-t), with its closed
+# form beside it.
+
+l3v2_apply <- function(op, ...) paste0("<apply><", op, "/>", ..., "</apply>")
+l3v2_gt <- function(x) l3v2_apply("gt", "<ci>A</ci>", sprintf("<cn>%s</cn>", x))
+l3v2_if <- function(cond) sprintf(
+    "<piecewise><piece><cn>1</cn>%s</piece><otherwise><cn>0</cn></otherwise></piecewise>", cond)
+
+l3v2_functions <- list(
+    sc = list(l3v2_apply("sec", "<ci>A</ci>"), function(A) 1 / cos(A)),
+    ac = list(l3v2_apply("arccot", "<ci>A</ci>"), function(A) atan(1 / A)),
+    ah = list(l3v2_apply("arccoth", l3v2_apply("plus", "<ci>A</ci><cn>1</cn>")),
+              function(A) atanh(1 / (A + 1))),
+    q  = list(l3v2_apply("quotient", l3v2_apply("times", "<ci>A</ci><cn>5</cn>"), "<cn>2</cn>"),
+              function(A) floor(5 * A / 2)),
+    r  = list(l3v2_apply("rem", l3v2_apply("times", "<ci>A</ci><cn>5</cn>"), "<cn>2</cn>"),
+              function(A) (5 * A) %% 2),
+    e  = list(l3v2_apply("times", "<exponentiale/><ci>A</ci>"), function(A) exp(1) * A),
+    av = list(l3v2_apply("divide", paste0('<csymbol encoding="text" definitionURL=',
+              '"http://www.sbml.org/sbml/symbols/avogadro">avogadro</csymbol>'), "<cn>1e23</cn>"),
+              function(A) 6.02214179 + 0 * A),
+    n  = list(l3v2_apply("plus", "<ci>A</ci>", l3v2_apply("times")), function(A) A + 1))
+
+# ubiquity has no or/not/xor, so the logical ones are kept apart
+l3v2_logic <- list(
+    im = list(l3v2_if(l3v2_apply("implies", l3v2_gt(0.5), l3v2_gt(0.7))),
+              function(A) as.numeric(A <= 0.5 | A > 0.7)),
+    x3 = list(l3v2_if(l3v2_apply("xor", l3v2_gt(0.2), l3v2_gt(0.5), l3v2_gt(0.8))),
+              function(A) as.numeric(xor(xor(A > 0.2, A > 0.5), A > 0.8))),
+    b  = list(l3v2_gt(0.5), function(A) as.numeric(A > 0.5)))
+
+l3v2_model <- function(rules) spelling_model(
+    paste(c(assign_rule("k", "<cn>1</cn>"),
+            mapply(assign_rule, names(rules), vapply(rules, `[[`, "", 1))), collapse = "\n"),
+    params = paste(sprintf('<parameter id="%s" constant="false"/>', names(rules)), collapse = ""))
+
+l3v2_times <- c(0, 0.3, 0.6, 0.9)    # A crosses 0.8 and 0.5 in between
+
+expect_closed_forms <- function(solution, rules, tolerance = 1e-6) {
+    solution <- as.data.frame(solution)
+    for (n in names(rules)) {
+        expect_equal(solution[[n]], rules[[n]][[2]](solution$A), tolerance = tolerance, info = n)
+    }
+    expect_equal(solution$A, exp(-l3v2_times), tolerance = tolerance)
+}
+
+test_that("the Level 3 Version 2 functions and constants are written out for every target", {
+    # SBML Test Suite cases 00892, 00959, 00961, 01277-01279, 01488, 01490
+    out <- spelled_targets(l3v2_model(l3v2_functions))
+    unspelled <- "\\b(sec|arccot|arccoth|quotient|rem|plus|times)\\(|\\b(exponentiale|avogadro)\\b"
+    for (fmt in names(out)) expect_false(any(grepl(unspelled, out[[fmt]])), info = fmt)
+    expect_true(any(grepl("\\bq = floor\\(A \\* 5 / 2\\)", out$R)))
+    expect_true(any(grepl("^<Ad> r = \\(\\(A\\*5\\)-\\(2\\*floor\\(\\(\\(A\\*5\\)/2\\)\\)\\)\\)$", out$ubiquity)))
+    expect_true(any(grepl("^<Ad> e = \\(SIMINT_EXP\\[1\\]\\*A\\)$", out$ubiquity)))
+})
+
+test_that("implies, n-ary xor and a bare comparison are spelled for every target", {
+    # SBML Test Suite cases 00201, 01279, 01290
+    m <- l3v2_model(l3v2_logic)
+    out <- lapply(c(R = ".R", nlmixr2 = ".R", mrgsolve = ".cpp", MATLAB = ".m", Julia = ".jl"),
+                  function(ext) tempfile(fileext = ext))
+    for (fmt in names(out)) {
+        expect_no_warning(convertReactions(m, out[[fmt]], format = fmt))
+        out[[fmt]] <- readLines(out[[fmt]])
+        expect_false(any(grepl("\\bimplies\\(", out[[fmt]])), info = fmt)
+    }
+    # R's xor() returns a logical rxode2 rejects, and rxode2 cannot parse
+    # `!` over `||`, so neither appears; C++ has no xor() at all
+    for (fmt in c("R", "nlmixr2")) {
+        expect_false(any(grepl("xor\\(|!|TRUE|FALSE", out[[fmt]])), info = fmt)
+        expect_true(any(grepl("\\bb (=|<-) 1 \\* \\(A > 0.5\\)", out[[fmt]])), info = fmt)
+    }
+    expect_false(any(grepl("xor\\(", out$mrgsolve)))
+    expect_true(any(grepl("xor\\(xor\\(", out$MATLAB)))
+    expect_true(any(grepl("xor\\(xor\\(", out$Julia)))
+    expect_warning(convertReactions(m, tempfile(fileext = ".txt"), format = "ubiquity"),
+                   "no equivalent for: not, or, xor")
+})
+
+test_that("the Level 3 Version 2 math reproduces its closed forms in deSolve", {
+    skip_if_not_installed("deSolve")
+    rules <- c(l3v2_functions, l3v2_logic)
+    out <- tempfile(fileext = ".R")
+    convertReactions(l3v2_model(rules), out, format = "R")
+    env <- new.env(); source(out, local = env)
+    expect_closed_forms(deSolve::ode(env$InitialAmounts, l3v2_times, env$massBalances,
+                                     env$parameters, rtol = 1e-10, atol = 1e-12), rules)
+})
+
+test_that("the Level 3 Version 2 math runs in mrgsolve and rxode2", {
+    skip_on_cran()
+    rules <- c(l3v2_functions, l3v2_logic)
+    m <- l3v2_model(rules)
+
+    if (requireNamespace("mrgsolve", quietly = TRUE)) {
+        d <- tempfile(); dir.create(d)
+        convertReactions(m, file.path(d, "l3v2.cpp"), format = "mrgsolve")
+        mod <- mrgsolve::mread("l3v2", project = d, file = "l3v2.cpp", quiet = TRUE)
+        s <- mrgsolve::mrgsim_df(mod, tgrid = l3v2_times, end = -1, rtol = 1e-10, atol = 1e-12)
+        expect_closed_forms(s, rules)
+    }
+
+    if (requireNamespace("rxode2", quietly = TRUE)) {
+        o <- tempfile(fileext = ".R")
+        convertReactions(m, o, format = "nlmixr2")
+        env <- new.env(); source(o, local = env)
+        s <- suppressMessages(rxode2::rxSolve(rxode2::rxode2(env$model),
+                                              events = rxode2::et(l3v2_times),
+                                              atol = 1e-12, rtol = 1e-10))
+        expect_closed_forms(s, rules)
+    }
 })

@@ -93,6 +93,170 @@ inline LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* nameNode(const char* name)
   return n;
 }
 
+/** A call named @p name over @p args, which it takes ownership of. */
+inline LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode*
+callNode(const char* name, LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* a,
+         LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* b = NULL)
+{
+  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n =
+      new LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode(AST_FUNCTION);
+  n->setName(name);
+  n->addChild(a);
+  if (b != NULL) n->addChild(b);
+  return n;
+}
+
+/** An operator node of @p type over @p a and @p b, taking ownership of both. */
+inline LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode*
+opNode(ASTNodeType_t type, LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* a,
+       LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* b = NULL)
+{
+  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n =
+      new LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode(type);
+  n->addChild(a);
+  if (b != NULL) n->addChild(b);
+  return n;
+}
+
+inline LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* realNode(double value)
+{
+  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n =
+      new LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode(AST_REAL);
+  n->setValue(value);
+  return n;
+}
+
+/** 1/x, for the reciprocal trigonometric functions. */
+inline LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode*
+reciprocal(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* x)
+{
+  return opNode(AST_DIVIDE, realNode(1.0), x);
+}
+
+/**
+ * Rewrite the MathML that no target spells into what they all do, returning
+ * the subtree's new root (the caller owns the old one if it changed).  Runs
+ * before rewriteForDialect() and before the ubiquity walk, so every rewrite
+ * here must use only names that R, rxode2, C++, MATLAB, Julia and ubiquity
+ * (which pastes into R *and* C) all have: floor, exp, cos, asin, asinh, ...
+ *
+ * - `exponentiale` is exp(1); the `avogadro` csymbol is SBML's fixed
+ *   6.02214179e23 (not CODATA's later value), which libSBML stores on the node.
+ * - sec, csc, cot and their hyperbolic forms are reciprocals; the arc*
+ *   functions are asin/acos/atan/asinh/acosh/atanh, of 1/x for the reciprocal
+ *   ones.  These are libSBML's own definitions (SBMLTransforms), arccot
+ *   included: atan(1/x), so its range is (-pi/2, pi/2).
+ * - quotient and rem round down, as libSBML evaluates them:
+ *   floor(a/b) and a - b*floor(a/b).  (R's %/% and %% agree.)
+ * - implies(a, b) is !a || b.
+ * - plus, times, and, or and xor may have zero or one operand in Level 3
+ *   Version 2; the empty forms are their identities and the single forms the
+ *   operand.  xor over more than two operands nests, since R's takes two.
+ */
+inline LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode*
+expandMathML(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node)
+{
+  if (node == NULL) return NULL;
+
+  for (unsigned int i = 0; i < node->getNumChildren(); ++i)
+  {
+    LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* child = node->getChild(i);
+    LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* now   = expandMathML(child);
+    if (now != child) node->replaceChild(i, now, true);
+  }
+
+  const unsigned int kids = node->getNumChildren();
+  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* x =
+      kids > 0 ? node->getChild(0)->deepCopy() : NULL;
+  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* out = NULL;
+
+  switch (node->getType())
+  {
+    case AST_CONSTANT_E:      out = opNode(AST_FUNCTION_EXP, realNode(1.0));       break;
+    case AST_NAME_AVOGADRO:   out = realNode(node->getReal());           break;
+
+    case AST_FUNCTION_SEC:    out = reciprocal(opNode(AST_FUNCTION_COS, x));       x = NULL; break;
+    case AST_FUNCTION_CSC:    out = reciprocal(opNode(AST_FUNCTION_SIN, x));       x = NULL; break;
+    case AST_FUNCTION_COT:    out = reciprocal(opNode(AST_FUNCTION_TAN, x));       x = NULL; break;
+    case AST_FUNCTION_SECH:   out = reciprocal(opNode(AST_FUNCTION_COSH, x));      x = NULL; break;
+    case AST_FUNCTION_CSCH:   out = reciprocal(opNode(AST_FUNCTION_SINH, x));      x = NULL; break;
+    case AST_FUNCTION_COTH:   out = reciprocal(opNode(AST_FUNCTION_TANH, x));      x = NULL; break;
+    case AST_FUNCTION_ARCSIN: out = callNode("asin", x);                  x = NULL; break;
+    case AST_FUNCTION_ARCCOS: out = callNode("acos", x);                  x = NULL; break;
+    case AST_FUNCTION_ARCTAN: out = callNode("atan", x);                  x = NULL; break;
+    case AST_FUNCTION_ARCSINH: out = callNode("asinh", x);                x = NULL; break;
+    case AST_FUNCTION_ARCCOSH: out = callNode("acosh", x);                x = NULL; break;
+    case AST_FUNCTION_ARCTANH: out = callNode("atanh", x);                x = NULL; break;
+    case AST_FUNCTION_ARCSEC:  out = callNode("acos", reciprocal(x));     x = NULL; break;
+    case AST_FUNCTION_ARCCSC:  out = callNode("asin", reciprocal(x));     x = NULL; break;
+    case AST_FUNCTION_ARCCOT:  out = callNode("atan", reciprocal(x));     x = NULL; break;
+    case AST_FUNCTION_ARCSECH: out = callNode("acosh", reciprocal(x));    x = NULL; break;
+    case AST_FUNCTION_ARCCSCH: out = callNode("asinh", reciprocal(x));    x = NULL; break;
+    case AST_FUNCTION_ARCCOTH: out = callNode("atanh", reciprocal(x));    x = NULL; break;
+
+    case AST_FUNCTION_QUOTIENT:
+    case AST_FUNCTION_REM:
+      if (kids == 2)
+      {
+        const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* b = node->getChild(1);
+        LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* q =
+            opNode(AST_FUNCTION_FLOOR, opNode(AST_DIVIDE, x->deepCopy(), b->deepCopy()));
+        out = node->getType() == AST_FUNCTION_QUOTIENT
+                ? q : opNode(AST_MINUS, x->deepCopy(), opNode(AST_TIMES, b->deepCopy(), q));
+      }
+      break;
+
+    case AST_LOGICAL_IMPLIES:
+      if (kids == 2)
+      {
+        out = opNode(AST_LOGICAL_OR, opNode(AST_LOGICAL_NOT, x),
+                     node->getChild(1)->deepCopy());
+        x = NULL;
+      }
+      break;
+
+    case AST_PLUS:
+    case AST_TIMES:
+    case AST_LOGICAL_AND:
+    case AST_LOGICAL_OR:
+    case AST_LOGICAL_XOR:
+      if (kids == 1) { out = x; x = NULL; }
+      else if (kids == 0)
+      {
+        const ASTNodeType_t t = node->getType();
+        out = t == AST_PLUS  ? realNode(0.0)
+            : t == AST_TIMES ? realNode(1.0)
+            : new LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode(
+                  t == AST_LOGICAL_AND ? AST_CONSTANT_TRUE : AST_CONSTANT_FALSE);
+      }
+      else if (node->getType() == AST_LOGICAL_XOR && kids > 2)
+      {
+        out = x;
+        for (unsigned int i = 1; i < kids; ++i)
+          out = opNode(AST_LOGICAL_XOR, out, node->getChild(i)->deepCopy());
+        x = NULL;
+      }
+      break;
+
+    default: break;
+  }
+
+  delete x;
+  return out != NULL ? out : node;
+}
+
+/**
+ * `!x`, spelled `x == 0` for R: rxode2 cannot parse `!` applied to an `&&`
+ * or `||` expression (`!((a) || (b))` is a syntax error there), and the two
+ * agree for numbers and logicals alike.  Takes ownership of @p x.
+ */
+inline LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode*
+negation(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* x, Dialect d)
+{
+  return d == Dialect::R ? opNode(AST_RELATIONAL_EQ, x, realNode(0.0))
+                         : opNode(AST_LOGICAL_NOT, x);
+}
+
 /**
  * Rewrite the subtree at @p node into what @p d can run, and return its new
  * root -- @p node itself unless the root had to be replaced, in which case
@@ -106,7 +270,7 @@ inline LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* nameNode(const char* name)
  *   AST_FUNCTION_POWER, because the Level 3 writer spells both power types as
  *   `a^b`; only a named call comes back out as `pow(a, b)`.
  * - `ceiling` serialises as `ceil`, which is right in C++, MATLAB and Julia;
- *   R's function is `ceiling`.  Likewise `true`/`false` are R's TRUE/FALSE.
+ *   R's function is `ceiling`.  `true`/`false` are 1 and 0 in R (rxode2 has no TRUE).
  * - Infinity and NaN serialise as `INF` and `NaN`.  `INF` is a number in none
  *   of the four, and C++ needs `NAN` too.
  * - piecewise(v1, c1, v2, c2, ..., otherwise) serialises unchanged, and is a
@@ -151,12 +315,38 @@ rewriteForDialect(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node, Dialect d)
       }
       return node;
 
-    // `true`/`false` are right in C++, MATLAB and Julia; R's are upper case,
-    // and a piecewise condition is where they turn up.
+    // `true`/`false` are right in C++, MATLAB and Julia.  R's TRUE/FALSE are
+    // not names rxode2 knows -- it asks for them as parameters -- so the R
+    // dialect writes 1 and 0, which R accepts anywhere a logical goes.
     case AST_CONSTANT_TRUE:
-      return d == Dialect::R ? nameNode("TRUE") : node;
+      return d == Dialect::R ? realNode(1.0) : node;
     case AST_CONSTANT_FALSE:
-      return d == Dialect::R ? nameNode("FALSE") : node;
+      return d == Dialect::R ? realNode(0.0) : node;
+
+    // C++ has neither an xor() nor a pi.  R's xor() returns a logical, which
+    // rxode2 rejects ("needs to return a length 1 numeric"), so R takes the
+    // C spelling of xor too; MATLAB and Julia have both.  It is
+    // (a && !b) || (!a && b) rather than !a != !b, which rxode2 cannot parse,
+    // or a != b, which is wrong for numeric operands.  expandMathML() has
+    // already made every xor binary.
+    case AST_LOGICAL_XOR:
+      if ((d == Dialect::C || d == Dialect::R) && node->getNumChildren() == 2)
+      {
+        const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* a = node->getChild(0);
+        const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* b = node->getChild(1);
+        return opNode(AST_LOGICAL_OR,
+                      opNode(AST_LOGICAL_AND, a->deepCopy(), negation(b->deepCopy(), d)),
+                      opNode(AST_LOGICAL_AND, negation(a->deepCopy(), d), b->deepCopy()));
+      }
+      return node;
+
+    case AST_LOGICAL_NOT:
+      if (d == Dialect::R && node->getNumChildren() == 1)
+        return negation(node->getChild(0)->deepCopy(), d);
+      return node;
+    case AST_CONSTANT_PI:
+      return d == Dialect::C ? opNode(AST_TIMES, realNode(4.0), callNode("atan", realNode(1.0)))
+                             : node;
 
     case AST_FUNCTION_PIECEWISE:
     {
@@ -196,17 +386,28 @@ rewriteForDialect(LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node, Dialect d)
   return node;
 }
 
-/** Serialise @p math for @p d.  Works on a copy, so the model is untouched. */
+/**
+ * Serialise @p math for @p d.  Works on a copy, so the model is untouched.
+ *
+ * Every caller writes the result where a number is expected -- a rule's
+ * value, a derivative -- so a formula that is itself a comparison or a
+ * boolean is multiplied by 1: deSolve rejects a logical derivative outright
+ * (SBML Test Suite case 01290, a rate rule of `true`).
+ */
 inline std::string formulaToDialect(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math,
                                     Dialect d)
 {
   if (math == NULL) return std::string();
 
   LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* copy = math->deepCopy();
-  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* root = rewriteForDialect(copy, d);
-  std::string formula = serialiseL3(root);
+  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* root = expandMathML(copy);
   if (root != copy) delete copy;
-  delete root;
+  if (root->isBoolean()) root = opNode(AST_TIMES, realNode(1.0), root);
+
+  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* out = rewriteForDialect(root, d);
+  std::string formula = serialiseL3(out);
+  if (out != root) delete root;
+  delete out;
   return formula;
 }
 
@@ -297,10 +498,10 @@ inline std::string formulaToInfixMatlab(const LIBSBML_CPP_NAMESPACE_QUALIFIER AS
  * reject those files, which is the honest outcome: silently emitting
  * something that parses but computes the wrong thing would be worse.
  */
-inline std::string formulaToUbiquity(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math);
+inline std::string formulaToUbiquityNode(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math);
 
 /** Names of constructs in @p math that formulaToUbiquity cannot translate. */
-inline void ubiquityUnsupported(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node,
+inline void ubiquityUnsupportedNode(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node,
                                 std::vector<std::string>& found)
 {
   if (node == NULL) return;
@@ -314,20 +515,55 @@ inline void ubiquityUnsupported(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n
     case AST_LOGICAL_NOT:        found.push_back("not");       break;
     case AST_LOGICAL_XOR:        found.push_back("xor");       break;
     case AST_FUNCTION:
+    {
       // A named call libsbml did not recognise; delay arrives here too when
-      // the csymbol was not resolved.
-      found.push_back(node->getName() ? node->getName() : "unknown function");
+      // the csymbol was not resolved.  The inverse trigonometric calls
+      // expandMathML() writes are spelled alike in R and C, so they pass.
+      const std::string name = node->getName() ? node->getName() : "unknown function";
+      if (name != "asin" && name != "acos" && name != "atan" &&
+          name != "asinh" && name != "acosh" && name != "atanh")
+        found.push_back(name);
       break;
+    }
     default: break;
   }
 
   for (unsigned int i = 0; i < node->getNumChildren(); ++i)
   {
-    ubiquityUnsupported(node->getChild(i), found);
+    ubiquityUnsupportedNode(node->getChild(i), found);
   }
 }
 
-inline std::string formulaToUbiquity(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n)
+/** Run @p f over expandMathML() of a copy of @p math. */
+template <typename F>
+inline void withExpandedMath(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math, F f)
+{
+  if (math == NULL) { f(NULL); return; }
+  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* copy = math->deepCopy();
+  LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* root = expandMathML(copy);
+  if (root != copy) delete copy;
+  f(root);
+  delete root;
+}
+
+inline void ubiquityUnsupported(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math,
+                                std::vector<std::string>& found)
+{
+  withExpandedMath(math, [&](const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n) {
+    ubiquityUnsupportedNode(n, found);
+  });
+}
+
+inline std::string formulaToUbiquity(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* math)
+{
+  std::string out;
+  withExpandedMath(math, [&](const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n) {
+    out = formulaToUbiquityNode(n);
+  });
+  return out;
+}
+
+inline std::string formulaToUbiquityNode(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* n)
 {
   if (n == NULL) return std::string();
 
@@ -359,28 +595,28 @@ inline std::string formulaToUbiquity(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNo
     else if (kids == 2)
     {
       // log_b(x) has no ubiquity spelling; write it as a ratio of logs.
-      return "(SIMINT_LOGN[" + formulaToUbiquity(n->getChild(1)) +
-             "]/SIMINT_LOGN[" + formulaToUbiquity(n->getChild(0)) + "])";
+      return "(SIMINT_LOGN[" + formulaToUbiquityNode(n->getChild(1)) +
+             "]/SIMINT_LOGN[" + formulaToUbiquityNode(n->getChild(0)) + "])";
     }
   }
 
   if (unary != NULL && kids == 1)
   {
-    return std::string(unary) + "[" + formulaToUbiquity(n->getChild(0)) + "]";
+    return std::string(unary) + "[" + formulaToUbiquityNode(n->getChild(0)) + "]";
   }
   if (binary != NULL && kids == 2)
   {
-    return std::string(binary) + "[" + formulaToUbiquity(n->getChild(0)) +
-           "][" + formulaToUbiquity(n->getChild(1)) + "]";
+    return std::string(binary) + "[" + formulaToUbiquityNode(n->getChild(0)) +
+           "][" + formulaToUbiquityNode(n->getChild(1)) + "]";
   }
   // AND over more than two operands nests pairwise.
   if (binary != NULL && kids > 2)
   {
-    std::string acc = formulaToUbiquity(n->getChild(0));
+    std::string acc = formulaToUbiquityNode(n->getChild(0));
     for (unsigned int i = 1; i < kids; ++i)
     {
       acc = std::string(binary) + "[" + acc + "][" +
-            formulaToUbiquity(n->getChild(i)) + "]";
+            formulaToUbiquityNode(n->getChild(i)) + "]";
     }
     return acc;
   }
@@ -398,14 +634,14 @@ inline std::string formulaToUbiquity(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNo
 
       if (n->getType() == AST_MINUS && kids == 1)
       {
-        return "(-" + formulaToUbiquity(n->getChild(0)) + ")";
+        return "(-" + formulaToUbiquityNode(n->getChild(0)) + ")";
       }
       if (kids == 0) return std::string();
 
-      std::string acc = "(" + formulaToUbiquity(n->getChild(0));
+      std::string acc = "(" + formulaToUbiquityNode(n->getChild(0));
       for (unsigned int i = 1; i < kids; ++i)
       {
-        acc += op + formulaToUbiquity(n->getChild(i));
+        acc += op + formulaToUbiquityNode(n->getChild(i));
       }
       return acc + ")";
     }
@@ -429,7 +665,7 @@ inline std::string formulaToUbiquity(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNo
   if (n->isNumber() && n->isNegInfinity()) return "(-(1.0/0.0))";
   if (n->getType() == AST_FUNCTION_CEILING && kids == 1)
   {
-    return "(-floor(-(" + formulaToUbiquity(n->getChild(0)) + ")))";
+    return "(-floor(-(" + formulaToUbiquityNode(n->getChild(0)) + ")))";
   }
 
   if (n->isNumber() || n->isName())
@@ -445,7 +681,7 @@ inline std::string formulaToUbiquity(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNo
   for (unsigned int i = 0; i < kids; ++i)
   {
     if (i) acc += ", ";
-    acc += formulaToUbiquity(n->getChild(i));
+    acc += formulaToUbiquityNode(n->getChild(i));
   }
   return acc + ")";
 }
