@@ -17,6 +17,12 @@ This is a new submission.
 * checking CRAN incoming feasibility ... NOTE
   New submission
 
+  Possibly misspelled words in DESCRIPTION: Hucka, Bornstein, et, al
+
+  These are the author names and "et al." of the two references cited in
+  the Description field (Hucka et al. 2003; Bornstein et al. 2008), and are
+  spelled correctly.
+
 ## Bundled library
 
 The package bundles the source of 'libSBML' 5.21.0 (LGPL 2.1) as
