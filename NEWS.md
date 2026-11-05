@@ -4,6 +4,9 @@
   bundled 'libSBML' sources because they did not include `<new>`.
 * Installation now stops with an error if building 'libSBML' fails. It used to
   continue and fail later, with an unrelated error when loading the package.
+* Fixed undefined behaviour reported by CRAN's sanitizer checks: an out-of-range
+  cast when generating 'mrgsolve' and 'ubiquity' code for very large literals,
+  and invalid casts in the bundled 'libSBML' sources.
 
 # r2sbml 0.1.0
 
