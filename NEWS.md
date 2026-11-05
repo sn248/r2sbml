@@ -1,3 +1,10 @@
+# r2sbml 0.1.1
+
+* Fixed installation with clang 23 and libc++, which failed compiling the
+  bundled 'libSBML' sources because they did not include `<new>`.
+* Installation now stops with an error if building 'libSBML' fails. It used to
+  continue and fail later, with an unrelated error when loading the package.
+
 # r2sbml 0.1.0
 
 * Initial CRAN submission.

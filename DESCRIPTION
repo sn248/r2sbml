@@ -1,7 +1,7 @@
 Package: r2sbml
 Type: Package
 Title: Read 'SBML' Models and Convert Them to Simulation Code
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(
     person(given = "Satyaprakash", family = "Nayak",
            role = c("aut", "cre", "cph"),

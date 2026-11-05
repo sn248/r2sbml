@@ -93,6 +93,14 @@ perl -pi -e 's/sprintf\(number, /snprintf(number, sizeof(number), /g' \
 
 # End of CRAN patches #############################################################
 
+# libsbml uses new(nothrow) throughout but relies on other standard headers to
+# bring in <new>, which libc++ 23 no longer does: "use of undeclared identifier
+# 'nothrow'".  Include it in every file that mentions nothrow rather than in
+# the ones that fail today, since which those are depends on the standard library.
+find libsbml-src/src -name '*.cpp' -exec grep -l 'nothrow' {} + | while read f; do
+    perl -pi -e 'print "#include <new>\n" if $. == 1' "$f"
+done
+
 dot() { file=$1; shift; . "$file"; }
 dot ./scripts/r_config.sh ""
 
@@ -224,6 +232,10 @@ ${CMAKE_BIN} \
     ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ${CMAKE_ADD_LAUNCHERS} ${LIBSBML_DEPENDENCY_DIR_FLAG} ${LIBXML_WIN32_FLAG} ../libsbml-src
 
 ${CMAKE_BIN} --build . -j${NCORES}
+if [ $? -ne 0 ]; then
+    echo "Building libsbml failed!"
+    exit 1
+fi
 ${CMAKE_BIN} --install .
 if [ $? -ne 0 ]; then
     echo "Make install failed!"

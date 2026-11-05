@@ -22,7 +22,7 @@
 AC_PREREQ([2.69])
 
 # Process this file with autoconf to produce a configure script
-AC_INIT([r2sbml],[0.1.0])
+AC_INIT([r2sbml],[0.1.1])
 
 # Ensure C++ is set up as R expects
 : ${R_HOME=`R RHOME`}
@@ -65,7 +65,7 @@ if test x"${need_to_build}" != x"no"; then
     if test x"${have_cmake}" = x"no"; then
         . src/scripts/cmake_config.sh
     fi
-    tools/cmake_call.sh
+    tools/cmake_call.sh || AC_MSG_ERROR([Building libsbml failed; see the compiler output above.])
     SBML_ABS_SRC=$(cd src && pwd)
     SBML_INCLUDE="-I${SBML_ABS_SRC}/libsbml-install/include/ ${LIBXML2_CPPFLAGS}"
     SBML_LIBS="-L${SBML_ABS_SRC}/libsbml-install/lib/ -lsbml-static -lxml2 -lbz2"
