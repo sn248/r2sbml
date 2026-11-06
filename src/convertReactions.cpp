@@ -887,27 +887,25 @@ static void warnAssignmentRuleCompartment(Model* model, const std::string& targe
 // *first*, so as soon as the file also declares a number -- which Level 3
 // files routinely do -- that number is used and the rule ignored.  SBML Test
 // Suite case 00971 declares 1 under the rule `Xref = 3`, and X grew a third as
-// fast as it should.  When no number is set, the converter does the right
-// thing for an assignment rule (it writes the id, and creates a parameter of
-// that name for the rule to set) and for an initial assignment (it inlines
-// the expression), but has no case for a rate rule at all.
+// fast as it should.  It has no case for a rate rule at all.
 //
-// So before converting: unset the declared number wherever a rule or initial
-// assignment governs it, and for a rate rule swap in a placeholder assignment
-// rule so the converter takes its by-name path.  The rate rule
-// itself is held aside meanwhile -- the converter validates the model first and
-// rejects two rules for one variable -- and so is any initial assignment on
-// it, which the converter would otherwise inline ahead of the placeholder.
-// After converting: drop the placeholders, put the held rules and initial
-// assignments back, and give the parameter the declared number as its
-// starting value, so integratedRateStates() integrates it like any other and
-// expandInitialAssignments can still apply an initial assignment to it.
+// So nothing here relies on its by-name path.  Before converting, a parameter
+// takes over the id of each reference a rule governs, so the rule -- and any
+// initial assignment, event assignment or math reading the id -- now means the
+// parameter, starting from the declared number.  The reference loses its id
+// and is given a unique number no model would contain, which the converter
+// copies into the rate rule as it would any stoichiometry.  After converting,
+// restoreRuleStoichiometry() swaps each such number for the parameter's name.
+//
+// Relying on that path also failed outright on CRAN's macOS machines, though
+// not on any machine available to test on: the reaction went and the parameter
+// never appeared, leaving the rule naming nothing (20901, 20902, 20801).
+//
+// A reference only an initial assignment sets needs none of this: the converter
+// expands the assignment into the reference's stoichiometry first.
 struct StoichiometryPatch
 {
-   std::vector<std::string>                     placeholders;
-   std::vector<std::pair<std::string, double> > declared;
-   std::vector<Rule*>                           heldRules;
-   std::vector<InitialAssignment*>              held;
+   std::map<double, std::string> names;  // placeholder number, parameter id
 };
 
 static StoichiometryPatch exposeRuleStoichiometry(Model* model)
@@ -927,80 +925,55 @@ static StoichiometryPatch exposeRuleStoichiometry(Model* model)
          // Level 3 Version 2 lets a rule or initial assignment omit its math,
          // and one that does has no effect: the declared number stands (SBML
          // Test Suite cases 01464, 01465, 01552, 01553, 01657).
-         const Rule*              ar0 = model->getAssignmentRule(id);
-         const Rule*              rr0 = model->getRateRule(id);
-         const InitialAssignment* ia0 = model->getInitialAssignment(id);
-         const bool assigned = ar0 != NULL && ar0->isSetMath();
-         const bool rated    = rr0 != NULL && rr0->isSetMath();
-         const bool initial  = ia0 != NULL && ia0->isSetMath();
-         if (!assigned && !rated && !initial) continue;
-
-         patch.declared.push_back(std::make_pair(id, sr->isSetStoichiometry()
-             ? sr->getStoichiometry() : std::numeric_limits<double>::quiet_NaN()));
-         sr->unsetStoichiometry();
-
-         if (rated && !assigned)
+         const Rule*              rule = model->getRule(id);
+         const InitialAssignment* ia   = model->getInitialAssignment(id);
+         if (rule == NULL || !rule->isSetMath())
          {
-           patch.heldRules.push_back(model->removeRuleByVariable(id));
-           if (model->getInitialAssignment(id) != NULL)
-           {
-             patch.held.push_back(model->removeInitialAssignment(id));
-           }
-           // The converter only asks whether an assignment rule exists, so
-           // the formula is never used.  It must not be `id` (circular, and
-           // rejected) and must not be anything a rate law might contain, since
-           // the converter rewrites any subexpression equal to an assignment
-           // rule's formula into that rule's variable; NaN is neither.
-           AssignmentRule* ar = model->createAssignmentRule();
-           ar->setVariable(id);
-           ASTNode placeholder(AST_REAL);
-           placeholder.setValue(std::numeric_limits<double>::quiet_NaN());
-           ar->setMath(&placeholder);
-           patch.placeholders.push_back(id);
+           if (ia != NULL && ia->isSetMath()) sr->unsetStoichiometry();
+           continue;
          }
+
+         const bool declared = sr->isSetStoichiometry();
+         const double value  = sr->getStoichiometry();
+         const double number = 1.234567890123e300 + patch.names.size() * 1e288;
+         sr->unsetId();
+         sr->setConstant(true);
+         sr->setStoichiometry(number);
+         patch.names[number] = id;
+
+         Parameter* p = model->createParameter();
+         p->setId(id);
+         p->setConstant(false);
+         if (declared && !std::isnan(value)) p->setValue(value);
        }
      }
    }
    return patch;
 }
 
-static void restoreRuleStoichiometry(Model* model, StoichiometryPatch& patch)
+static void nameStoichiometry(ASTNode* node, const StoichiometryPatch& patch)
 {
-   for (size_t k = 0; k < patch.placeholders.size(); k++)
+   if (node == NULL) return;
+   if (node->getType() == AST_REAL)
    {
-     for (unsigned int i = model->getNumRules(); i-- > 0; )
+     const std::map<double, std::string>::const_iterator it =
+         patch.names.find(node->getValue());
+     if (it != patch.names.end())
      {
-       const Rule* r = model->getRule(i);
-       if (r->isAssignment() && r->getVariable() == patch.placeholders[k])
-       {
-         delete model->removeRule(i);
-         break;
-       }
+       node->setType(AST_NAME);
+       node->setName(it->second.c_str());
      }
+     return;
    }
-   for (size_t k = 0; k < patch.heldRules.size(); k++)
-   {
-     model->addRule(patch.heldRules[k]);
-     delete patch.heldRules[k];
-   }
-   patch.heldRules.clear();
-   for (size_t k = 0; k < patch.held.size(); k++)
-   {
-     model->addInitialAssignment(patch.held[k]);
-     delete patch.held[k];
-   }
-   patch.held.clear();
+   for (unsigned int i = 0; i < node->getNumChildren(); i++)
+     nameStoichiometry(node->getChild(i), patch);
+}
 
-   // The converter creates the parameter with no value; a rate rule needs one
-   // to start from.  An assignment rule overrides whatever is set here.
-   for (size_t k = 0; k < patch.declared.size(); k++)
-   {
-     Parameter* p = model->getParameter(patch.declared[k].first);
-     if (p != NULL && !p->isSetValue() && !std::isnan(patch.declared[k].second))
-     {
-       p->setValue(patch.declared[k].second);
-     }
-   }
+static void restoreRuleStoichiometry(Model* model, const StoichiometryPatch& patch)
+{
+   if (patch.names.empty()) return;
+   for (unsigned int i = 0; i < model->getNumRules(); i++)
+     nameStoichiometry(const_cast<ASTNode*>(model->getRule(i)->getMath()), patch);
 }
 
 // --- conversion factors -------------------------------------------------------
@@ -1245,7 +1218,7 @@ static void mergeRepeatedReferences(Model* model)
 // one, with the stoichiometry as its value.  An initial assignment to the old
 // id now sets that parameter, and the reference gets one of its own reading
 // it, so the converter inlines the parameter's name.  Rule-set ids need none
-// of this: the converter makes a parameter for those itself.
+// of this: exposeRuleStoichiometry() makes a parameter for those.
 static void exposeReferencedStoichiometry(Model* model)
 {
    for (unsigned int i = 0; i < model->getNumReactions(); i++)
@@ -1779,7 +1752,7 @@ static void solveLinearAlgebraicRules(Model* model)
    exposeReferencedStoichiometry(document->getModel());
    mergeRepeatedReferences(document->getModel());
    const CompartmentPatch compartments = exposeCompartmentSizes(document->getModel());
-   StoichiometryPatch stoichiometry = exposeRuleStoichiometry(document->getModel());
+   const StoichiometryPatch stoichiometry = exposeRuleStoichiometry(document->getModel());
    const std::vector<std::pair<std::string, std::string> > factors =
        reactionConversionFactors(document->getModel());
    ReactionRates rates = referencedReactionRates(document->getModel());

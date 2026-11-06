@@ -7,6 +7,9 @@
 * Fixed undefined behaviour reported by CRAN's sanitizer checks: an out-of-range
   cast when generating 'mrgsolve' and 'ubiquity' code for very large literals,
   and invalid casts in the bundled 'libSBML' sources.
+* `convertReactions()` no longer relies on 'libSBML' to create the parameter
+  for a stoichiometry set by a rule. On CRAN's macOS machines, that parameter
+  was missing and the conversion failed.
 
 # r2sbml 0.1.0
 
