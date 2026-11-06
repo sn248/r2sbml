@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">r2sbml</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,14 +37,21 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.1.0" id="r2sbml-010">r2sbml 0.1.0<a class="anchor" aria-label="anchor" href="#r2sbml-010"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.1.1" id="r2sbml-011">r2sbml 0.1.1<a class="anchor" aria-label="anchor" href="#r2sbml-011"></a></h2>
+<ul><li>Fixed installation with clang 23 and libc++, which failed compiling the bundled ‘libSBML’ sources because they did not include <code>&lt;new&gt;</code>.</li>
+<li>Installation now stops with an error if building ‘libSBML’ fails. It used to continue and fail later, with an unrelated error when loading the package.</li>
+<li>Fixed undefined behaviour reported by CRAN’s sanitizer checks: an out-of-range cast when generating ‘mrgsolve’ and ‘ubiquity’ code for very large literals, and invalid casts in the bundled ‘libSBML’ sources.</li>
+</ul></div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.0" id="r2sbml-010">r2sbml 0.1.0<a class="anchor" aria-label="anchor" href="#r2sbml-010"></a></h2><p class="text-muted">CRAN release: 2026-11-03</p>
 <ul><li>Initial CRAN submission.</li>
 <li>
 <code><a href="../reference/getModel.html">getModel()</a></code> and the query functions list a model’s species, parameters, compartments, reactions, rules, events and function definitions.</li>
 <li>
 <code><a href="../reference/convertReactions.html">convertReactions()</a></code> writes a model as simulation code for ‘deSolve’, ‘mrgsolve’, ‘rxode2’, ‘MATLAB’, ‘Julia’ or ‘ubiquity’. Generated deSolve code is checked against the SBML Test Suite, where 1007 of the 1011 cases in scope pass.</li>
 </ul></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

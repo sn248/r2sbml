@@ -81,13 +81,13 @@ Source:
 [`DESCRIPTION`](https://github.com/sn248/r2sbml/blob/master/DESCRIPTION)
 
 Nayak S (2026). *r2sbml: Read 'SBML' Models and Convert Them to
-Simulation Code*. R package version 0.1.0,
+Simulation Code*. R package version 0.1.1,
 <https://sn248.github.io/r2sbml/>.
 
     @Manual{,
       title = {r2sbml: Read 'SBML' Models and Convert Them to Simulation Code},
       author = {Satyaprakash Nayak},
       year = {2026},
-      note = {R package version 0.1.0},
+      note = {R package version 0.1.1},
       url = {https://sn248.github.io/r2sbml/},
     }
