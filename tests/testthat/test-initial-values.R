@@ -133,9 +133,13 @@ test_that("a rule-set stoichiometry reaches the generated derivative", {
         l <- readLines(out)
         # the declared 1 must not survive as the whole derivative
         expect_false(any(grepl("^\\s*dX_dt = k$", l)), info = nm)
-        # every other target converts too
+        # every other target converts too, and none sees the number that stands
+        # in for the stoichiometry during conversion
+        expect_false(any(grepl("e\\+300", l)), info = nm)
         for (fmt in c("mrgsolve", "nlmixr2", "MATLAB", "Julia", "ubiquity")) {
-            expect_no_warning(convertReactions(sbml, tempfile(), format = fmt))
+            other <- tempfile()
+            expect_no_warning(convertReactions(sbml, other, format = fmt))
+            expect_false(any(grepl("e\\+300", readLines(other))), info = paste(nm, fmt))
         }
     }
 })
