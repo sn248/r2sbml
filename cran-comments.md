@@ -1,10 +1,24 @@
 ## Submission
 
-This update fixes the installation failure on
-r-devel-linux-x86_64-fedora-clang. The bundled 'libSBML' sources use
-`new(nothrow)` without including `<new>`, which libc++ 23 no longer provides
-through other headers. `configure` now adds the include before building, and
-stops with an error if the 'libSBML' build fails.
+This update responds to the check issues on 0.1.0, which CRAN asked to have
+fixed before 2026-11-24. That is why it follows 0.1.0 so closely.
+
+It fixes the installation failure on r-devel-linux-x86_64-fedora-clang and
+clang-ASAN. The bundled 'libSBML' sources use `new(nothrow)` without including
+`<new>`, which libc++ 23 no longer provides through other headers. `configure`
+now adds the include before building, and stops with an error if the 'libSBML'
+build fails.
+
+It also changes the code behind the test failures on the four macOS flavours,
+though I could not reproduce them, so this fix is not confirmed. When a rule
+set a species reference's stoichiometry, `convertReactions()` stopped with
+"Conversion failed": the reaction was removed, but the parameter 'libSBML'
+should have created for that stoichiometry was missing. The same tests passed
+before this change under Apple clang 17 and 21 on GitHub Actions and on M1-SAN,
+so I do not know the root cause. r2sbml now creates the parameter itself instead
+of relying on that 'libSBML' code path.
+TODO before submitting: add the mac-builder result, or say it was unavailable
+(it was failing on 2026-11-06).
 
 It also addresses the additional-check reports from gcc-UBSAN and M1-SAN:
 
@@ -25,13 +39,28 @@ It also addresses the additional-check reports from gcc-UBSAN and M1-SAN:
 
 * Debian testing, R 4.6.1, clang 23.1.6 with libc++ (install and tests)
 * Debian testing, R 4.6.1, GCC 16.2 (install and tests)
-
-TODO before submitting: add the R CMD check --as-cran runs for this version
-(local, GitHub Actions, win-builder, mac-builder).
+* Local Ubuntu 26.04, R 4.6.1, GCC 15.2 (`R CMD check --as-cran`)
+* GitHub Actions (`R CMD check --as-cran`):
+  * Ubuntu 24.04: R-devel (4.7.0), R-release (4.6.2), R-oldrel (4.5.3)
+  * macOS 26 with Apple clang 21, R-release (4.6.2)
+  * macOS 15 with Apple clang 17, R-release (4.6.2)
+  * Windows Server 2022, R-release (4.6.2)
+* TODO before submitting: win-builder, R-devel
+* TODO before submitting: mac-builder, or remove this line if unavailable
 
 ## R CMD check results
 
-TODO before submitting: not yet run for 0.1.1; fill in from the runs above.
+0 errors | 0 warnings | 3 NOTEs, on the local Ubuntu run:
+
+* "Days since last update: 3": see the first paragraph above.
+* "non-portable flag(s): -mno-omit-leaf-frame-pointer": this comes from the
+  CXXFLAGS in Ubuntu's R configuration, not from the package.
+* "Skipping checking HTML validation: no command 'tidy' found": HTML Tidy is
+  not installed on that machine.
+
+The GitHub Actions runs all gave Status: OK.
+
+TODO before submitting: add the win-builder result.
 
 ## Bundled library
 
