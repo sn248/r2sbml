@@ -11,6 +11,10 @@
   out-of-range cast when generating ‘mrgsolve’ and ‘ubiquity’ code for
   very large literals, and invalid casts in the bundled ‘libSBML’
   sources.
+- [`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md)
+  no longer relies on ‘libSBML’ to create the parameter for a
+  stoichiometry set by a rule. On CRAN’s macOS machines, that parameter
+  was missing and the conversion failed.
 
 ## r2sbml 0.1.0
 
