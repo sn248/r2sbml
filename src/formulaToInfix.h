@@ -27,7 +27,6 @@
 
 #include <sstream>
 #include <string>
-#include <cmath>
 #include <cstdlib>
 #include <vector>
 
@@ -479,10 +478,7 @@ doubleLiteral(const LIBSBML_CPP_NAMESPACE_QUALIFIER ASTNode* node)
   if (!node->isNumber() || node->isNaN() || node->isInfinity() || node->isNegInfinity())
     return NULL;
   const double v = node->getValue();
-  // The range test comes first: casting Avogadro's number to long long is
-  // undefined.  A value that large already prints as a double, in e notation.
-  const bool integral = std::fabs(v) < 9e18 && v == static_cast<long long>(v);
-  if (!node->isInteger() && !node->isRational() && !integral)
+  if (!node->isInteger() && !node->isRational() && v != static_cast<long long>(v))
     return NULL;
 
   std::ostringstream text;

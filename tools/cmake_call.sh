@@ -91,37 +91,6 @@ perl -pi -e 's/sprintf\(number, /snprintf(number, sizeof(number), /g' \
 perl -pi -e 's/sprintf\(number, /snprintf(number, sizeof(number), /g' \
     libsbml-src/src/sbml/conversion/SBMLUnitsConverter.cpp
 
-# Undefined behaviour reported by CRAN's sanitizer checks ########################
-
-# ExpressionAnalyser.cpp: (int)(NAN) as the index that goes with a NULL parent.
-# It is never read, since callers test the parent first, but the cast is
-# undefined.
-perl -pi -e 's/\(int\)\(NAN\)/-1/g' \
-    libsbml-src/src/sbml/conversion/ExpressionAnalyser.cpp
-
-# Reaction.cpp: modifiers are not SpeciesReferences; species and id are read
-# through the base class they share.
-perl -pi -e 's/SpeciesReference\* sr = static_cast<SpeciesReference\*>\( (items\.get\(n\)|mModifiers\.get\(n\)) \);/SimpleSpeciesReference* sr = static_cast<SimpleSpeciesReference*>( $1 );/' \
-    libsbml-src/src/sbml/Reaction.cpp
-
-# LocalParameter.cpp: Parameter.cpp defines a struct of the same name, and the
-# linker keeps one, so this cast also runs on plain Parameters.  getId() is
-# virtual in SBase and needs no cast.
-perl -pi -e 's/static_cast <LocalParameter \*> \(sb\)->getId\(\) == mId/sb->getId() == mId/' \
-    libsbml-src/src/sbml/LocalParameter.cpp
-
-# Validator: libsbml applies its SpeciesReference constraints to modifiers by
-# casting between the two sibling classes.  That is undefined and is not fixed
-# here, since it would mean rewriting those constraints; it is declared in
-# cran-comments.md.  Only the sanitizer's vptr check on these sources is turned
-# off: its other checks stay on, as does all of it for the rest of libsbml and
-# for r2sbml.  Drop this if upstream changes the design.
-cat >> libsbml-src/src/CMakeLists.txt <<'EOF'
-
-file(GLOB_RECURSE R2SBML_VALIDATOR_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/sbml/validator/*.cpp")
-set_property(SOURCE ${R2SBML_VALIDATOR_SOURCES} APPEND_STRING PROPERTY COMPILE_FLAGS " -fno-sanitize=vptr")
-EOF
-
 # End of CRAN patches #############################################################
 
 # libsbml uses new(nothrow) throughout but relies on other standard headers to
