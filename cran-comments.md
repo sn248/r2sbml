@@ -45,7 +45,7 @@ It also addresses the additional-check reports from gcc-UBSAN and M1-SAN:
   * macOS 26 with Apple clang 21, R-release (4.6.2)
   * macOS 15 with Apple clang 17, R-release (4.6.2)
   * Windows Server 2022, R-release (4.6.2)
-* TODO before submitting: win-builder, R-devel
+* win-builder, R-devel
 * TODO before submitting: mac-builder, or remove this line if unavailable
 
 ## R CMD check results
@@ -58,9 +58,8 @@ It also addresses the additional-check reports from gcc-UBSAN and M1-SAN:
 * "Skipping checking HTML validation: no command 'tidy' found": HTML Tidy is
   not installed on that machine.
 
-The GitHub Actions runs all gave Status: OK.
-
-TODO before submitting: add the win-builder result.
+The GitHub Actions runs all gave Status: OK. The win-builder R-devel check gave
+one NOTE, the same "Days since last update: 3".
 
 ## Bundled library
 
