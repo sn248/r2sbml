@@ -114,6 +114,13 @@ file(GLOB_RECURSE R2SBML_VALIDATOR_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/sbml/val
 set_property(SOURCE ${R2SBML_VALIDATOR_SOURCES} APPEND_STRING PROPERTY COMPILE_FLAGS " -fno-sanitize=vptr")
 EOF
 
+# CMakeLists.txt: with WITH_ZLIB/WITH_BZIP2 off (see the cmake call below),
+# libsbml prints status messages that begin "Warning: reading/writing
+# compressed SBML".  R CMD check treats any install-log line starting with
+# "Warning:" as a significant warning, so reword them.
+perl -pi -e 's/^Warning: reading\/writing compressed SBML/Note: reading\/writing compressed SBML/' \
+    libsbml-src/CMakeLists.txt
+
 # End of CRAN patches #############################################################
 
 # libsbml uses new(nothrow) throughout but relies on other standard headers to
