@@ -4,6 +4,10 @@
 
 - Fixed installation with clang 23 and libc++, which failed compiling
   the bundled ‘libSBML’ sources because they did not include `<new>`.
+- The bundled ‘libSBML’ is now built without zlib and bzip2 support,
+  which r2sbml does not use. This fixes loading the package on CRAN’s
+  clang sanitizer check (undefined symbol `unzGoToFirstFile`) and drops
+  the libbz2 system requirement.
 - Installation now stops with an error if building ‘libSBML’ fails. It
   used to continue and fail later, with an unrelated error when loading
   the package.

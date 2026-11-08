@@ -39,6 +39,7 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.1" id="r2sbml-011">r2sbml 0.1.1<a class="anchor" aria-label="anchor" href="#r2sbml-011"></a></h2>
 <ul><li>Fixed installation with clang 23 and libc++, which failed compiling the bundled ‘libSBML’ sources because they did not include <code>&lt;new&gt;</code>.</li>
+<li>The bundled ‘libSBML’ is now built without zlib and bzip2 support, which r2sbml does not use. This fixes loading the package on CRAN’s clang sanitizer check (undefined symbol <code>unzGoToFirstFile</code>) and drops the libbz2 system requirement.</li>
 <li>Installation now stops with an error if building ‘libSBML’ fails. It used to continue and fail later, with an unrelated error when loading the package.</li>
 <li>Fixed undefined behaviour reported by CRAN’s sanitizer checks: an out-of-range cast when generating ‘mrgsolve’ and ‘ubiquity’ code for very large literals, and invalid casts in the bundled ‘libSBML’ sources.</li>
 <li>

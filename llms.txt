@@ -16,11 +16,11 @@ exports, it does not edit.
 libSBML is **bundled with the package** and built from source during
 installation, so you do not need to install it yourself and the build
 itself downloads nothing. What you do need is a C++ compiler, CMake, and
-the libxml2 and bzip2 headers.
+the libxml2 headers.
 
 ``` sh
 # Ubuntu / Debian
-sudo apt-get update && sudo apt-get install -y cmake libxml2-dev libbz2-dev
+sudo apt-get update && sudo apt-get install -y cmake libxml2-dev
 
 # macOS
 brew install cmake libxml2
