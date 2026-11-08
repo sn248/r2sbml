@@ -41,7 +41,9 @@ check: `r2sbml.so` could not be loaded because of the undefined symbol
 'libSBML' for reading compressed SBML files, which r2sbml does not use.
 'libSBML' is now built without zlib and bzip2 support, so that code is no
 longer compiled or linked, and libbz2 is no longer a system requirement. I
-could not reproduce the clang-san setup, so this fix is not confirmed there.
+could not run CRAN's clang-san setup itself; R-hub's clang-asan container
+(clang 23.1.6, libc++, ASan and UBSan) installs, loads and checks the package
+with Status: OK and no sanitizer reports.
 
 ## Test environments
 
@@ -53,6 +55,9 @@ could not reproduce the clang-san setup, so this fix is not confirmed there.
   * macOS 26 with Apple clang 21, R-release (4.6.2)
   * macOS 15 with Apple clang 17, R-release (4.6.2)
   * Windows Server 2022, R-release (4.6.2)
+* R-hub clang-asan: clang 23.1.6 with libc++, AddressSanitizer and
+  UndefinedBehaviorSanitizer (`R CMD check --as-cran`, including tests and
+  vignettes)
 * win-builder, R-devel
 * TODO before submitting: mac-builder, or remove this line if unavailable
 
@@ -60,14 +65,15 @@ could not reproduce the clang-san setup, so this fix is not confirmed there.
 
 0 errors | 0 warnings | 3 NOTEs, on the local Ubuntu run:
 
-* "Days since last update: 3": see the first paragraph above.
+* "Days since last update: 5": see the first paragraph above.
 * "non-portable flag(s): -mno-omit-leaf-frame-pointer": this comes from the
   CXXFLAGS in Ubuntu's R configuration, not from the package.
 * "Skipping checking HTML validation: no command 'tidy' found": HTML Tidy is
   not installed on that machine.
 
-The GitHub Actions runs all gave Status: OK. The win-builder R-devel check gave
-one NOTE, the same "Days since last update: 3".
+The GitHub Actions and R-hub clang-asan runs all gave Status: OK. The
+win-builder R-devel check gave one NOTE, the same "Days since last update: 5".
+TODO before submitting: confirm this against the new win-builder run.
 
 ## Bundled library
 
