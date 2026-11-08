@@ -28,7 +28,7 @@ jobs:
       # libSBML is compiled from source during installation, so the site build
       # needs the same toolchain as R-CMD-check.  Expect several minutes.
       - name: Install system dependencies
-        run: sudo apt-get update -y && sudo apt-get install -y cmake libxml2-dev libbz2-dev
+        run: sudo apt-get update -y && sudo apt-get install -y cmake libxml2-dev
 
       - uses: r-lib/actions/setup-pandoc@v2
 

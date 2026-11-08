@@ -39,7 +39,7 @@ Chunks needing deSolve are gated on `has_desolve <- requireNamespace("deSolve", 
 
 ### pkgdown site
 
-`_pkgdown.yml` configures the site; `.github/workflows/pkgdown.yaml` builds it on every push to master/main and deploys `docs/` to the `gh-pages` branch. `docs/` is gitignored and `.Rbuildignore`d — it is a build artefact, rebuilt by CI, never committed. Rebuild locally with `pkgdown::build_site()`, which needs the same cmake/libxml2/libbz2 toolchain as an install.
+`_pkgdown.yml` configures the site; `.github/workflows/pkgdown.yaml` builds it on every push to master/main and deploys `docs/` to the `gh-pages` branch. `docs/` is gitignored and `.Rbuildignore`d — it is a build artefact, rebuilt by CI, never committed. Rebuild locally with `pkgdown::build_site()`, which needs the same cmake/libxml2 toolchain as an install.
 
 The reference index in `_pkgdown.yml` lists functions in explicit groups. **Every exported function must appear in exactly one group** or pkgdown errors on an unindexed topic, so adding an `[[Rcpp::export]]` means adding it there too, after `compileAttributes()` → `document()`.
 

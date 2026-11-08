@@ -42,14 +42,6 @@ fi
 # All patches use 'perl -pi -e' / 'perl -ni -e' (not 'sed -i') for portability
 # across Linux and macOS (which use different -i behaviour).
 
-# crypt.h: srand() and rand() used to seed ZIP encryption header randomness.
-# Replace srand() with a no-op and rand() with a constant.
-perl -pi -e 's/        srand\(\(unsigned\)\(time\(NULL\) \^ ZCR_SEED2\)\);/        \/* CRAN: srand removed *\//g' \
-    libsbml-src/src/sbml/compress/crypt.h
-
-perl -pi -e 's/        c = \(rand\(\) >> 7\) & 0xff;/        c = 0x42; \/* CRAN: rand removed *\//g' \
-    libsbml-src/src/sbml/compress/crypt.h
-
 # L3Parser.cpp: YYFPRINTF is a bison debug macro defined as fprintf.
 # Redefine it as a no-op so the stderr symbol is not referenced.
 perl -pi -e 's|#  define YYFPRINTF fprintf|#  define YYFPRINTF(file, ...) /* CRAN: stderr removed */|g' \
@@ -179,7 +171,7 @@ fi
 #   add -Wstrict-prototypes to CFLAGS, and libsbml declares a handful of
 #   no-argument C functions as `f ()` rather than `f (void)` —
 #   getLibSBML*Version() in common/libsbml-version.h.cmake, util_epsilon() in
-#   util/util.h, and the zlib-derived `OF(())` declarations in compress/zip.c.
+#   util/util.h.
 #   R CMD check counts these as "significant warnings" and fails the run.
 # -Wno-format-truncation/-overflow/-stringop-overflow (GCC): C/C++ both fine,
 #   but unknown on clang → GCC shared flags.
@@ -244,6 +236,9 @@ case "$(uname -s)" in
     ;;
 esac
 
+# WITH_ZLIB/WITH_BZIP2 are off: r2sbml never reads or writes compressed SBML,
+# and the bundled minizip code they pull in left r2sbml.so with an undefined
+# unzGoToFirstFile on CRAN's clang-san check, besides needing -lz/-lbz2.
 mkdir libsbml-build
 cd libsbml-build
 ${CMAKE_BIN} \
@@ -253,8 +248,8 @@ ${CMAKE_BIN} \
     -D CMAKE_INSTALL_PREFIX="${SRC_DIR}/libsbml-install" \
     -D BUILD_TESTING=OFF \
     -D WITH_LIBXML=ON \
-    -D WITH_ZLIB=ON \
-    -D WITH_BZIP2=ON \
+    -D WITH_ZLIB=OFF \
+    -D WITH_BZIP2=OFF \
     -D ENABLE_SPATIAL=OFF \
     -D CMAKE_CXX_STANDARD=17 \
     -D CMAKE_CXX_STANDARD_REQUIRED=OFF \
