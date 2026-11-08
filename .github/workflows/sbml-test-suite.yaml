@@ -38,7 +38,7 @@ jobs:
           sparse-checkout: cases/semantic
 
       - name: Install system dependencies
-        run: sudo apt-get update -y && sudo apt-get install -y cmake libxml2-dev libbz2-dev
+        run: sudo apt-get update -y && sudo apt-get install -y cmake libxml2-dev
 
       - uses: r-lib/actions/setup-r@v2
         with:

@@ -68,7 +68,7 @@ if test x"${need_to_build}" != x"no"; then
     tools/cmake_call.sh || AC_MSG_ERROR([Building libsbml failed; see the compiler output above.])
     SBML_ABS_SRC=$(cd src && pwd)
     SBML_INCLUDE="-I${SBML_ABS_SRC}/libsbml-install/include/ ${LIBXML2_CPPFLAGS}"
-    SBML_LIBS="-L${SBML_ABS_SRC}/libsbml-install/lib/ -lsbml-static -lxml2 -lbz2"
+    SBML_LIBS="-L${SBML_ABS_SRC}/libsbml-install/lib/ -lsbml-static -lxml2"
 fi
 
 # Now substitute these variables in src/Makevars.in to create src/Makevars

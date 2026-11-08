@@ -80,6 +80,6 @@ VignetteBuilder: knitr
 LinkingTo:
     Rcpp
 Biarch: TRUE
-SystemRequirements: cmake, libxml2, libbz2
+SystemRequirements: cmake, libxml2
 Roxygen: list(markdown = TRUE)
 Config/roxygen2/version: 8.1.1

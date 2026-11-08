@@ -35,6 +35,14 @@ It also addresses the additional-check reports from gcc-UBSAN and M1-SAN:
   sanitizer check is disabled, and AddressSanitizer reported no errors from
   the test suite.
 
+The first submission of 0.1.1 failed to install on the clang-san additional
+check: `r2sbml.so` could not be loaded because of the undefined symbol
+`unzGoToFirstFile`. That symbol comes from the minizip code bundled in
+'libSBML' for reading compressed SBML files, which r2sbml does not use.
+'libSBML' is now built without zlib and bzip2 support, so that code is no
+longer compiled or linked, and libbz2 is no longer a system requirement. I
+could not reproduce the clang-san setup, so this fix is not confirmed there.
+
 ## Test environments
 
 * Debian testing, R 4.6.1, clang 23.1.6 with libc++ (install and tests)
@@ -68,8 +76,8 @@ The package bundles the source of 'libSBML' 5.21.0 (LGPL 2.1) as
 bindings, documentation, tests and unused SBML Level 3 packages removed; the
 files kept are unchanged upstream sources. `configure` builds it as a static
 library with cmake, so installing needs no network access. Before building, it
-patches the 'libSBML' sources to remove `rand`/`srand`, writes to
-stdout/stderr and `sprintf`, as Writing R Extensions requires, and to include
+patches the 'libSBML' sources to remove writes to stdout/stderr and
+`sprintf`, as Writing R Extensions requires, and to include
 `<new>` where `nothrow` is used and to fix the casts listed above. Its authors and
 copyright holders are listed in `Authors@R` and in `inst/COPYRIGHTS`.
 

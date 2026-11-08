@@ -34,7 +34,7 @@ jobs:
 
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update -y && sudo apt-get install -y cmake libxml2-dev libbz2-dev
+        run: sudo apt-get update -y && sudo apt-get install -y cmake libxml2-dev
 
       - name: Install system dependencies (macOS)
         if: runner.os == 'macOS'
