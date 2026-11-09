@@ -61,7 +61,7 @@ fi
 ## escaped so the heredoc writes them literally into the makefile.
 cat > src/Makevars.win << EOF
 PKG_CPPFLAGS= -I${SRC_ABS_DIR}/libsbml-install/include/ ${LIBXML2_CPPFLAGS}
-PKG_LIBS= -L${SRC_ABS_DIR}/libsbml-install/lib/ -lsbml-static ${RTOOLS_LIBFLAG} -lxml2 -lz -llzma -liconv -lws2_32
+PKG_LIBS= ${SRC_ABS_DIR}/libsbml-install/lib/libsbml-static.a ${RTOOLS_LIBFLAG} -lxml2 -lz -llzma -liconv -lws2_32
 
 all: \$(SHLIB) strippedLib
 

@@ -86,7 +86,9 @@ This is the part most likely to surprise you. `configure.ac` unconditionally set
 4. normalizes CRLF and missing trailing newlines in the installed headers,
 5. deletes `libsbml-src`/`libsbml-build` via an `EXIT` trap so `R CMD check` never sees them.
 
-Consequences: the perl patches match **exact source lines of libsbml 5.21.0**, so a version bump is a three-part change — regenerate the archive with `tools/strip_libsbml_tarball.sh <version>`, move it to `src/`, and update `LIBSBML_VERSION` in `src/scripts/libsbml_download.sh` — and then re-check every patch, because one that no longer matches fails silently and reintroduces CRAN check failures. `configure` is generated from `configure.ac` by autoconf; edit the `.ac`. `src/Makevars` is generated from `src/Makevars.in` and contains absolute paths, so it is machine-specific and not committed.
+Consequences: the perl patches match **exact source lines of libsbml 5.21.0**, so a version bump is a three-part change — regenerate the archive with `tools/strip_libsbml_tarball.sh <version>`, move it to `src/`, and update `LIBSBML_VERSION` in `src/scripts/libsbml_download.sh` — and then re-check every patch, because one that no longer matches fails silently and reintroduces CRAN check failures. `configure` is generated from `configure.ac` by autoconf; edit the `.ac`.
+
+The archive is linked **by full path**, never `-L… -lsbml-static`. R puts `FLIBS` ahead of `PKG_LIBS`, and on CRAN's clang-san machine `FLIBS` carries `-L/usr/lib/x86_64-linux-gnu`, where Debian's `libsbml5-dev` installs its own `libsbml-static.a`. So `-l` silently linked that one (a different version, built against an external minizip), and the package failed to load with an undefined `unzGoToFirstFile`. Turning zlib off in our build could not fix that, because our archive was never the one being linked. `src/Makevars` is generated from `src/Makevars.in` and contains absolute paths, so it is machine-specific and not committed.
 
 ### The bundled libsbml archive
 
