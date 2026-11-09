@@ -16,9 +16,8 @@ set a species reference's stoichiometry, `convertReactions()` stopped with
 should have created for that stoichiometry was missing. The same tests passed
 before this change under Apple clang 17 and 21 on GitHub Actions and on M1-SAN,
 so I do not know the root cause. r2sbml now creates the parameter itself instead
-of relying on that 'libSBML' code path.
-TODO before submitting: add the mac-builder result, or say it was unavailable
-(it was failing on 2026-11-06).
+of relying on that 'libSBML' code path. I could not check it on mac-builder,
+which was failing when I tried it on 2026-11-06.
 
 It also addresses the additional-check reports from gcc-UBSAN and M1-SAN:
 
@@ -59,21 +58,19 @@ with Status: OK and no sanitizer reports.
   UndefinedBehaviorSanitizer (`R CMD check --as-cran`, including tests and
   vignettes)
 * win-builder, R-devel
-* TODO before submitting: mac-builder, or remove this line if unavailable
 
 ## R CMD check results
 
 0 errors | 0 warnings | 3 NOTEs, on the local Ubuntu run:
 
-* "Days since last update: 5": see the first paragraph above.
+* "Days since last update: 6": see the first paragraph above.
 * "non-portable flag(s): -mno-omit-leaf-frame-pointer": this comes from the
   CXXFLAGS in Ubuntu's R configuration, not from the package.
 * "Skipping checking HTML validation: no command 'tidy' found": HTML Tidy is
   not installed on that machine.
 
 The GitHub Actions and R-hub clang-asan runs all gave Status: OK. The
-win-builder R-devel check gave one NOTE, the same "Days since last update: 5".
-TODO before submitting: confirm this against the new win-builder run.
+win-builder R-devel check gave one NOTE, the same "Days since last update: 6".
 
 ## Bundled library
 
