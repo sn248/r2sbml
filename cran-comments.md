@@ -34,15 +34,15 @@ It also addresses the additional-check reports from gcc-UBSAN and M1-SAN:
   sanitizer check is disabled, and AddressSanitizer reported no errors from
   the test suite.
 
-The first submission of 0.1.1 failed to install on the clang-san additional
-check: `r2sbml.so` could not be loaded because of the undefined symbol
-`unzGoToFirstFile`. That symbol comes from the minizip code bundled in
-'libSBML' for reading compressed SBML files, which r2sbml does not use.
-'libSBML' is now built without zlib and bzip2 support, so that code is no
-longer compiled or linked, and libbz2 is no longer a system requirement. I
-could not run CRAN's clang-san setup itself; R-hub's clang-asan container
-(clang 23.1.6, libc++, ASan and UBSan) installs, loads and checks the package
-with Status: OK and no sanitizer reports.
+The first two submissions of 0.1.1 failed to install on the clang-san
+additional check: `r2sbml.so` could not be loaded because of the undefined
+symbol `unzGoToFirstFile`. The package was linking the wrong 'libSBML'. It
+built its own copy but linked it with `-L<dir> -lsbml-static`, and on that
+machine R's `FLIBS` puts `-L/usr/lib/x86_64-linux-gnu` ahead of `PKG_LIBS`.
+So the linker found Debian's `libsbml5-dev` archive first: a different
+'libSBML' version, built against an external minizip. The bundled archive is
+now linked by its full path, so no system copy can be picked up. 'libSBML' is
+also built without zlib and bzip2 support, which r2sbml does not use.
 
 ## Test environments
 
