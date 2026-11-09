@@ -33,6 +33,7 @@ config.status
 configure~
 GEMINI.md
 .positai
+.posit/
 .claude/
 
 # pkgdown site, built by CI and deployed to gh-pages
