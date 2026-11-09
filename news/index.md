@@ -4,10 +4,14 @@
 
 - Fixed installation with clang 23 and libc++, which failed compiling
   the bundled ‘libSBML’ sources because they did not include `<new>`.
+- The package now links its bundled ‘libSBML’ by path. It used to be
+  linked with `-lsbml-static`, which picked up a system ‘libSBML’
+  installed by Linux distributions whenever R’s own library flags put
+  the system directory first. This made the package fail to load on
+  CRAN’s clang sanitizer check (undefined symbol `unzGoToFirstFile`).
 - The bundled ‘libSBML’ is now built without zlib and bzip2 support,
-  which r2sbml does not use. This fixes loading the package on CRAN’s
-  clang sanitizer check (undefined symbol `unzGoToFirstFile`) and drops
-  the libbz2 system requirement.
+  which r2sbml does not use, so libbz2 is no longer a system
+  requirement.
 - Installation now stops with an error if building ‘libSBML’ fails. It
   used to continue and fail later, with an unrelated error when loading
   the package.
