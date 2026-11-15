@@ -19,8 +19,8 @@ static void finalizeModel(Model* model) {
 //'Read an SBML model
 //'
 //'Reads an SBML file and keeps the parsed document alive for the other
-//'query functions. A file with error- or fatal-severity diagnostics is an
-//'error; lesser diagnostics are raised as warnings.
+//'query functions. A file with error- or fatal-severity diagnostics, or with
+//'no model in it, is an error; lesser diagnostics are raised as warnings.
 //'@param filename input file name, should end with .xml
 //'@return an external pointer to the model, to pass to the other functions
 //'@examples
@@ -75,11 +75,15 @@ SEXP getModel (SEXP filename) {
               << "File: " << fname
               << " (Level " << level << ", version " << version << ")" << endl;
 
-  // A document with no <model> yields a NULL pointer, as it always has, which
-  // the query functions refuse; the document is freed on return.  Otherwise
-  // the external pointer owns the document, through the Model.
+  // SBML Level 3 makes <model> optional, so a valid document can hold none.
+  // Refuse it here: a NULL pointer would only fail later, in whichever query
+  // function came first, with Rcpp's bare "external pointer is not valid".
   Model* model = document->getModel();
-  if (model != NULL) document.release();
+  if (model == NULL)
+    Rcpp::stop("Cannot read '" + fname + "': the file contains no model.");
+
+  // From here the external pointer owns the document, through the Model.
+  document.release();
   return Rcpp::XPtr<Model, Rcpp::PreserveStorage, finalizeModel, true>(model, true);
 
 }

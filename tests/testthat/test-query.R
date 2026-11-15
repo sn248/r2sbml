@@ -148,12 +148,12 @@ test_that("a model pointer frees its document, and only once", {
     rm(keep)
     expect_no_error(gc())
 
-    # a document with no <model> still reads, and frees its document; the
-    # NULL pointer it returns is refused by the query functions (by Rcpp's
-    # "external pointer is not valid", before their own check can run)
+    # a document with no <model> is valid Level 3, but there is nothing to
+    # query: refused at read time, naming the file, not later by Rcpp's bare
+    # "external pointer is not valid"
     empty <- tempfile(fileext = ".xml")
     writeLines('<?xml version="1.0" encoding="UTF-8" ?>
 <sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2"/>',
                empty)
-    expect_error(getNumSpecies(getModel(empty)))
+    expect_error(getModel(empty), "contains no model")
 })
