@@ -126,8 +126,8 @@ getEventMath <- function(input_model) {
 #'Read an SBML model
 #'
 #'Reads an SBML file and keeps the parsed document alive for the other
-#'query functions. A file with error- or fatal-severity diagnostics is an
-#'error; lesser diagnostics are raised as warnings.
+#'query functions. A file with error- or fatal-severity diagnostics, or with
+#'no model in it, is an error; lesser diagnostics are raised as warnings.
 #'@param filename input file name, should end with .xml
 #'@return an external pointer to the model, to pass to the other functions
 #'@examples
