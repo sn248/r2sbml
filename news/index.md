@@ -2,6 +2,8 @@
 
 ## r2sbml 0.1.1
 
+CRAN release: 2026-11-10
+
 - Fixed installation with clang 23 and libc++, which failed compiling
   the bundled ‘libSBML’ sources because they did not include `<new>`.
 - The package now links its bundled ‘libSBML’ by path. It used to be

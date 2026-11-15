@@ -13,10 +13,24 @@ exports, it does not edit.
 
 ## Installation
 
-libSBML is **bundled with the package** and built from source during
-installation, so you do not need to install it yourself and the build
-itself downloads nothing. What you do need is a C++ compiler, CMake, and
-the libxml2 headers.
+Install the released version from
+[CRAN](https://CRAN.R-project.org/package=r2sbml):
+
+``` r
+
+install.packages("r2sbml")
+```
+
+On Windows and macOS this installs a prebuilt binary, and the vignettes
+come with it.
+
+### Installing from source
+
+On Linux, or when installing the development version, the package is
+built from source. libSBML is **bundled with the package** and compiled
+during installation, so you do not need to install it yourself and the
+build itself downloads nothing. What you do need is a C++ compiler,
+CMake, and the libxml2 headers.
 
 ``` sh
 # Ubuntu / Debian
@@ -29,21 +43,17 @@ brew install cmake libxml2
 On Windows everything required comes with Rtools; there are no extra
 steps.
 
-Then, from R:
+The first build takes several minutes, because libSBML is compiled from
+source.
+
+The development version is on GitHub:
 
 ``` r
 
 # install.packages("remotes")
 remotes::install_github("sn248/r2sbml")
-```
 
-The first build takes several minutes, because libSBML is compiled from
-source.
-
-To install with the vignettes built:
-
-``` r
-
+# with the vignettes built
 remotes::install_github("sn248/r2sbml", build_vignettes = TRUE)
 ```
 
