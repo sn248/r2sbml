@@ -1,5 +1,17 @@
 # Changelog
 
+## r2sbml (development version)
+
+- Fixed a memory leak in
+  [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md).
+  When R collected a model, the pointer freed the model but leaked the
+  SBML document that owns it. It now frees the document, and the model
+  with it.
+- [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md)
+  now refuses a file that contains no model, with an error naming the
+  file. It used to return a pointer that the query functions then
+  rejected with the unhelpful error “external pointer is not valid”.
+
 ## r2sbml 0.1.1
 
 CRAN release: 2026-11-10

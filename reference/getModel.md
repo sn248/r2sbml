@@ -1,8 +1,9 @@
 # Read an SBML model
 
 Reads an SBML file and keeps the parsed document alive for the other
-query functions. A file with error- or fatal-severity diagnostics is an
-error; lesser diagnostics are raised as warnings.
+query functions. A file with error- or fatal-severity diagnostics, or
+with no model in it, is an error; lesser diagnostics are raised as
+warnings.
 
 ## Usage
 
