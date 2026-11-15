@@ -1,11 +1,20 @@
 #include <Rcpp.h>
 #include <iostream>
+#include <memory>
 #include <sbml/SBMLTypes.h>
 
 using namespace std;
 using namespace Rcpp;
 
 LIBSBML_CPP_NAMESPACE_USE
+
+// The Model belongs to its SBMLDocument, so the pointer handed to R must free
+// the document -- which frees the Model with it -- and never the Model alone.
+// Deleting the Model directly, as the default XPtr finalizer does, left the
+// document leaked and holding a dangling pointer to its own model.
+static void finalizeModel(Model* model) {
+  if (model) delete model->getSBMLDocument();
+}
 
 //'Read an SBML model
 //'
@@ -22,7 +31,8 @@ SEXP getModel (SEXP filename) {
 
   std::string fname = Rcpp::as<std::string>(filename);
   SBMLReader reader;
-  SBMLDocument* document = reader.readSBMLFromFile(fname);
+  // Owned here until R takes it over, so every Rcpp::stop() below frees it.
+  std::unique_ptr<SBMLDocument> document(reader.readSBMLFromFile(fname));
 
   // Only error- and fatal-severity diagnostics are worth refusing the file
   // over; libSBML also reports warnings and informational notes, and counting
@@ -65,11 +75,11 @@ SEXP getModel (SEXP filename) {
               << "File: " << fname
               << " (Level " << level << ", version " << version << ")" << endl;
 
+  // A document with no <model> yields a NULL pointer, as it always has, which
+  // the query functions refuse; the document is freed on return.  Otherwise
+  // the external pointer owns the document, through the Model.
   Model* model = document->getModel();
-
-  // convert to XPtr which is an external pointer in R
-  Rcpp::XPtr<Model> model_extptr(model, true);
-
-  return model_extptr;
+  if (model != NULL) document.release();
+  return Rcpp::XPtr<Model, Rcpp::PreserveStorage, finalizeModel, true>(model, true);
 
 }

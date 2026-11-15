@@ -135,3 +135,25 @@ test_that("getModel and convertReactions agree on which files are readable", {
                              error = function(e) e), "ok")
     expect_invisible(convertReactions(good, tempfile(), format = "R"))
 })
+
+test_that("a model pointer frees its document, and only once", {
+    # The finalizer used to delete the Model, which the SBMLDocument owns,
+    # leaking the document.  Now it deletes the document.  Collecting many
+    # pointers must neither crash nor disturb a model that is still in use.
+    keep <- getModel(example_file("sbmlsimple.xml"))
+    for (i in 1:50) invisible(capture.output(getModel(example_file("sbmlsimple.xml"))))
+    invisible(gc())
+    expect_equal(getNumSpecies(keep), 4L)
+    expect_equal(nrow(getSpeciesTable(keep)), 4L)
+    rm(keep)
+    expect_no_error(gc())
+
+    # a document with no <model> still reads, and frees its document; the
+    # NULL pointer it returns is refused by the query functions (by Rcpp's
+    # "external pointer is not valid", before their own check can run)
+    empty <- tempfile(fileext = ".xml")
+    writeLines('<?xml version="1.0" encoding="UTF-8" ?>
+<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2"/>',
+               empty)
+    expect_error(getNumSpecies(getModel(empty)))
+})

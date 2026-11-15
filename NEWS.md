@@ -1,3 +1,9 @@
+# r2sbml (development version)
+
+* Fixed a memory leak in `getModel()`. When R collected a model, the pointer
+  freed the model but leaked the SBML document that owns it. It now frees the
+  document, and the model with it.
+
 # r2sbml 0.1.1
 
 * Fixed installation with clang 23 and libc++, which failed compiling the
