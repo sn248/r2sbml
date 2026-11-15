@@ -40,6 +40,23 @@
 
 <p>Known gaps and follow-up work. Each item notes how it was found, so it can be confirmed before being acted on.</p>
 <div class="section level2">
+<h2 id="editing-models-from-r">Editing models from R<a class="anchor" aria-label="anchor" href="#editing-models-from-r"></a></h2>
+<p>Scoped 2026-11-15 by prototyping against the bundled libSBML (setting a parameter, writing the file and reading it back). The prerequisite is done: the <code><a href="reference/getModel.html">getModel()</a></code> pointer now owns and frees its <code>SBMLDocument</code> (#15), which <code>writeModel()</code> needs. Plain <code>[[Rcpp::export]]</code> functions over the existing <code>XPtr&lt;Model&gt;</code>, not Rcpp modules: wrapping libSBML’s own classes in modules would let R’s garbage collector free objects the document owns, and a single facade class adds nothing over functions while being harder to document.</p>
+<p>First release (0.2.0):</p>
+<ul><li>
+<code>setParameterValue(model, id, value)</code>, <code>setSpeciesInitialValue()</code> (amount or concentration, whichever is meant) and <code>setCompartmentSize()</code>. Each errors on an unknown id, and warns when the value it sets has no effect because an initial assignment or rule sets it instead.</li>
+<li>
+<code>writeModel(model, file)</code>, which runs <code>checkConsistency()</code> and refuses to write a model that is no longer valid SBML. libSBML rewrites the whole file in its own layout (indentation, attribute order), so a diff against the original shows more than the edit; document that.</li>
+<li>
+<code>copyModel(model)</code> through <code>SBMLDocument::clone()</code>. Edits are in place and shared by every R variable that holds the pointer, unlike ordinary R objects; document that too.</li>
+<li>
+<code><a href="reference/convertReactions.html">convertReactions()</a></code> on an edited model. It reads its own file and its converters modify the document in place, so a model-pointer version must clone first. Simplest first step: write to <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile()</a></code> and convert that.</li>
+<li>Tests, a <code>_pkgdown.yml</code> reference group, and rewording “Models are read, not modified” in <code>DESCRIPTION</code>, the README and <code>vignettes/limitations.Rmd</code>.</li>
+</ul><p>Later:</p>
+<ul><li>Adding and removing components (parameters, species, reactions, rules). Removal needs a check that no other math still references the id; adding rules or kinetic laws means parsing math from a string with <code>SBML_parseL3Formula()</code>.</li>
+<li>The <code>"No model present."</code> checks in the query functions are unreachable: <code><a href="reference/getModel.html">getModel()</a></code> now refuses a file with no model, and Rcpp rejects a NULL pointer before the checks run. Remove them or leave them as a guard.</li>
+</ul></div>
+<div class="section level2">
 <h2 id="unsupported-sbml-constructs">Unsupported SBML constructs<a class="anchor" aria-label="anchor" href="#unsupported-sbml-constructs"></a></h2>
 <div class="section level3">
 <h3 id="algebraic-rules-that-are-coupled-or-nonlinear">Algebraic rules that are coupled or nonlinear<a class="anchor" aria-label="anchor" href="#algebraic-rules-that-are-coupled-or-nonlinear"></a></h3>

@@ -3,6 +3,54 @@
 Known gaps and follow-up work. Each item notes how it was found, so it
 can be confirmed before being acted on.
 
+## Editing models from R
+
+Scoped 2026-11-15 by prototyping against the bundled libSBML (setting a
+parameter, writing the file and reading it back). The prerequisite is
+done: the
+[`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md)
+pointer now owns and frees its `SBMLDocument` (#15), which
+`writeModel()` needs. Plain `[[Rcpp::export]]` functions over the
+existing `XPtr<Model>`, not Rcpp modules: wrapping libSBML’s own classes
+in modules would let R’s garbage collector free objects the document
+owns, and a single facade class adds nothing over functions while being
+harder to document.
+
+First release (0.2.0):
+
+- `setParameterValue(model, id, value)`, `setSpeciesInitialValue()`
+  (amount or concentration, whichever is meant) and
+  `setCompartmentSize()`. Each errors on an unknown id, and warns when
+  the value it sets has no effect because an initial assignment or rule
+  sets it instead.
+- `writeModel(model, file)`, which runs `checkConsistency()` and refuses
+  to write a model that is no longer valid SBML. libSBML rewrites the
+  whole file in its own layout (indentation, attribute order), so a diff
+  against the original shows more than the edit; document that.
+- `copyModel(model)` through `SBMLDocument::clone()`. Edits are in place
+  and shared by every R variable that holds the pointer, unlike ordinary
+  R objects; document that too.
+- [`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md)
+  on an edited model. It reads its own file and its converters modify
+  the document in place, so a model-pointer version must clone first.
+  Simplest first step: write to
+  [`tempfile()`](https://rdrr.io/r/base/tempfile.html) and convert that.
+- Tests, a `_pkgdown.yml` reference group, and rewording “Models are
+  read, not modified” in `DESCRIPTION`, the README and
+  `vignettes/limitations.Rmd`.
+
+Later:
+
+- Adding and removing components (parameters, species, reactions,
+  rules). Removal needs a check that no other math still references the
+  id; adding rules or kinetic laws means parsing math from a string with
+  `SBML_parseL3Formula()`.
+- The `"No model present."` checks in the query functions are
+  unreachable:
+  [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md)
+  now refuses a file with no model, and Rcpp rejects a NULL pointer
+  before the checks run. Remove them or leave them as a guard.
+
 ## Unsupported SBML constructs
 
 ### Algebraic rules that are coupled or nonlinear
