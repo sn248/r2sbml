@@ -11,6 +11,16 @@
   now refuses a file that contains no model, with an error naming the
   file. It used to return a pointer that the query functions then
   rejected with the unhelpful error “external pointer is not valid”.
+- The package now builds for WebAssembly, so it runs in webR (R in the
+  browser). Building with webR’s `rwasm` used to fail configuring the
+  bundled ‘libSBML’, because cmake searched the build machine for
+  libxml2 and zlib. When the compiler is `emcc`, the build now passes
+  cmake emscripten’s toolchain file and the WebAssembly libxml2 and
+  zlib.
+- Installation no longer fails when
+  [`parallel::detectCores()`](https://rdrr.io/r/parallel/detectCores.html)
+  cannot count the physical cores and returns `NA`, as it did under
+  `rwasm`. ‘libSBML’ then builds on two cores.
 
 ## r2sbml 0.1.1
 
