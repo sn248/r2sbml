@@ -2,7 +2,11 @@
 
 : ${R_HOME=$(R RHOME)}
 RSCRIPT_BIN=${R_HOME}/bin/Rscript
-NCORES=`${RSCRIPT_BIN} -e "cat(min(2, parallel::detectCores(logical = FALSE)))"`
+NCORES=`${RSCRIPT_BIN} -e "cat(min(2, parallel::detectCores(logical = FALSE)))" 2>/dev/null`
+# detectCores() can return NA (e.g. under emconfigure); fall back to 2.
+case "${NCORES}" in
+  ''|*[!0-9]*) NCORES=2 ;;
+esac
 
 cd src
 SRC_DIR=$(pwd)
@@ -166,6 +170,45 @@ else
   CMAKE_ADD_RANLIB=""
 fi
 
+# WebAssembly, for webR: rwasm builds packages with CC=emcc.  Called as plain
+# cmake, libsbml's configure searches the build machine for libraries, and
+# fails in FindLIBXML.cmake, which probes for zlib even with WITH_ZLIB=OFF.
+# So hand cmake emscripten's toolchain file, and name the wasm libxml2 and
+# zlib explicitly:
+#   - libxml2 comes from webR's library tree.  Find it among the -I
+#     directories R passes in CFLAGS (/opt/webr/wasm/include in the webR
+#     Docker image), or set WASM_PREFIX.
+#   - zlib is emscripten's own port, in its sysroot.
+#   - LIBXML_LIBXML_TEST2 skips libsbml's test of whether libxml2 needs
+#     LIBXML_STATIC, as on Windows above; it does not, being a static archive.
+CMAKE_ADD_CROSS=""
+case "${CC}" in
+  *emcc*)
+    if test -z "${WASM_PREFIX}"; then
+      for inc in $(echo " ${CFLAGS} " | tr ' ' '\n' | sed -n 's/^-I//p'); do
+        if test -f "${inc}/libxml2/libxml/parser.h"; then
+          WASM_PREFIX=`dirname "${inc}"`
+          break
+        fi
+      done
+    fi
+    WASM_PREFIX=${WASM_PREFIX:-/opt/webr/wasm}
+    EM_DIR=$(dirname "$(command -v emcc)")
+    EM_SYSROOT=$(em-config CACHE 2>/dev/null)/sysroot
+    if test ! -d "${EM_SYSROOT}"; then
+      EM_SYSROOT="${EM_DIR}/cache/sysroot"
+    fi
+    CMAKE_ADD_CROSS="-D CMAKE_TOOLCHAIN_FILE=${EM_DIR}/cmake/Modules/Platform/Emscripten.cmake"
+    CMAKE_ADD_CROSS="${CMAKE_ADD_CROSS} -D LIBXML_INCLUDE_DIR=${WASM_PREFIX}/include/libxml2"
+    CMAKE_ADD_CROSS="${CMAKE_ADD_CROSS} -D LIBXML_LIBRARY=${WASM_PREFIX}/lib/libxml2.a"
+    CMAKE_ADD_CROSS="${CMAKE_ADD_CROSS} -D ZLIB_INCLUDE_DIR=${EM_SYSROOT}/include"
+    CMAKE_ADD_CROSS="${CMAKE_ADD_CROSS} -D ZLIB_LIBRARY=${EM_SYSROOT}/lib/wasm32-emscripten/libz.a"
+    CMAKE_ADD_CROSS="${CMAKE_ADD_CROSS} -D LIBXML_LIBXML_TEST2:BOOL=TRUE"
+    echo "Cross-compiling libsbml for WebAssembly:"
+    echo "  ${CMAKE_ADD_CROSS}"
+    ;;
+esac
+
 # Detect compiler type and set appropriate warning suppression flags.
 # Split into:
 #   EXTRA_C_WARN_FLAGS   – flags valid for C only (not C++)
@@ -262,7 +305,7 @@ ${CMAKE_BIN} \
     -D CMAKE_CXX_STANDARD_REQUIRED=OFF \
     -D CMAKE_C_FLAGS="${SBML_CFLAGS} ${EXTRA_C_WARN_FLAGS} -std=gnu17" \
     -D CMAKE_CXX_FLAGS="${SBML_CXXFLAGS} ${EXTRA_CXX_WARN_FLAGS}" \
-    ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ${CMAKE_ADD_LAUNCHERS} ${LIBSBML_DEPENDENCY_DIR_FLAG} ${LIBXML_WIN32_FLAG} ../libsbml-src
+    ${CMAKE_ADD_AR} ${CMAKE_ADD_RANLIB} ${CMAKE_ADD_LAUNCHERS} ${LIBSBML_DEPENDENCY_DIR_FLAG} ${LIBXML_WIN32_FLAG} ${CMAKE_ADD_CROSS} ../libsbml-src
 
 ${CMAKE_BIN} --build . -j${NCORES}
 if [ $? -ne 0 ]; then
