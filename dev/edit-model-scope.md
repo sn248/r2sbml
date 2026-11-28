@@ -124,6 +124,16 @@ a temp file → `convertReactions(tempfile, …)`. That works and is minimal. A
 round-trip but is a separate, larger change (all six writers reach for the
 filename/document today).
 
+## Phase 2 decisions (2026-11-27)
+
+- A reaction without a kinetic law gets one (`createKineticLaw()`).
+- Local parameters are kept and stay in scope for the new formula; unused ones
+  are valid SBML, so they are not removed.
+- Names are resolved in `setRateLaw()` itself, not left to `writeSBML()`: an
+  unresolved name or function is an error and the model is not changed. Only
+  the reaction's own local parameters count, not another reaction's.
+- Unit diagnostics are left to `writeSBML()`, which warns and still writes.
+
 ## Phasing
 
 1. `writeSBML` + scalar setters (`setParameterValue`, `setCompartmentSize`,

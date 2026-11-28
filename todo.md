@@ -19,11 +19,16 @@ concentration), `copyModel()` and `writeSBML()`, with tests in
 `test-edit.R`. `convertReactions()` takes a model pointer and converts a
 clone (0a5172a). The design record is `dev/edit-model-scope.md`.
 
-Next, in order (phases 2 and 3 of the scope note):
+Phase 2 is done: `setRateLaw(model, id, formula)` parses with
+`SBML_parseL3FormulaWithModel()`, refuses a formula naming an id the reaction
+cannot see (leaving the model unchanged), creates a kinetic law when the
+reaction has none, and keeps the reaction's local parameters.
 
-- `setRateLaw(model, id, formula)`: parse with `SBML_parseL3FormulaWithModel()`
-  into the reaction's `KineticLaw`.
+Next (phase 3 of the scope note):
+
 - `removeReaction()`, or a lighter `setReactionActive(model, id, FALSE)`.
+- Optionally, a `setRateLaw()` option to drop local parameters the new formula
+  no longer uses; for now they stay, which is valid SBML.
 
 Later:
 
