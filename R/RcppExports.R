@@ -35,7 +35,12 @@ getCmtSizes <- function(input_model) {
 #'
 #'Writes the model's mass balances, rules and parameters as code for the
 #'chosen simulation tool, ready to simulate.
-#'@param infile input file name
+#'
+#'The first argument is either the path to an SBML file or a model already
+#'read with `getModel()`. Passing a loaded model converts a copy of it, so the
+#'model you keep in R is left unchanged -- an edited model can be converted
+#'directly, with no round-trip through a temporary file.
+#'@param infile input SBML file name, or a model from `getModel()`
 #'@param outfile output file name
 #'@param format output code format, one of 'R'/'deSolve' (default), 'mrgsolve',
 #' 'nlmixr2' (or 'rxode2'), 'MATLAB', 'Julia' or 'ubiquity'.  An unrecognised format is an error.
@@ -53,6 +58,9 @@ getCmtSizes <- function(input_model) {
 #'convertReactions(sbml_file, out_file_jl, format = "Julia")
 #'out_file_ub <- tempfile(fileext = ".txt")
 #'convertReactions(sbml_file, out_file_ub, format = "ubiquity")
+#'model <- getModel(sbml_file)
+#'out_file_model <- tempfile(fileext = ".R")
+#'convertReactions(model, out_file_model, format = "R")
 #'@return NULL invisibly
 convertReactions <- function(infile, outfile, format = "R") {
     invisible(.Call(`_r2sbml_convertReactions`, infile, outfile, format))

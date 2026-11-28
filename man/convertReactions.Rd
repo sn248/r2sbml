@@ -7,7 +7,7 @@
 convertReactions(infile, outfile, format = "R")
 }
 \arguments{
-\item{infile}{input file name}
+\item{infile}{input SBML file name, or a model from \code{getModel()}}
 
 \item{outfile}{output file name}
 
@@ -20,6 +20,12 @@ NULL invisibly
 \description{
 Writes the model's mass balances, rules and parameters as code for the
 chosen simulation tool, ready to simulate.
+}
+\details{
+The first argument is either the path to an SBML file or a model already
+read with \code{getModel()}. Passing a loaded model converts a copy of it, so the
+model you keep in R is left unchanged -- an edited model can be converted
+directly, with no round-trip through a temporary file.
 }
 \examples{
 sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
@@ -35,4 +41,7 @@ out_file_jl <- tempfile(fileext = ".jl")
 convertReactions(sbml_file, out_file_jl, format = "Julia")
 out_file_ub <- tempfile(fileext = ".txt")
 convertReactions(sbml_file, out_file_ub, format = "ubiquity")
+model <- getModel(sbml_file)
+out_file_model <- tempfile(fileext = ".R")
+convertReactions(model, out_file_model, format = "R")
 }

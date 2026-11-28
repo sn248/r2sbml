@@ -52,6 +52,7 @@
 #include <limits>
 #include <map>
 #include <set>
+#include <memory>
 #include <chrono>
 #include <ctime>
 #include <sbml/SBMLTypes.h>
@@ -1686,7 +1687,12 @@ static void solveLinearAlgebraicRules(Model* model)
 //'
 //'Writes the model's mass balances, rules and parameters as code for the
 //'chosen simulation tool, ready to simulate.
-//'@param infile input file name
+//'
+//'The first argument is either the path to an SBML file or a model already
+//'read with `getModel()`. Passing a loaded model converts a copy of it, so the
+//'model you keep in R is left unchanged -- an edited model can be converted
+//'directly, with no round-trip through a temporary file.
+//'@param infile input SBML file name, or a model from `getModel()`
 //'@param outfile output file name
 //'@param format output code format, one of 'R'/'deSolve' (default), 'mrgsolve',
 //' 'nlmixr2' (or 'rxode2'), 'MATLAB', 'Julia' or 'ubiquity'.  An unrecognised format is an error.
@@ -1704,20 +1710,47 @@ static void solveLinearAlgebraicRules(Model* model)
 //'convertReactions(sbml_file, out_file_jl, format = "Julia")
 //'out_file_ub <- tempfile(fileext = ".txt")
 //'convertReactions(sbml_file, out_file_ub, format = "ubiquity")
+//'model <- getModel(sbml_file)
+//'out_file_model <- tempfile(fileext = ".R")
+//'convertReactions(model, out_file_model, format = "R")
 //'@return NULL invisibly
 // [[Rcpp::export]]
  void convertReactions(SEXP infile, SEXP outfile, std::string format = "R"){
 
-   if(!infile) Rcpp::stop("Input file is not present.\n");
-   if(!outfile) Rcpp::stop("Output file is not present.\n");
+   if(infile  == R_NilValue) Rcpp::stop("Input model or file is not present.\n");
+   if(outfile == R_NilValue) Rcpp::stop("Output file is not present.\n");
 
-   // read document and assign file for writing
-   std::string inputFile = Rcpp::as<std::string>(infile);
-   if (inputFile == "") Rcpp::stop("Input file path is empty.\n");
    std::string outputFile = Rcpp::as<std::string>(outfile);
 
-   SBMLReader reader;
-   SBMLDocument* document  = reader.readSBMLFromFile(inputFile);
+   // The converters below mutate the document destructively -- reactions
+   // become rate rules, local parameters are promoted, and so on -- so the
+   // document worked on here must always be one this function owns.  When the
+   // caller passes a model from getModel() (an external pointer), convert a
+   // *clone* of its document, leaving the caller's live model untouched; when
+   // the caller passes a file path, read a fresh document.  unique_ptr frees
+   // whichever it is on every exit, including the Rcpp::stop() throws below --
+   // the clone would otherwise leak, and the read document used to.
+   std::unique_ptr<SBMLDocument> owned;
+   std::string source;
+
+   if (TYPEOF(infile) == EXTPTRSXP)
+   {
+     Model* model = Rcpp::XPtr<Model>(infile);
+     if (model == NULL || model->getSBMLDocument() == NULL)
+       Rcpp::stop("The model pointer is not valid; pass a model from getModel().");
+     owned.reset(model->getSBMLDocument()->clone());
+     source = "the supplied model";
+   }
+   else
+   {
+     std::string inputFile = Rcpp::as<std::string>(infile);
+     if (inputFile == "") Rcpp::stop("Input file path is empty.\n");
+     SBMLReader reader;
+     owned.reset(reader.readSBMLFromFile(inputFile));
+     source = "'" + inputFile + "'";
+   }
+
+   SBMLDocument* document = owned.get();
 
    // getNumErrors(severity) counts that severity exactly, so a fatal-severity
    // diagnostic is not included in the error-severity count and has to be
@@ -1730,7 +1763,7 @@ static void solveLinearAlgebraicRules(Model* model)
    {
      Rcpp::Rcerr << "Encountered the following SBML errors:" << endl;
      document->printErrors(Rcpp::Rcerr);
-     Rcpp::stop("Cannot read '" + inputFile + "': libSBML reported " +
+     Rcpp::stop("Cannot read " + source + ": libSBML reported " +
                 std::to_string(errors) +
                 " SBML error(s), listed above.  Nothing was written.");
    }
