@@ -1,11 +1,15 @@
-/* Editing a loaded model in place: parameter values, compartment sizes and
- * species initial values.  Each setter returns the model pointer invisibly,
- * so calls chain, and mutates the document the pointer owns -- every R
- * variable holding the same pointer sees the change.
+/* Editing a loaded model in place: parameter values, compartment sizes,
+ * species initial values and rate laws.  Each setter returns the model
+ * pointer invisibly, so calls chain, and mutates the document the pointer
+ * owns -- every R variable holding the same pointer sees the change.
  */
 
 #include <Rcpp.h>
+#include <algorithm>
+#include <cstdlib>
+#include <memory>
 #include <string>
+#include <vector>
 #include <sbml/SBMLTypes.h>
 
 using namespace Rcpp;
@@ -141,5 +145,101 @@ SEXP setSpeciesIC(SEXP input_model, std::string id, SEXP value, std::string as) 
   }
 
   warnIfOverridden(model, "species", id);
+  return input_model;
+}
+
+// Names in `math` that kinetic-law math cannot resolve.  A plain name may be a
+// compartment, species, global parameter, reaction or species reference
+// (Level 3) of the model, or one of the law's own local parameters; a call
+// must name a function definition.  csymbols (time, avogadro, delay, rateOf)
+// and constants have their own node types, so they never reach here.
+static void unresolvedNames(const ASTNode* math, const Model* model,
+                            const KineticLaw* kl,
+                            std::vector<std::string>& bad) {
+  if (math == NULL) return;
+  const ASTNodeType_t type = math->getType();
+  if (type == AST_NAME && math->getName() != NULL) {
+    const std::string name = math->getName();
+    const bool ok =
+      model->getCompartment(name) != NULL || model->getSpecies(name) != NULL ||
+      model->getParameter(name) != NULL || model->getReaction(name) != NULL ||
+      model->getSpeciesReference(name) != NULL ||
+      model->getModifierSpeciesReference(name) != NULL ||
+      (kl != NULL && (kl->getLocalParameter(name) != NULL ||
+                      kl->getParameter(name) != NULL));
+    if (!ok && std::find(bad.begin(), bad.end(), name) == bad.end())
+      bad.push_back(name);
+  } else if (type == AST_FUNCTION && math->getName() != NULL) {
+    const std::string name = math->getName();
+    if (model->getFunctionDefinition(name) == NULL &&
+        std::find(bad.begin(), bad.end(), name + "()") == bad.end())
+      bad.push_back(name + "()");
+  }
+  for (unsigned int i = 0; i < math->getNumChildren(); i++)
+    unresolvedNames(math->getChild(i), model, kl, bad);
+}
+
+//'Replace a reaction's rate law
+//'
+//'Parse an infix formula and make it the kinetic law of a reaction, in place.
+//'
+//'`formula` uses libSBML's Level 3 infix syntax, the same syntax
+//'`getReactionMath()` prints: `k1 * S`, `Vmax * S / (Km + S)`, `S^2`,
+//'`exp(-k * time)`, and calls to the model's function definitions. Every name
+//'in it must be a compartment, species, parameter, reaction or species
+//'reference of the model, one of the reaction's local parameters, or a
+//'function definition; anything else is an error and the model is left
+//'unchanged.
+//'
+//'The reaction's local parameters are kept, whether or not the new formula
+//'uses them. A reaction without a kinetic law gets one. As with the other
+//'setters the model changes in place; see [editModel]. `writeSBML()` runs the
+//'full consistency checks, so it reports units that do not add up as warnings.
+//'@param input_model a model pointer from `getModel()`
+//'@param id the id of the reaction
+//'@param formula the new rate law, a single string
+//'@return the model pointer, invisibly, so calls can be chained
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+//'model <- getModel(sbml_file)
+//'# vcat's local parameter kcat is kept, so the new law can still use it
+//'setRateLaw(model, "vcat", "comp * kcat * ES / (1 + P)")
+//'getReactionMath(model)
+// [[Rcpp::export(invisible = true)]]
+SEXP setRateLaw(SEXP input_model, std::string id, SEXP formula) {
+  Model* model = editableModel(input_model);
+  Reaction* r = model->getReaction(id);
+  if (r == NULL) Rcpp::stop("No reaction '" + id + "' in the model.");
+
+  if (TYPEOF(formula) != STRSXP || Rf_length(formula) != 1 ||
+      STRING_ELT(formula, 0) == NA_STRING)
+    Rcpp::stop("`formula` must be a single string.");
+  const std::string text = CHAR(STRING_ELT(formula, 0));
+
+  std::unique_ptr<ASTNode> math(
+    SBML_parseL3FormulaWithModel(text.c_str(), model));
+  if (math.get() == NULL) {
+    char* err = SBML_getLastParseL3Error();
+    const std::string msg = err != NULL ? err : "unknown parse error";
+    free(err);
+    Rcpp::stop("Cannot parse the rate law of reaction '" + id + "': " + msg);
+  }
+
+  std::vector<std::string> bad;
+  unresolvedNames(math.get(), model, r->getKineticLaw(), bad);
+  if (!bad.empty()) {
+    std::string names;
+    for (size_t i = 0; i < bad.size(); i++)
+      names += (i ? ", '" : "'") + bad[i] + "'";
+    Rcpp::stop("The rate law of reaction '" + id + "' names " +
+               (bad.size() == 1 ? "an undefined id: " : "undefined ids: ") +
+               names + ". The model was not changed.");
+  }
+
+  KineticLaw* kl = r->isSetKineticLaw() ? r->getKineticLaw()
+                                        : r->createKineticLaw();
+  // setMath() deep-copies; `math` frees the parsed tree
+  if (kl == NULL || kl->setMath(math.get()) != LIBSBML_OPERATION_SUCCESS)
+    Rcpp::stop("Could not set the rate law of reaction '" + id + "'.");
   return input_model;
 }

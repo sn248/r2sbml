@@ -61,6 +61,7 @@ reference:
     These change the model in place, so every R variable holding the same pointer sees the edit; `copyModel()` makes an independent copy first.
   contents:
   - editModel
+  - setRateLaw
   - copyModel
 - title: Writing a model
   desc: |

@@ -127,6 +127,36 @@ setSpeciesIC <- function(input_model, id, value, as) {
     invisible(.Call(`_r2sbml_setSpeciesIC`, input_model, id, value, as))
 }
 
+#'Replace a reaction's rate law
+#'
+#'Parse an infix formula and make it the kinetic law of a reaction, in place.
+#'
+#'`formula` uses libSBML's Level 3 infix syntax, the same syntax
+#'`getReactionMath()` prints: `k1 * S`, `Vmax * S / (Km + S)`, `S^2`,
+#'`exp(-k * time)`, and calls to the model's function definitions. Every name
+#'in it must be a compartment, species, parameter, reaction or species
+#'reference of the model, one of the reaction's local parameters, or a
+#'function definition; anything else is an error and the model is left
+#'unchanged.
+#'
+#'The reaction's local parameters are kept, whether or not the new formula
+#'uses them. A reaction without a kinetic law gets one. As with the other
+#'setters the model changes in place; see [editModel]. `writeSBML()` runs the
+#'full consistency checks, so it reports units that do not add up as warnings.
+#'@param input_model a model pointer from `getModel()`
+#'@param id the id of the reaction
+#'@param formula the new rate law, a single string
+#'@return the model pointer, invisibly, so calls can be chained
+#'@examples
+#'sbml_file <- system.file("examples", "sbmlsimple.xml", package = "r2sbml")
+#'model <- getModel(sbml_file)
+#'# vcat's local parameter kcat is kept, so the new law can still use it
+#'setRateLaw(model, "vcat", "comp * kcat * ES / (1 + P)")
+#'getReactionMath(model)
+setRateLaw <- function(input_model, id, formula) {
+    invisible(.Call(`_r2sbml_setRateLaw`, input_model, id, formula))
+}
+
 #'Print the rules of a model
 #'
 #'Prints each rule as infix math; an algebraic rule is printed as `f = 0`.
