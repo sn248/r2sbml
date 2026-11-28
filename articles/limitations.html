@@ -204,16 +204,47 @@ ubiquity built with <code>build_system()</code> and run on both its C
 and R engines. None of them is run against the full suite.</p>
 </div>
 <div class="section level2">
-<h2 id="scope-reading-and-exporting-only">Scope: reading and exporting only<a class="anchor" aria-label="anchor" href="#scope-reading-and-exporting-only"></a>
+<h2 id="scope-editing-values-not-structure">Scope: editing values, not structure<a class="anchor" aria-label="anchor" href="#scope-editing-values-not-structure"></a>
 </h2>
-<p><code>r2sbml</code> has no setter API. You cannot change a species’
-initial value, add a reaction, or write SBML back out. There is no
-<code>setSpecies()</code>, no <code>writeSBML()</code>, and
-<code><a href="../reference/getModel.html">getModel()</a></code> returns an opaque external pointer rather than
-an R-side object you could edit.</p>
-<p>If you need to modify models programmatically, use libSBML’s own R
-bindings or edit the XML directly. <code>r2sbml</code> is for inspecting
-a model and getting simulation code out of it.</p>
+<p>You can change values in a loaded model: a parameter’s value
+(<code><a href="../reference/editModel.html">setParameterValue()</a></code>), a compartment’s size
+(<code><a href="../reference/editModel.html">setCompartmentSize()</a></code>) and a species’ initial amount or
+concentration (<code><a href="../reference/editModel.html">setSpeciesIC()</a></code>). <code><a href="../reference/writeSBML.html">writeSBML()</a></code>
+writes the result back to a file, and <code><a href="../reference/convertReactions.html">convertReactions()</a></code>
+accepts the edited model directly.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">multi_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"examples"</span>, <span class="st">"sbmlmutlicompartment.xml"</span>,</span>
+<span>                          package <span class="op">=</span> <span class="st">"r2sbml"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/capture.output.html" class="external-link">capture.output</a></span><span class="op">(</span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/getModel.html">getModel</a></span><span class="op">(</span><span class="va">multi_file</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/editModel.html">setParameterValue</a></span><span class="op">(</span><span class="va">model</span>, <span class="st">"k1"</span>, <span class="fl">1000</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/getParameterTable.html">getParameterTable</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   Number ID Name Value                     Units</span></span>
+<span><span class="co">#&gt; 1      1 k1       1000 litre_per_mole_per_second</span></span>
+<span><span class="co">#&gt; 2      2 k2       2500 litre_per_mole_per_second</span></span>
+<span><span class="co">#&gt; 3      3 KT      25000                per_second</span></span>
+<span><span class="co">#&gt; 4      4 k3       2500                per_second</span></span></code></pre></div>
+<p>Three things behave differently from ordinary R objects, or from what
+you might expect:</p>
+<ul>
+<li>
+<strong>Edits happen in place.</strong> <code><a href="../reference/getModel.html">getModel()</a></code>
+returns a pointer, so <code>model2 &lt;- model</code> copies the pointer
+and an edit through either shows in both. Use <code><a href="../reference/copyModel.html">copyModel()</a></code>
+for an independent copy.</li>
+<li>
+<strong>A value something else sets has no effect.</strong> If an
+initial assignment or an assignment rule sets the component, the new
+value is stored but overridden, and the setter warns.</li>
+<li>
+<strong><code><a href="../reference/writeSBML.html">writeSBML()</a></code> rewrites the whole file.</strong>
+libSBML uses its own layout, so a diff against the original shows
+indentation and attribute-order changes besides the edit. It also runs
+libSBML’s full consistency checks and refuses to write a model with
+errors, which can include one <code><a href="../reference/getModel.html">getModel()</a></code> accepted.</li>
+</ul>
+<p>You cannot yet add or remove components (species, parameters,
+reactions, rules) or change a rate law. For that, use libSBML’s own R
+bindings or edit the XML directly.</p>
 </div>
 <div class="section level2">
 <h2 id="per-target-capability-matrix">Per-target capability matrix<a class="anchor" aria-label="anchor" href="#per-target-capability-matrix"></a>
@@ -357,7 +388,7 @@ exactly one unknown and is linear in it, <code>r2sbml</code> solves it,
 and the rule becomes an ordinary assignment rule — which every target
 supports. Here <code>0 = k - 0.9</code> defines a parameter that has no
 value of its own:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">linear</span> <span class="op">&lt;-</span> <span class="fu">sbml_file</span><span class="op">(</span><span class="st">'</span></span>
 <span><span class="st">&lt;listOfParameters&gt;&lt;parameter id="k" constant="false"/&gt;&lt;/listOfParameters&gt;</span></span>
 <span><span class="st">&lt;listOfRules&gt;&lt;algebraicRule&gt;&lt;math xmlns="http://www.w3.org/1998/Math/MathML"&gt;</span></span>
@@ -388,7 +419,7 @@ one, and <code>r2sbml</code> emits a real DAE for them: a
 <code>sbmlalgebraicrules.xml</code> is such a model, since both of its
 rules name both <code>E</code> and <code>ES</code>. The constraint is
 genuinely enforced:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu">convert</span><span class="op">(</span><span class="fu">ex</span><span class="op">(</span><span class="st">"sbmlalgebraicrules.xml"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; no warning</span></span>
 <span><span class="va">env</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/environment.html" class="external-link">new.env</a></span><span class="op">(</span><span class="op">)</span>; <span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="va">out</span>, local <span class="op">=</span> <span class="va">env</span><span class="op">)</span></span>
@@ -400,7 +431,7 @@ genuinely enforced:</p>
 <p>mrgsolve, rxode2 and ubiquity integrate ODEs only. There the rule is
 written out as a comment, the species it constrains is left at a zero
 derivative, and a warning is raised:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">convert</span><span class="op">(</span><span class="fu">ex</span><span class="op">(</span><span class="st">"sbmlalgebraicrules.xml"</span><span class="op">)</span>, <span class="st">"mrgsolve"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; mrgsolve cannot enforce the 2 algebraic rule(s) in this model. They are written out as comments, and the species they constrain are left at a zero derivative, so the generated code runs but does not honour the constraint.</span></span></code></pre></div>
 </div>
@@ -442,7 +473,7 @@ chain rule with respect to every integrated state it reads.
 <code>r2sbml</code> does that for sums, products, quotients, powers and
 roots, <code>exp</code>, <code>ln</code>, <code>log</code>, and the
 trigonometric and hyperbolic functions:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">volume</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">rule</span><span class="op">)</span> <span class="fu">sbml_file</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">'</span></span>
 <span><span class="st">&lt;listOfCompartments&gt;&lt;compartment id="c" size="1" constant="false"/&gt;&lt;/listOfCompartments&gt;</span></span>
 <span><span class="st">&lt;listOfSpecies&gt;&lt;species id="A" compartment="c" initialConcentration="2"</span></span>
@@ -462,7 +493,7 @@ a species (whose own derivative would then depend on the volume’s), or
 depends through time or a state on <code>piecewise</code>,
 <code>min</code>, <code>max</code>, <code>abs</code>, the inverse
 trigonometric functions or <code>factorial</code>:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">capped</span> <span class="op">&lt;-</span> <span class="fu">volume</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">'&lt;apply&gt;&lt;min/&gt;&lt;cn&gt;5&lt;/cn&gt;&lt;apply&gt;&lt;plus/&gt;&lt;cn&gt;1&lt;/cn&gt;</span></span>
 <span><span class="st">  &lt;apply&gt;&lt;times/&gt;&lt;ci&gt;g&lt;/ci&gt;%s&lt;/apply&gt;&lt;/apply&gt;&lt;/apply&gt;'</span>, <span class="va">time</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu">convert</span><span class="op">(</span><span class="va">capped</span><span class="op">)</span></span>
@@ -476,7 +507,7 @@ reason events in general are not.</p>
 </h2>
 <p>SBML’s <code>delay</code> csymbol passes through unchanged into every
 target:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu">convert</span><span class="op">(</span><span class="fu">ex</span><span class="op">(</span><span class="st">"sbmldelay.xml"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; no warning</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"delay"</span>, <span class="fu"><a href="https://rdrr.io/r/base/readLines.html" class="external-link">readLines</a></span><span class="op">(</span><span class="va">out</span><span class="op">)</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -486,7 +517,7 @@ or in Julia, so this code does not run anywhere. A delay-differential
 equation needs a different solver interface entirely —
 <code><a href="https://rdrr.io/pkg/deSolve/man/timelags.html" class="external-link">deSolve::lagvalue()</a></code> for R, and the equivalent per target.
 Only the ubiquity writer notices:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">convert</span><span class="op">(</span><span class="fu">ex</span><span class="op">(</span><span class="st">"sbmldelay.xml"</span><span class="op">)</span>, <span class="st">"ubiquity"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; ubiquity has no equivalent for: delay. They were written out unchanged and the system file will not build until they are replaced.</span></span></code></pre></div>
 <p>For the other five targets this is <strong>silent</strong>.
@@ -498,7 +529,7 @@ deSolve, mrgsolve, rxode2, MATLAB and Julia output will not run.</p>
 </h2>
 <p>Events are not exported at all. They survive as a number in the
 header comment and nothing else:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu">convert</span><span class="op">(</span><span class="fu">ex</span><span class="op">(</span><span class="st">"sbmlevent.xml"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; no warning</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"events"</span>, <span class="fu"><a href="https://rdrr.io/r/base/readLines.html" class="external-link">readLines</a></span><span class="op">(</span><span class="va">out</span><span class="op">)</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -507,7 +538,7 @@ header comment and nothing else:</p>
 generated code. The simulation will run — and will silently ignore every
 trigger, delay and event assignment in the model. You can still inspect
 them from R:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/getEventMath.html">getEventMath</a></span><span class="op">(</span><span class="fu"><a href="../reference/getModel.html">getModel</a></span><span class="op">(</span><span class="fu">ex</span><span class="op">(</span><span class="st">"sbmlevent.xml"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   filename: /home/runner/work/_temp/Library/r2sbml/examples/sbmlevent.xml</span></span>
@@ -538,7 +569,7 @@ spelled per target, and the Level 3 Version 2 functions
 a base, <code>root</code>, and n-ary relationals and logical operators)
 are expanded into functions every target has. A logarithm with a base
 and a cube root, for instance:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">maths</span> <span class="op">&lt;-</span> <span class="fu">sbml_file</span><span class="op">(</span><span class="st">'</span></span>
 <span><span class="st">&lt;listOfParameters&gt;</span></span>
 <span><span class="st">&lt;parameter id="x" value="8" constant="true"/&gt;</span></span>
@@ -604,7 +635,7 @@ first branch gets the second.</p>
 long as something else defines it. When nothing does,
 <code>r2sbml</code> writes the target’s not-a-number and warns, naming
 the variable, rather than make up a plausible value:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">undefined</span> <span class="op">&lt;-</span> <span class="fu">sbml_file</span><span class="op">(</span><span class="st">'</span></span>
 <span><span class="st">&lt;listOfParameters&gt;&lt;parameter id="k" constant="true"/&gt;&lt;/listOfParameters&gt;'</span><span class="op">)</span></span>
 <span><span class="fu">convert</span><span class="op">(</span><span class="va">undefined</span><span class="op">)</span></span>
@@ -620,7 +651,7 @@ deliberately, where it is less apt.</p>
 generated code itself uses (<code>time</code>, Julia’s <code>p</code>,
 MATLAB’s <code>t</code> and <code>y</code>). Such an id is renamed by
 appending <code>_</code>, and the conversion says so:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">reserved</span> <span class="op">&lt;-</span> <span class="fu">sbml_file</span><span class="op">(</span><span class="st">'</span></span>
 <span><span class="st">&lt;listOfParameters&gt;&lt;parameter id="Inf" value="2" constant="true"/&gt;</span></span>
 <span><span class="st">&lt;parameter id="v" constant="false"/&gt;&lt;/listOfParameters&gt;</span></span>
@@ -671,7 +702,7 @@ API.</p>
 <code>initialAmount</code> or <code>initialConcentration</code> the
 model actually sets — a species carries one or the other, never both —
 and names the result by species id:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/getModel.html">getModel</a></span><span class="op">(</span><span class="fu">ex</span><span class="op">(</span><span class="st">"sbmlsimple.xml"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   filename: /home/runner/work/_temp/Library/r2sbml/examples/sbmlsimple.xml</span></span>
@@ -689,14 +720,14 @@ mixes units, and <code><a href="../reference/getSpeciesIC.html">getSpeciesIC()</
 the initial conditions <code><a href="../reference/convertReactions.html">convertReactions()</a></code> writes, which are
 divided by compartment volume because the generated ODE integrates
 concentrations:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu">convert</span><span class="op">(</span><span class="fu">ex</span><span class="op">(</span><span class="st">"sbmlsimple.xml"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; no warning</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"^ +E = [0-9]"</span>, <span class="fu"><a href="https://rdrr.io/r/base/readLines.html" class="external-link">readLines</a></span><span class="op">(</span><span class="va">out</span><span class="op">)</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>   <span class="co"># 5e-07 = 5e-21 / 1e-14</span></span>
 <span><span class="co">#&gt; [1] "         E = 5e-07,"</span></span></code></pre></div>
 <p><code><a href="../reference/getSpeciesTable.html">getSpeciesTable()</a></code> shows which column each species used,
 so you can tell the units apart:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/getSpeciesTable.html">getSpeciesTable</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ID"</span>, <span class="st">"InitialConcentration"</span>, <span class="st">"InitialAmount"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;   ID InitialConcentration InitialAmount</span></span>
 <span><span class="co">#&gt; 1  E                  NaN         5e-21</span></span>
@@ -718,7 +749,7 @@ from <code>name</code>, an optional human label.
 return the <code>name</code> where one is set and the <code>id</code>
 otherwise, which is how SBML tools conventionally display an
 element:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/getSpeciesNames.html">getSpeciesNames</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "E"  "S"  "P"  "ES"</span></span>
 <span><span class="fu"><a href="../reference/getCmtNames.html">getCmtNames</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
@@ -731,7 +762,7 @@ label was actually present.</p>
 <div class="section level3">
 <h3 id="absent-components-raise-an-error">Absent components raise an error<a class="anchor" aria-label="anchor" href="#absent-components-raise-an-error"></a>
 </h3>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/getRuleMath.html">getRuleMath</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span>     <span class="co"># sbmlsimple.xml has no rules</span></span>
 <span><span class="co">#&gt; <span style="color: #BBBB00; font-weight: bold;">Error</span><span style="font-weight: bold;">:</span></span></span>
 <span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> No Rules present in the model.</span></span></code></pre></div>

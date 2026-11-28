@@ -57,10 +57,32 @@ pointer.
 - [`echoSBML()`](https://sn248.github.io/r2sbml/reference/echoSBML.md) :
   Check an SBML file for errors
 
+## Editing a model
+
+These change the model in place, so every R variable holding the same
+pointer sees the edit;
+[`copyModel()`](https://sn248.github.io/r2sbml/reference/copyModel.md)
+makes an independent copy first.
+
+- [`setParameterValue()`](https://sn248.github.io/r2sbml/reference/editModel.md)
+  [`setCompartmentSize()`](https://sn248.github.io/r2sbml/reference/editModel.md)
+  [`setSpeciesIC()`](https://sn248.github.io/r2sbml/reference/editModel.md)
+  : Edit a model's values
+- [`copyModel()`](https://sn248.github.io/r2sbml/reference/copyModel.md)
+  : Copy a model
+
+## Writing a model
+
+Validates the model and writes it, edits included, back to an SBML file.
+
+- [`writeSBML()`](https://sn248.github.io/r2sbml/reference/writeSBML.md)
+  : Write a model to an SBML file
+
 ## Exporting mass balances
 
-Writes ready-to-simulate code for one of six ODE targets. Reads the SBML
-file itself, so it takes no model pointer.
+Writes ready-to-simulate code for one of six ODE targets. Takes an SBML
+file or a model pointer; a model, edits included, is converted through a
+copy and left untouched.
 
 - [`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md)
   : Convert an SBML model to simulation code

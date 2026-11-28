@@ -8,8 +8,14 @@ components from R — species, parameters, compartments, reactions, rules,
 events, function definitions — and exports the mass balances as
 ready-to-simulate code for several ODE solvers.
 
-Modifying an imported model from R is not supported: `r2sbml` reads and
-exports, it does not edit.
+You can also change a model’s parameter values, compartment sizes and
+species initial values from R
+([`setParameterValue()`](https://sn248.github.io/r2sbml/reference/editModel.md),
+[`setCompartmentSize()`](https://sn248.github.io/r2sbml/reference/editModel.md),
+[`setSpeciesIC()`](https://sn248.github.io/r2sbml/reference/editModel.md))
+and write it back out with
+[`writeSBML()`](https://sn248.github.io/r2sbml/reference/writeSBML.md).
+Adding or removing components is not supported yet.
 
 ## Installation
 

@@ -177,9 +177,48 @@
         </dt>
         <dd>Check an SBML file for errors</dd>
       </dl></div><div class="section level2">
+      <h2 id="editing-a-model">Editing a model<a class="anchor" aria-label="anchor" href="#editing-a-model"></a></h2>
+
+      <div class="section-desc"><p>These change the model in place, so every R variable holding the same pointer sees the edit; <code><a href="../reference/copyModel.html">copyModel()</a></code> makes an independent copy first.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="editModel.html">setParameterValue()</a></code> <code><a href="editModel.html">setCompartmentSize()</a></code> <code><a href="editModel.html">setSpeciesIC()</a></code>
+
+        </dt>
+        <dd>Edit a model's values</dd>
+
+        <dt>
+
+          <code><a href="copyModel.html">copyModel()</a></code>
+
+        </dt>
+        <dd>Copy a model</dd>
+      </dl></div><div class="section level2">
+      <h2 id="writing-a-model">Writing a model<a class="anchor" aria-label="anchor" href="#writing-a-model"></a></h2>
+
+      <div class="section-desc"><p>Validates the model and writes it, edits included, back to an SBML file.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="writeSBML.html">writeSBML()</a></code>
+
+        </dt>
+        <dd>Write a model to an SBML file</dd>
+      </dl></div><div class="section level2">
       <h2 id="exporting-mass-balances">Exporting mass balances<a class="anchor" aria-label="anchor" href="#exporting-mass-balances"></a></h2>
 
-      <div class="section-desc"><p>Writes ready-to-simulate code for one of six ODE targets. Reads the SBML file itself, so it takes no model pointer.</p></div>
+      <div class="section-desc"><p>Writes ready-to-simulate code for one of six ODE targets. Takes an SBML file or a model pointer; a model, edits included, is converted through a copy and left untouched.</p></div>
 
       <dl></dl></div><div class="section level2">
 

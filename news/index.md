@@ -2,21 +2,36 @@
 
 ## r2sbml (development version)
 
+- Models can now be edited and written back to SBML:
+  [`setParameterValue()`](https://sn248.github.io/r2sbml/reference/editModel.md),
+  [`setCompartmentSize()`](https://sn248.github.io/r2sbml/reference/editModel.md)
+  and
+  [`setSpeciesIC()`](https://sn248.github.io/r2sbml/reference/editModel.md)
+  change a loaded model in place,
+  [`copyModel()`](https://sn248.github.io/r2sbml/reference/copyModel.md)
+  makes an independent copy, and
+  [`writeSBML()`](https://sn248.github.io/r2sbml/reference/writeSBML.md)
+  validates the model and writes it to a file. A setter warns when an
+  initial assignment or assignment rule overrides the value it sets.
+
 - Fixed a memory leak in
   [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md).
   When R collected a model, the pointer freed the model but leaked the
   SBML document that owns it. It now frees the document, and the model
   with it.
+
 - [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md)
   now refuses a file that contains no model, with an error naming the
   file. It used to return a pointer that the query functions then
   rejected with the unhelpful error “external pointer is not valid”.
+
 - The package now builds for WebAssembly, so it runs in webR (R in the
   browser). Building with webR’s `rwasm` used to fail configuring the
   bundled ‘libSBML’, because cmake searched the build machine for
   libxml2 and zlib. When the compiler is `emcc`, the build now passes
   cmake emscripten’s toolchain file and the WebAssembly libxml2 and
   zlib.
+
 - Installation no longer fails when
   [`parallel::detectCores()`](https://rdrr.io/r/parallel/detectCores.html)
   cannot count the physical cores and returns `NA`, as it did under

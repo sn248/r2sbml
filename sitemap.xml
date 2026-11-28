@@ -7,7 +7,9 @@
 <url><loc>https://sn248.github.io/r2sbml/index.html</loc></url>
 <url><loc>https://sn248.github.io/r2sbml/news/index.html</loc></url>
 <url><loc>https://sn248.github.io/r2sbml/reference/convertReactions.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/copyModel.html</loc></url>
 <url><loc>https://sn248.github.io/r2sbml/reference/echoSBML.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/editModel.html</loc></url>
 <url><loc>https://sn248.github.io/r2sbml/reference/getCmtNames.html</loc></url>
 <url><loc>https://sn248.github.io/r2sbml/reference/getCmtSizes.html</loc></url>
 <url><loc>https://sn248.github.io/r2sbml/reference/getEventMath.html</loc></url>
@@ -23,6 +25,7 @@
 <url><loc>https://sn248.github.io/r2sbml/reference/getSpeciesTable.html</loc></url>
 <url><loc>https://sn248.github.io/r2sbml/reference/index.html</loc></url>
 <url><loc>https://sn248.github.io/r2sbml/reference/printSBML.html</loc></url>
+<url><loc>https://sn248.github.io/r2sbml/reference/writeSBML.html</loc></url>
 <url><loc>https://sn248.github.io/r2sbml/todo.html</loc></url>
 </urlset>
 

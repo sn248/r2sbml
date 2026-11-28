@@ -73,18 +73,56 @@ under Octave, Julia with `DifferentialEquations.jl`, and ubiquity built
 with `build_system()` and run on both its C and R engines. None of them
 is run against the full suite.
 
-## Scope: reading and exporting only
+## Scope: editing values, not structure
 
-`r2sbml` has no setter API. You cannot change a species’ initial value,
-add a reaction, or write SBML back out. There is no `setSpecies()`, no
-`writeSBML()`, and
-[`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md)
-returns an opaque external pointer rather than an R-side object you
-could edit.
+You can change values in a loaded model: a parameter’s value
+([`setParameterValue()`](https://sn248.github.io/r2sbml/reference/editModel.md)),
+a compartment’s size
+([`setCompartmentSize()`](https://sn248.github.io/r2sbml/reference/editModel.md))
+and a species’ initial amount or concentration
+([`setSpeciesIC()`](https://sn248.github.io/r2sbml/reference/editModel.md)).
+[`writeSBML()`](https://sn248.github.io/r2sbml/reference/writeSBML.md)
+writes the result back to a file, and
+[`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md)
+accepts the edited model directly.
 
-If you need to modify models programmatically, use libSBML’s own R
-bindings or edit the XML directly. `r2sbml` is for inspecting a model
-and getting simulation code out of it.
+``` r
+
+multi_file <- system.file("examples", "sbmlmutlicompartment.xml",
+                          package = "r2sbml")
+invisible(capture.output(model <- getModel(multi_file)))
+setParameterValue(model, "k1", 1000)
+getParameterTable(model)
+#>   Number ID Name Value                     Units
+#> 1      1 k1       1000 litre_per_mole_per_second
+#> 2      2 k2       2500 litre_per_mole_per_second
+#> 3      3 KT      25000                per_second
+#> 4      4 k3       2500                per_second
+```
+
+Three things behave differently from ordinary R objects, or from what
+you might expect:
+
+- **Edits happen in place.**
+  [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md)
+  returns a pointer, so `model2 <- model` copies the pointer and an edit
+  through either shows in both. Use
+  [`copyModel()`](https://sn248.github.io/r2sbml/reference/copyModel.md)
+  for an independent copy.
+- **A value something else sets has no effect.** If an initial
+  assignment or an assignment rule sets the component, the new value is
+  stored but overridden, and the setter warns.
+- **[`writeSBML()`](https://sn248.github.io/r2sbml/reference/writeSBML.md)
+  rewrites the whole file.** libSBML uses its own layout, so a diff
+  against the original shows indentation and attribute-order changes
+  besides the edit. It also runs libSBML’s full consistency checks and
+  refuses to write a model with errors, which can include one
+  [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md)
+  accepted.
+
+You cannot yet add or remove components (species, parameters, reactions,
+rules) or change a rate law. For that, use libSBML’s own R bindings or
+edit the XML directly.
 
 ## Per-target capability matrix
 
