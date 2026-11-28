@@ -60,11 +60,11 @@ out_file <- tempfile(fileext = ".xml")
 writeSBML(model, out_file)
 getParameterTable(getModel(out_file))
 #> 
-#>   filename: /tmp/RtmpksNvu1/file265c65d77e68.xml
+#>   filename: /tmp/Rtmp1KLK5z/file265326bc7736.xml
 #>   error(s): 0
 #> 
 #> 
-#> File: /tmp/RtmpksNvu1/file265c65d77e68.xml (Level 3, version 2)
+#> File: /tmp/Rtmp1KLK5z/file265326bc7736.xml (Level 3, version 2)
 #>   Number ID Name Value                     Units
 #> 1      1 k1       1000 litre_per_mole_per_second
 #> 2      2 k2       2500 litre_per_mole_per_second

@@ -73,7 +73,7 @@ under Octave, Julia with `DifferentialEquations.jl`, and ubiquity built
 with `build_system()` and run on both its C and R engines. None of them
 is run against the full suite.
 
-## Scope: editing values and rate laws, not structure
+## Scope: editing values, rate laws and reactions
 
 You can change these in a loaded model: a parameter’s value
 ([`setParameterValue()`](https://sn248.github.io/r2sbml/reference/editModel.md)),
@@ -83,6 +83,8 @@ a species’ initial amount or concentration
 ([`setSpeciesIC()`](https://sn248.github.io/r2sbml/reference/editModel.md))
 and a reaction’s rate law, from an infix formula
 ([`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md)).
+You can also remove a reaction
+([`removeReaction()`](https://sn248.github.io/r2sbml/reference/removeReaction.md)).
 [`writeSBML()`](https://sn248.github.io/r2sbml/reference/writeSBML.md)
 writes the result back to a file, and
 [`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md)
@@ -101,14 +103,14 @@ getParameterTable(model)
 #> 2      2 k2       2500 litre_per_mole_per_second
 #> 3      3 KT      25000                per_second
 #> 4      4 k3       2500                per_second
+removeReaction(model, "transport")
 invisible(getReactionMath(model))
 #> Reaction 0, formula: nucleus * k1 * X * Y1n
-#> Reaction 1, formula: cytoplasm * KT * (Y1n - Y1c)
-#> Reaction 2, formula: cytoplasm * k2 * Y1c * Y2
-#> Reaction 3, formula: cytoplasm * k3 * Y2^2
+#> Reaction 1, formula: cytoplasm * k2 * Y1c * Y2
+#> Reaction 2, formula: cytoplasm * k3 * Y2^2
 ```
 
-Four things behave differently from ordinary R objects, or from what you
+Five things behave differently from ordinary R objects, or from what you
 might expect:
 
 - **Edits happen in place.**
@@ -134,9 +136,15 @@ might expect:
   [`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md)
   stops and leaves the model unchanged. To use a new constant, write it
   as a number.
+- **A reaction something still uses cannot be removed.** If remaining
+  math reads the reaction’s rate (its id) or a stoichiometry (a species
+  reference id), or a rule or assignment sets that stoichiometry,
+  [`removeReaction()`](https://sn248.github.io/r2sbml/reference/removeReaction.md)
+  stops and names what uses it. The species stay; to switch a reaction
+  off but keep it, use `setRateLaw(model, id, "0")`.
 
-You cannot yet add or remove components (species, parameters, reactions,
-rules). For that, use libSBML’s own R bindings or edit the XML directly.
+You cannot yet add components, or remove anything other than reactions.
+For that, use libSBML’s own R bindings or edit the XML directly.
 
 ## Per-target capability matrix
 

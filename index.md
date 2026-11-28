@@ -13,10 +13,12 @@ species initial values and rate laws from R
 ([`setParameterValue()`](https://sn248.github.io/r2sbml/reference/editModel.md),
 [`setCompartmentSize()`](https://sn248.github.io/r2sbml/reference/editModel.md),
 [`setSpeciesIC()`](https://sn248.github.io/r2sbml/reference/editModel.md),
-[`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md))
-and write it back out with
+[`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md)),
+remove reactions
+([`removeReaction()`](https://sn248.github.io/r2sbml/reference/removeReaction.md)),
+and write the result back out with
 [`writeSBML()`](https://sn248.github.io/r2sbml/reference/writeSBML.md).
-Adding or removing components is not supported yet.
+Adding components is not supported yet.
 
 ## Installation
 

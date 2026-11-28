@@ -17,6 +17,9 @@
   [`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md)
   parses an infix formula, refuses one naming an id the reaction cannot
   see, and keeps the reaction’s local parameters.
+  [`removeReaction()`](https://sn248.github.io/r2sbml/reference/removeReaction.md)
+  deletes a reaction, refusing while remaining math reads its rate or
+  one of its stoichiometries.
 
 - Fixed a memory leak in
   [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md).

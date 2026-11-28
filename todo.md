@@ -34,10 +34,16 @@ Phase 2 is done: `setRateLaw(model, id, formula)` parses with
 reaction cannot see (leaving the model unchanged), creates a kinetic law
 when the reaction has none, and keeps the reaction’s local parameters.
 
-Next (phase 3 of the scope note):
+Phase 3 is done: `removeReaction(model, id)` deletes a reaction with its
+species references and kinetic law, and refuses (leaving the model
+unchanged) while a rule, initial assignment, other kinetic law, event or
+constraint reads the reaction id or one of its species reference ids, or
+sets one of those stoichiometries. A soft `setReactionActive()` was not
+added: `setRateLaw(model, id, "0")` already switches a reaction off, and
+restoring the old law would need it stored in the document.
 
-- `removeReaction()`, or a lighter
-  `setReactionActive(model, id, FALSE)`.
+Next:
+
 - Optionally, a
   [`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md)
   option to drop local parameters the new formula no longer uses; for
@@ -45,10 +51,14 @@ Next (phase 3 of the scope note):
 
 Later:
 
-- Adding and removing components (parameters, species, reactions,
-  rules). Removal needs a check that no other math still references the
-  id; adding rules or kinetic laws means parsing math from a string with
-  `SBML_parseL3Formula()`.
+- Adding components (parameters, species, reactions, rules), and
+  removing ones other than reactions. Removal needs a check that no
+  other math still references the id, as
+  [`removeReaction()`](https://sn248.github.io/r2sbml/reference/removeReaction.md)
+  does; adding rules or kinetic laws means parsing math from a string,
+  as
+  [`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md)
+  does.
 - The `"No model present."` checks in the query functions are
   unreachable:
   [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md)

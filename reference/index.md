@@ -70,6 +70,8 @@ makes an independent copy first.
   : Edit a model's values
 - [`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md)
   : Replace a reaction's rate law
+- [`removeReaction()`](https://sn248.github.io/r2sbml/reference/removeReaction.md)
+  : Remove a reaction
 - [`copyModel()`](https://sn248.github.io/r2sbml/reference/copyModel.md)
   : Copy a model
 

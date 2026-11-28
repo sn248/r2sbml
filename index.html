@@ -70,7 +70,7 @@
 
 <p>A lightweight R interface to the <a href="https://sbml.org/software/libsbml/" class="external-link">libSBML</a> library, built with Rcpp.</p>
 <p><code>r2sbml</code> reads an <a href="https://sbml.org" class="external-link">SBML</a> model, lets you query its components from R — species, parameters, compartments, reactions, rules, events, function definitions — and exports the mass balances as ready-to-simulate code for several ODE solvers.</p>
-<p>You can also change a model’s parameter values, compartment sizes, species initial values and rate laws from R (<code><a href="reference/editModel.html">setParameterValue()</a></code>, <code><a href="reference/editModel.html">setCompartmentSize()</a></code>, <code><a href="reference/editModel.html">setSpeciesIC()</a></code>, <code><a href="reference/setRateLaw.html">setRateLaw()</a></code>) and write it back out with <code><a href="reference/writeSBML.html">writeSBML()</a></code>. Adding or removing components is not supported yet.</p>
+<p>You can also change a model’s parameter values, compartment sizes, species initial values and rate laws from R (<code><a href="reference/editModel.html">setParameterValue()</a></code>, <code><a href="reference/editModel.html">setCompartmentSize()</a></code>, <code><a href="reference/editModel.html">setSpeciesIC()</a></code>, <code><a href="reference/setRateLaw.html">setRateLaw()</a></code>), remove reactions (<code><a href="reference/removeReaction.html">removeReaction()</a></code>), and write the result back out with <code><a href="reference/writeSBML.html">writeSBML()</a></code>. Adding components is not supported yet.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
