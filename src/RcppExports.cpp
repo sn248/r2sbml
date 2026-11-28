@@ -55,6 +55,46 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// setParameterValue
+SEXP setParameterValue(SEXP input_model, std::string id, SEXP value);
+RcppExport SEXP _r2sbml_setParameterValue(SEXP input_modelSEXP, SEXP idSEXP, SEXP valueSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    Rcpp::traits::input_parameter< std::string >::type id(idSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type value(valueSEXP);
+    rcpp_result_gen = Rcpp::wrap(setParameterValue(input_model, id, value));
+    return rcpp_result_gen;
+END_RCPP
+}
+// setCompartmentSize
+SEXP setCompartmentSize(SEXP input_model, std::string id, SEXP value);
+RcppExport SEXP _r2sbml_setCompartmentSize(SEXP input_modelSEXP, SEXP idSEXP, SEXP valueSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    Rcpp::traits::input_parameter< std::string >::type id(idSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type value(valueSEXP);
+    rcpp_result_gen = Rcpp::wrap(setCompartmentSize(input_model, id, value));
+    return rcpp_result_gen;
+END_RCPP
+}
+// setSpeciesIC
+SEXP setSpeciesIC(SEXP input_model, std::string id, SEXP value, std::string as);
+RcppExport SEXP _r2sbml_setSpeciesIC(SEXP input_modelSEXP, SEXP idSEXP, SEXP valueSEXP, SEXP asSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    Rcpp::traits::input_parameter< std::string >::type id(idSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type value(valueSEXP);
+    Rcpp::traits::input_parameter< std::string >::type as(asSEXP);
+    rcpp_result_gen = Rcpp::wrap(setSpeciesIC(input_model, id, value, as));
+    return rcpp_result_gen;
+END_RCPP
+}
 // getRuleMath
 int getRuleMath(SEXP input_model);
 RcppExport SEXP _r2sbml_getRuleMath(SEXP input_modelSEXP) {
@@ -107,6 +147,17 @@ BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type filename(filenameSEXP);
     rcpp_result_gen = Rcpp::wrap(getModel(filename));
+    return rcpp_result_gen;
+END_RCPP
+}
+// copyModel
+SEXP copyModel(SEXP input_model);
+RcppExport SEXP _r2sbml_copyModel(SEXP input_modelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(copyModel(input_model));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -187,17 +238,32 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// writeSBML
+void writeSBML(SEXP input_model, std::string filename);
+RcppExport SEXP _r2sbml_writeSBML(SEXP input_modelSEXP, SEXP filenameSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    Rcpp::traits::input_parameter< std::string >::type filename(filenameSEXP);
+    writeSBML(input_model, filename);
+    return R_NilValue;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_r2sbml_getCmtNames", (DL_FUNC) &_r2sbml_getCmtNames, 1},
     {"_r2sbml_getCmtSizes", (DL_FUNC) &_r2sbml_getCmtSizes, 1},
     {"_r2sbml_convertReactions", (DL_FUNC) &_r2sbml_convertReactions, 3},
     {"_r2sbml_echoSBML", (DL_FUNC) &_r2sbml_echoSBML, 1},
+    {"_r2sbml_setParameterValue", (DL_FUNC) &_r2sbml_setParameterValue, 3},
+    {"_r2sbml_setCompartmentSize", (DL_FUNC) &_r2sbml_setCompartmentSize, 3},
+    {"_r2sbml_setSpeciesIC", (DL_FUNC) &_r2sbml_setSpeciesIC, 4},
     {"_r2sbml_getRuleMath", (DL_FUNC) &_r2sbml_getRuleMath, 1},
     {"_r2sbml_getReactionMath", (DL_FUNC) &_r2sbml_getReactionMath, 1},
     {"_r2sbml_getFunctionDefinition", (DL_FUNC) &_r2sbml_getFunctionDefinition, 1},
     {"_r2sbml_getEventMath", (DL_FUNC) &_r2sbml_getEventMath, 1},
     {"_r2sbml_getModel", (DL_FUNC) &_r2sbml_getModel, 1},
+    {"_r2sbml_copyModel", (DL_FUNC) &_r2sbml_copyModel, 1},
     {"_r2sbml_getNumSpecies", (DL_FUNC) &_r2sbml_getNumSpecies, 1},
     {"_r2sbml_getParameterTable", (DL_FUNC) &_r2sbml_getParameterTable, 1},
     {"_r2sbml_printSBML", (DL_FUNC) &_r2sbml_printSBML, 1},
@@ -205,6 +271,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_r2sbml_getSpeciesNames", (DL_FUNC) &_r2sbml_getSpeciesNames, 1},
     {"_r2sbml_getSpeciesIC", (DL_FUNC) &_r2sbml_getSpeciesIC, 1},
     {"_r2sbml_getSpeciesTable", (DL_FUNC) &_r2sbml_getSpeciesTable, 1},
+    {"_r2sbml_writeSBML", (DL_FUNC) &_r2sbml_writeSBML, 2},
     {NULL, NULL, 0}
 };
 

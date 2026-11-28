@@ -56,8 +56,18 @@ reference:
   contents:
   - printSBML
   - echoSBML
+- title: Editing a model
+  desc: |
+    These change the model in place, so every R variable holding the same pointer sees the edit; `copyModel()` makes an independent copy first.
+  contents:
+  - editModel
+  - copyModel
+- title: Writing a model
+  desc: |
+    Validates the model and writes it, edits included, back to an SBML file.
+  contents: writeSBML
 - title: Exporting mass balances
   desc: |
-    Writes ready-to-simulate code for one of six ODE targets. Reads the SBML file itself, so it takes no model pointer.
+    Writes ready-to-simulate code for one of six ODE targets. Takes an SBML file or a model pointer; a model, edits included, is converted through a copy and left untouched.
   contents: convertReactions
 
