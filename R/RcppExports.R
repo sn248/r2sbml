@@ -157,6 +157,33 @@ setRateLaw <- function(input_model, id, formula) {
     invisible(.Call(`_r2sbml_setRateLaw`, input_model, id, formula))
 }
 
+#'Remove a reaction
+#'
+#'Delete a reaction from a model, in place, with its species references and
+#'kinetic law (local parameters included).
+#'
+#'Removal is refused, and the model left unchanged, when something that
+#'stays behind still uses the reaction: math that reads its id (in Level 3
+#'that is the reaction's rate) or the id of one of its species references
+#'(that is a stoichiometry), or a rule, initial assignment or event assignment
+#'that sets such a stoichiometry. The error lists what uses it.
+#'
+#'The species stay. A species no other reaction or rule changes keeps its
+#'initial value from then on. As with the other setters the model changes in
+#'place; use [copyModel()] first to keep the original. To switch a reaction
+#'off but keep it, set its rate law to zero with `setRateLaw(model, id, "0")`.
+#'@param input_model a model pointer from `getModel()`
+#'@param id the id of the reaction
+#'@return the model pointer, invisibly, so calls can be chained
+#'@examples
+#'sbml_file <- system.file("examples", "sbmlmutlicompartment.xml", package = "r2sbml")
+#'model <- getModel(sbml_file)
+#'removeReaction(model, "degradation")
+#'getReactionMath(model)
+removeReaction <- function(input_model, id) {
+    invisible(.Call(`_r2sbml_removeReaction`, input_model, id))
+}
+
 #'Print the rules of a model
 #'
 #'Prints each rule as infix math; an algebraic rule is printed as `f = 0`.

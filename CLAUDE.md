@@ -82,6 +82,8 @@ The setters mutate the document the `getModel()` pointer owns and return that po
 
 `setRateLaw()` parses with `SBML_parseL3FormulaWithModel()` (Level 3 syntax, like `formulaToInfix.h`; `time` and `avogadro` come back as csymbols). It resolves every `AST_NAME` against the model's compartments, species, parameters, reactions and species references plus that reaction's own local parameters, and every `AST_FUNCTION` against the function definitions, *before* touching the reaction, so a refused formula leaves the model unchanged. `getElementBySId()` is deliberately not used: it would find another reaction's local parameter. The parsed tree is held in a `std::unique_ptr` because `Rcpp::stop` throws and `KineticLaw::setMath()` deep-copies. `SBML_getLastParseL3Error()` returns a `safe_strdup` copy, so it is `free()`d.
 
+`removeReaction()` collects the reaction id and its species-reference ids (reactants, products, modifiers) and refuses if any rule, initial assignment, other kinetic law (honouring local-parameter shadowing, plus Level 2 `stoichiometryMath`), event (trigger, delay, priority, assignments) or constraint reads one, or if a rule variable, initial-assignment symbol or event-assignment variable is one. Only then does it call `Model::removeReaction()`, whose detached `Reaction*` is freed via `std::unique_ptr`. The static `mentionedInMath()` in `convertReactions.cpp` is narrower (no events or constraints), so it was not reused.
+
 ### libsbml is built from source, not linked system-wide
 
 This is the part most likely to surprise you. `configure.ac` unconditionally sets `need_to_build=yes` and calls `tools/cmake_call.sh`, which:

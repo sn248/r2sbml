@@ -1,7 +1,8 @@
 /* Editing a loaded model in place: parameter values, compartment sizes,
- * species initial values and rate laws.  Each setter returns the model
- * pointer invisibly, so calls chain, and mutates the document the pointer
- * owns -- every R variable holding the same pointer sees the change.
+ * species initial values and rate laws, and removing reactions.  Each
+ * function returns the model pointer invisibly, so calls chain, and mutates
+ * the document the pointer owns -- every R variable holding the same pointer
+ * sees the change.
  */
 
 #include <Rcpp.h>
@@ -241,5 +242,145 @@ SEXP setRateLaw(SEXP input_model, std::string id, SEXP formula) {
   // setMath() deep-copies; `math` frees the parsed tree
   if (kl == NULL || kl->setMath(math.get()) != LIBSBML_OPERATION_SUCCESS)
     Rcpp::stop("Could not set the rate law of reaction '" + id + "'.");
+  return input_model;
+}
+
+// Does `math` read any of `ids` as a plain name?  `shadow` holds ids a
+// kinetic law's local parameters hide.
+static bool readsAny(const ASTNode* math, const std::vector<std::string>& ids,
+                     const KineticLaw* shadow = NULL) {
+  if (math == NULL) return false;
+  if (math->getType() == AST_NAME && math->getName() != NULL) {
+    const std::string name = math->getName();
+    if (std::find(ids.begin(), ids.end(), name) != ids.end() &&
+        (shadow == NULL || (shadow->getLocalParameter(name) == NULL &&
+                            shadow->getParameter(name) == NULL)))
+      return true;
+  }
+  for (unsigned int i = 0; i < math->getNumChildren(); i++)
+    if (readsAny(math->getChild(i), ids, shadow)) return true;
+  return false;
+}
+
+static bool isOneOf(const std::string& x, const std::vector<std::string>& ids) {
+  return std::find(ids.begin(), ids.end(), x) != ids.end();
+}
+
+static std::string labelOf(const SBase* x, const std::string& kind) {
+  return x->isSetIdAttribute() ? kind + " '" + x->getIdAttribute() + "'" : kind;
+}
+
+static void addUse(std::vector<std::string>& uses, const std::string& use) {
+  if (std::find(uses.begin(), uses.end(), use) == uses.end())
+    uses.push_back(use);
+}
+
+// Everything left in the model, once reaction `skip` is gone, that reads or
+// sets one of `ids`: the reaction id is its rate in Level 3 math, and a
+// species reference id is its stoichiometry, which math reads and rules,
+// initial assignments and event assignments can set.
+static std::vector<std::string> usesOf(const Model* model,
+                                       const std::vector<std::string>& ids,
+                                       const Reaction* skip) {
+  std::vector<std::string> uses;
+  for (unsigned int i = 0; i < model->getNumRules(); i++) {
+    const Rule* r = model->getRule(i);
+    const std::string kind = r->isAssignment() ? "assignment rule"
+                           : r->isRate() ? "rate rule" : "algebraic rule";
+    if (readsAny(r->getMath(), ids) ||
+        (r->isSetVariable() && isOneOf(r->getVariable(), ids)))
+      addUse(uses, r->isSetVariable()
+                     ? "the " + kind + " for '" + r->getVariable() + "'"
+                     : "an " + kind);
+  }
+  for (unsigned int i = 0; i < model->getNumInitialAssignments(); i++) {
+    const InitialAssignment* ia = model->getInitialAssignment(i);
+    if (readsAny(ia->getMath(), ids) || isOneOf(ia->getSymbol(), ids))
+      addUse(uses, "the initial assignment for '" + ia->getSymbol() + "'");
+  }
+  for (unsigned int i = 0; i < model->getNumReactions(); i++) {
+    const Reaction* rn = model->getReaction(i);
+    if (rn == skip) continue;
+    const KineticLaw* kl = rn->getKineticLaw();
+    bool used = kl != NULL && readsAny(kl->getMath(), ids, kl);
+    // Level 2 stoichiometryMath
+    const unsigned int nr = rn->getNumReactants();
+    for (unsigned int j = 0; !used && j < nr + rn->getNumProducts(); j++) {
+      const SpeciesReference* sr = j < nr
+        ? rn->getReactant(j) : rn->getProduct(j - nr);
+      used = sr->isSetStoichiometryMath() &&
+             readsAny(sr->getStoichiometryMath()->getMath(), ids);
+    }
+    if (used) addUse(uses, labelOf(rn, "reaction"));
+  }
+  for (unsigned int i = 0; i < model->getNumEvents(); i++) {
+    const Event* e = model->getEvent(i);
+    bool used =
+      (e->isSetTrigger() && readsAny(e->getTrigger()->getMath(), ids)) ||
+      (e->isSetDelay() && readsAny(e->getDelay()->getMath(), ids)) ||
+      (e->isSetPriority() && readsAny(e->getPriority()->getMath(), ids));
+    for (unsigned int j = 0; !used && j < e->getNumEventAssignments(); j++) {
+      const EventAssignment* ea = e->getEventAssignment(j);
+      used = readsAny(ea->getMath(), ids) || isOneOf(ea->getVariable(), ids);
+    }
+    if (used) addUse(uses, labelOf(e, "event"));
+  }
+  for (unsigned int i = 0; i < model->getNumConstraints(); i++)
+    if (readsAny(model->getConstraint(i)->getMath(), ids))
+      addUse(uses, "a constraint");
+  return uses;
+}
+
+//'Remove a reaction
+//'
+//'Delete a reaction from a model, in place, with its species references and
+//'kinetic law (local parameters included).
+//'
+//'Removal is refused, and the model left unchanged, when something that
+//'stays behind still uses the reaction: math that reads its id (in Level 3
+//'that is the reaction's rate) or the id of one of its species references
+//'(that is a stoichiometry), or a rule, initial assignment or event assignment
+//'that sets such a stoichiometry. The error lists what uses it.
+//'
+//'The species stay. A species no other reaction or rule changes keeps its
+//'initial value from then on. As with the other setters the model changes in
+//'place; use [copyModel()] first to keep the original. To switch a reaction
+//'off but keep it, set its rate law to zero with `setRateLaw(model, id, "0")`.
+//'@param input_model a model pointer from `getModel()`
+//'@param id the id of the reaction
+//'@return the model pointer, invisibly, so calls can be chained
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlmutlicompartment.xml", package = "r2sbml")
+//'model <- getModel(sbml_file)
+//'removeReaction(model, "degradation")
+//'getReactionMath(model)
+// [[Rcpp::export(invisible = true)]]
+SEXP removeReaction(SEXP input_model, std::string id) {
+  Model* model = editableModel(input_model);
+  Reaction* r = model->getReaction(id);
+  if (r == NULL) Rcpp::stop("No reaction '" + id + "' in the model.");
+
+  std::vector<std::string> ids(1, id);
+  for (unsigned int j = 0; j < r->getNumReactants(); j++)
+    if (r->getReactant(j)->isSetId()) ids.push_back(r->getReactant(j)->getId());
+  for (unsigned int j = 0; j < r->getNumProducts(); j++)
+    if (r->getProduct(j)->isSetId()) ids.push_back(r->getProduct(j)->getId());
+  for (unsigned int j = 0; j < r->getNumModifiers(); j++)
+    if (r->getModifier(j)->isSetId()) ids.push_back(r->getModifier(j)->getId());
+
+  const std::vector<std::string> uses = usesOf(model, ids, r);
+  if (!uses.empty()) {
+    std::string list;
+    for (size_t i = 0; i < uses.size(); i++)
+      list += (i == 0 ? "" : i + 1 == uses.size() ? " and " : ", ") + uses[i];
+    Rcpp::stop("Cannot remove reaction '" + id + "': " + list +
+               (uses.size() == 1 ? " uses" : " use") +
+               " it. The model was not changed.");
+  }
+
+  // removeReaction() hands back the detached reaction for the caller to free
+  std::unique_ptr<Reaction> removed(model->removeReaction(id));
+  if (removed.get() == NULL)
+    Rcpp::stop("Could not remove reaction '" + id + "'.");
   return input_model;
 }

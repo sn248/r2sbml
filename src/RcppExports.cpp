@@ -108,6 +108,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// removeReaction
+SEXP removeReaction(SEXP input_model, std::string id);
+RcppExport SEXP _r2sbml_removeReaction(SEXP input_modelSEXP, SEXP idSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type input_model(input_modelSEXP);
+    Rcpp::traits::input_parameter< std::string >::type id(idSEXP);
+    rcpp_result_gen = Rcpp::wrap(removeReaction(input_model, id));
+    return rcpp_result_gen;
+END_RCPP
+}
 // getRuleMath
 int getRuleMath(SEXP input_model);
 RcppExport SEXP _r2sbml_getRuleMath(SEXP input_modelSEXP) {
@@ -272,6 +284,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_r2sbml_setCompartmentSize", (DL_FUNC) &_r2sbml_setCompartmentSize, 3},
     {"_r2sbml_setSpeciesIC", (DL_FUNC) &_r2sbml_setSpeciesIC, 4},
     {"_r2sbml_setRateLaw", (DL_FUNC) &_r2sbml_setRateLaw, 3},
+    {"_r2sbml_removeReaction", (DL_FUNC) &_r2sbml_removeReaction, 2},
     {"_r2sbml_getRuleMath", (DL_FUNC) &_r2sbml_getRuleMath, 1},
     {"_r2sbml_getReactionMath", (DL_FUNC) &_r2sbml_getReactionMath, 1},
     {"_r2sbml_getFunctionDefinition", (DL_FUNC) &_r2sbml_getFunctionDefinition, 1},
