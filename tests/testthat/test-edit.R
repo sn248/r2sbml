@@ -351,3 +351,140 @@ test_that("convertReactions uses an edited rate law", {
   capture.output(convertReactions(model, out, format = "R"))
   expect_true(any(grepl("/ (ES + P)", readLines(out), fixed = TRUE)))
 })
+
+# r1 (A -> B) and r2 (B -> C). The assignment rule reads r1's rate, and the
+# initial assignment sets the stoichiometry of r1's reactant reference s1.
+refs_xml <- function(rule = TRUE, ia = TRUE, event = FALSE) {
+  paste0('<?xml version="1.0" encoding="UTF-8" ?>
+<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2">
+<model>
+<listOfCompartments>
+<compartment id="c" size="1" spatialDimensions="3" constant="true"/>
+</listOfCompartments>
+<listOfSpecies>
+<species id="A" compartment="c" initialAmount="10" hasOnlySubstanceUnits="true" boundaryCondition="false" constant="false"/>
+<species id="B" compartment="c" initialAmount="0" hasOnlySubstanceUnits="true" boundaryCondition="false" constant="false"/>
+<species id="C" compartment="c" initialAmount="0" hasOnlySubstanceUnits="true" boundaryCondition="false" constant="false"/>
+</listOfSpecies>
+<listOfParameters>
+<parameter id="k1" value="1" constant="true"/>
+<parameter id="k2" value="2" constant="true"/>
+<parameter id="flux" constant="false"/>
+</listOfParameters>',
+if (ia) '
+<listOfInitialAssignments>
+<initialAssignment symbol="s1">
+<math xmlns="http://www.w3.org/1998/Math/MathML"><cn>2</cn></math>
+</initialAssignment>
+</listOfInitialAssignments>',
+if (rule) '
+<listOfRules>
+<assignmentRule variable="flux">
+<math xmlns="http://www.w3.org/1998/Math/MathML"><ci>r1</ci></math>
+</assignmentRule>
+</listOfRules>', '
+<listOfReactions>
+<reaction id="r1" reversible="false">
+<listOfReactants><speciesReference id="s1" species="A" stoichiometry="1" constant="true"/></listOfReactants>
+<listOfProducts><speciesReference species="B" stoichiometry="1" constant="true"/></listOfProducts>
+<kineticLaw><math xmlns="http://www.w3.org/1998/Math/MathML"><apply><times/><ci>k1</ci><ci>A</ci></apply></math></kineticLaw>
+</reaction>
+<reaction id="r2" reversible="false">
+<listOfReactants><speciesReference species="B" stoichiometry="1" constant="true"/></listOfReactants>
+<listOfProducts><speciesReference species="C" stoichiometry="1" constant="true"/></listOfProducts>
+<kineticLaw><math xmlns="http://www.w3.org/1998/Math/MathML"><apply><times/><ci>k2</ci><ci>B</ci></apply></math></kineticLaw>
+</reaction>
+</listOfReactions>',
+if (event) '
+<listOfEvents>
+<event id="e1" useValuesFromTriggerTime="true">
+<trigger initialValue="false" persistent="true"><math xmlns="http://www.w3.org/1998/Math/MathML"><apply><gt/><ci>r1</ci><cn>5</cn></apply></math></trigger>
+<listOfEventAssignments><eventAssignment variable="C"><math xmlns="http://www.w3.org/1998/Math/MathML"><cn>0</cn></math></eventAssignment></listOfEventAssignments>
+</event>
+</listOfEvents>', '
+</model>
+</sbml>')
+}
+
+refs_model <- function(...) {
+  f <- tempfile(fileext = ".xml")
+  writeLines(refs_xml(...), f)
+  load_quietly(f)
+}
+
+test_that("removeReaction removes in place and survives a round trip", {
+  model <- multi()
+  species <- getSpeciesNames(model)
+  expect_invisible(res <- removeReaction(model, "degradation"))
+  expect_identical(res, model)
+  laws <- rate_laws(model)
+  expect_length(laws, 3)
+  expect_false(any(grepl("k3", laws)))
+
+  out <- tempfile(fileext = ".xml")
+  writeSBML(model, out)
+  expect_false(any(grepl('id="degradation"', readLines(out))))
+  back <- load_quietly(out)
+  expect_equal(rate_laws(back), laws)
+  # the species stay
+  expect_equal(getSpeciesNames(back), species)
+})
+
+test_that("removeReaction rejects an unknown reaction", {
+  model <- multi()
+  expect_error(
+    removeReaction(model, "nope"),
+    "No reaction 'nope' in the model.",
+    fixed = TRUE
+  )
+})
+
+test_that("removeReaction refuses while something uses the reaction", {
+  model <- refs_model(event = TRUE)
+  expect_error(
+    removeReaction(model, "r1"),
+    paste(
+      "Cannot remove reaction 'r1': the assignment rule for 'flux',",
+      "the initial assignment for 's1' and event 'e1' use it.",
+      "The model was not changed."
+    ),
+    fixed = TRUE
+  )
+  expect_length(rate_laws(model), 2)
+
+  # nothing uses r2
+  removeReaction(model, "r2")
+  expect_equal(rate_laws(model), "Reaction 0, formula: k1 * A")
+})
+
+test_that("a species reference id counts as a use, and so does a reaction id", {
+  expect_error(
+    removeReaction(refs_model(rule = FALSE), "r1"),
+    "the initial assignment for 's1' uses it",
+    fixed = TRUE
+  )
+  expect_error(
+    removeReaction(refs_model(ia = FALSE), "r1"),
+    "the assignment rule for 'flux' uses it",
+    fixed = TRUE
+  )
+  model <- refs_model(rule = FALSE, ia = FALSE)
+  removeReaction(model, "r1")
+  # the model declares no units, so the write warns
+  back <- NULL
+  capture.output(
+    type = "message",
+    expect_warning(back <- round_trip(model), "SBML warning")
+  )
+  expect_equal(rate_laws(back), "Reaction 0, formula: k2 * B")
+})
+
+test_that("convertReactions works after reactions are removed", {
+  model <- multi()
+  removeReaction(model, "transformation")
+  removeReaction(model, "degradation")
+  out <- tempfile(fileext = ".R")
+  capture.output(convertReactions(model, out, format = "R"))
+  code <- readLines(out)
+  expect_false(any(grepl("k2 \\*|k3 \\*", code)))
+})

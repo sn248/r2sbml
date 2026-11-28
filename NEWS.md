@@ -7,7 +7,8 @@
   file. A value setter warns when an initial assignment or assignment rule
   overrides the value it sets. `setRateLaw()` parses an infix formula,
   refuses one naming an id the reaction cannot see, and keeps the reaction's
-  local parameters.
+  local parameters. `removeReaction()` deletes a reaction, refusing while
+  remaining math reads its rate or one of its stoichiometries.
 
 * Fixed a memory leak in `getModel()`. When R collected a model, the pointer
   freed the model but leaked the SBML document that owns it. It now frees the

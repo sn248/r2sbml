@@ -134,6 +134,17 @@ filename/document today).
   the reaction's own local parameters count, not another reaction's.
 - Unit diagnostics are left to `writeSBML()`, which warns and still writes.
 
+## Phase 3 decisions (2026-11-27)
+
+- `removeReaction()` only; no `setReactionActive()`. `setRateLaw(model, id,
+  "0")` already switches a reaction off, and turning it back on would need the
+  old law kept somewhere in the document. `copyModel()` is the undo.
+- Removal is refused, model unchanged, while anything that stays reads the
+  reaction id (its rate) or one of its species reference ids (a
+  stoichiometry), or a rule, initial assignment or event assignment sets one.
+  Dangling references are never left for `writeSBML()` to find.
+- The species stay, even ones no other reaction touches.
+
 ## Phasing
 
 1. `writeSBML` + scalar setters (`setParameterValue`, `setCompartmentSize`,

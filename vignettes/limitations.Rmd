@@ -84,14 +84,14 @@ solutions: mrgsolve and rxode2 compiled and run, MATLAB under Octave, Julia
 with `DifferentialEquations.jl`, and ubiquity built with `build_system()` and
 run on both its C and R engines. None of them is run against the full suite.
 
-# Scope: editing values and rate laws, not structure
+# Scope: editing values, rate laws and reactions
 
 You can change these in a loaded model: a parameter's value
 (`setParameterValue()`), a compartment's size (`setCompartmentSize()`), a
 species' initial amount or concentration (`setSpeciesIC()`) and a reaction's
-rate law, from an infix formula (`setRateLaw()`). `writeSBML()` writes the
-result back to a file, and `convertReactions()` accepts the edited model
-directly.
+rate law, from an infix formula (`setRateLaw()`). You can also remove a
+reaction (`removeReaction()`). `writeSBML()` writes the result back to a
+file, and `convertReactions()` accepts the edited model directly.
 
 ```{r edit}
 multi_file <- system.file("examples", "sbmlmutlicompartment.xml",
@@ -100,10 +100,11 @@ invisible(capture.output(model <- getModel(multi_file)))
 setParameterValue(model, "k1", 1000)
 setRateLaw(model, "degradation", "cytoplasm * k3 * Y2^2")
 getParameterTable(model)
+removeReaction(model, "transport")
 invisible(getReactionMath(model))
 ```
 
-Four things behave differently from ordinary R objects, or from what you might
+Five things behave differently from ordinary R objects, or from what you might
 expect:
 
 - **Edits happen in place.** `getModel()` returns a pointer, so
@@ -121,9 +122,14 @@ expect:
   reference of the model, one of the reaction's own local parameters, or a
   function definition; otherwise `setRateLaw()` stops and leaves the model
   unchanged. To use a new constant, write it as a number.
+- **A reaction something still uses cannot be removed.** If remaining math
+  reads the reaction's rate (its id) or a stoichiometry (a species reference
+  id), or a rule or assignment sets that stoichiometry, `removeReaction()`
+  stops and names what uses it. The species stay; to switch a reaction off
+  but keep it, use `setRateLaw(model, id, "0")`.
 
-You cannot yet add or remove components (species, parameters, reactions,
-rules). For that, use libSBML's own R bindings or edit the XML directly.
+You cannot yet add components, or remove anything other than reactions. For
+that, use libSBML's own R bindings or edit the XML directly.
 
 # Per-target capability matrix
 
