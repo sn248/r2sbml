@@ -13,7 +13,8 @@ convertReactions(infile, outfile, format = "R")
 
 - infile:
 
-  input file name
+  input SBML file name, or a model from
+  [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md)
 
 - outfile:
 
@@ -28,6 +29,15 @@ convertReactions(infile, outfile, format = "R")
 ## Value
 
 NULL invisibly
+
+## Details
+
+The first argument is either the path to an SBML file or a model already
+read with
+[`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md).
+Passing a loaded model converts a copy of it, so the model you keep in R
+is left unchanged – an edited model can be converted directly, with no
+round-trip through a temporary file.
 
 ## Examples
 
@@ -55,6 +65,17 @@ convertReactions(sbml_file, out_file_jl, format = "Julia")
 #> Number of ODEs - 4
 out_file_ub <- tempfile(fileext = ".txt")
 convertReactions(sbml_file, out_file_ub, format = "ubiquity")
+#> Conversion completed.
+#> Number of ODEs - 4
+model <- getModel(sbml_file)
+#> 
+#>   filename: /home/runner/work/_temp/Library/r2sbml/examples/sbmlsimple.xml
+#>   error(s): 0
+#> 
+#> 
+#> File: /home/runner/work/_temp/Library/r2sbml/examples/sbmlsimple.xml (Level 3, version 2)
+out_file_model <- tempfile(fileext = ".R")
+convertReactions(model, out_file_model, format = "R")
 #> Conversion completed.
 #> Number of ODEs - 4
 ```
