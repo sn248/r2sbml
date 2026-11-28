@@ -55,6 +55,41 @@ test_that("convertReactions formats work", {
     expect_true(any(grepl("^<ODE:", lines_ub)))
 })
 
+test_that("convertReactions accepts a loaded model, same as a file", {
+    sbml_file <- system.file("examples", "sbmlmutlicompartment.xml", package = "r2sbml")
+    if (sbml_file == "") sbml_file <- "../../inst/examples/sbmlmutlicompartment.xml"
+
+    model <- getModel(sbml_file)
+    # A snapshot of the model, to prove the destructive converters run on a
+    # clone and leave the caller's model untouched.
+    before <- capture.output(getReactionTable(model))
+
+    # Every format a loaded model produces must match the same format from the
+    # file.  MATLAB is the exception: its function name comes from the output
+    # path, so file and model only agree when the basename does -- give both
+    # the same basename in different directories.
+    for (fmt in c("R", "mrgsolve", "nlmixr2", "MATLAB", "Julia", "ubiquity")) {
+        ext <- switch(fmt, mrgsolve = ".cpp", MATLAB = ".m", Julia = ".jl",
+                      ubiquity = ".txt", ".R")
+        dir_f <- tempfile(); dir_m <- tempfile()
+        dir.create(dir_f); dir.create(dir_m)
+        out_f <- file.path(dir_f, paste0("model", ext))
+        out_m <- file.path(dir_m, paste0("model", ext))
+
+        expect_invisible(convertReactions(sbml_file, out_f, format = fmt))
+        expect_invisible(convertReactions(model,     out_m, format = fmt))
+        expect_identical(readLines(out_m), readLines(out_f),
+                         info = paste("format", fmt))
+    }
+
+    # The caller's model is unchanged after all those conversions.
+    expect_identical(capture.output(getReactionTable(model)), before)
+
+    # A non-model, non-path pointer, and a missing input, are errors.
+    expect_error(convertReactions(structure(1L), tempfile()))
+    expect_error(convertReactions(NULL, tempfile()), "not present")
+})
+
 test_that("ubiquity math uses the SIMINT spellings", {
     # sbmldelay is the only example with an exponentiation, so it is the one
     # that exercises SIMINT_POWER.  It also carries a delay(), which ubiquity
