@@ -1,5 +1,11 @@
 # r2sbml (development version)
 
+* Models can now be edited and written back to SBML:
+  `setParameterValue()`, `setCompartmentSize()` and `setSpeciesIC()` change a
+  loaded model in place, `copyModel()` makes an independent copy, and
+  `writeSBML()` validates the model and writes it to a file. A setter warns
+  when an initial assignment or assignment rule overrides the value it sets.
+
 * Fixed a memory leak in `getModel()`. When R collected a model, the pointer
   freed the model but leaked the SBML document that owns it. It now frees the
   document, and the model with it.

@@ -13,25 +13,17 @@ the `getModel()` pointer now owns and frees its `SBMLDocument` (#15), which
 would let R's garbage collector free objects the document owns, and a single
 facade class adds nothing over functions while being harder to document.
 
-First release (0.2.0):
+Phase 1 is done: `setParameterValue()`, `setCompartmentSize()`,
+`setSpeciesIC(model, id, value, as)` (the caller names amount or
+concentration), `copyModel()` and `writeSBML()`, with tests in
+`test-edit.R`. `convertReactions()` takes a model pointer and converts a
+clone (0a5172a). The design record is `dev/edit-model-scope.md`.
 
-- `setParameterValue(model, id, value)`, `setSpeciesInitialValue()` (amount
-  or concentration, whichever is meant) and `setCompartmentSize()`. Each
-  errors on an unknown id, and warns when the value it sets has no effect
-  because an initial assignment or rule sets it instead.
-- `writeModel(model, file)`, which runs `checkConsistency()` and refuses to
-  write a model that is no longer valid SBML. libSBML rewrites the whole file
-  in its own layout (indentation, attribute order), so a diff against the
-  original shows more than the edit; document that.
-- `copyModel(model)` through `SBMLDocument::clone()`. Edits are in place and
-  shared by every R variable that holds the pointer, unlike ordinary R
-  objects; document that too.
-- `convertReactions()` on an edited model. It reads its own file and its
-  converters modify the document in place, so a model-pointer version must
-  clone first. Simplest first step: write to `tempfile()` and convert that.
-- Tests, a `_pkgdown.yml` reference group, and rewording "Models are read,
-  not modified" in `DESCRIPTION`, the README and
-  `vignettes/limitations.Rmd`.
+Next, in order (phases 2 and 3 of the scope note):
+
+- `setRateLaw(model, id, formula)`: parse with `SBML_parseL3FormulaWithModel()`
+  into the reaction's `KineticLaw`.
+- `removeReaction()`, or a lighter `setReactionActive(model, id, FALSE)`.
 
 Later:
 

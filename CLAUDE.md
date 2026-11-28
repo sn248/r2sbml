@@ -74,7 +74,11 @@ The condition message names the component (`"No Rules present in the model."`), 
 ### C++ layer (`src/`)
 
 One `.cpp` file per topic, each function exported with `// [[Rcpp::export]]`:
-`getModel.cpp`, `speciesInfo.cpp`, `paramInfo.cpp`, `compartmentInfo.cpp`, `reactionInfo.cpp`, `getMath.cpp` (rules/reactions/function definitions/events), `getSpeciesNum.cpp`, `printSBML.cpp`, `echoSBML.cpp`, `convertReactions.cpp`.
+`getModel.cpp` (also `copyModel()`), `speciesInfo.cpp`, `paramInfo.cpp`, `compartmentInfo.cpp`, `reactionInfo.cpp`, `getMath.cpp` (rules/reactions/function definitions/events), `getSpeciesNum.cpp`, `printSBML.cpp`, `echoSBML.cpp`, `convertReactions.cpp`, `editModel.cpp` (the setters), `writeSBML.cpp`.
+
+### Editing (`editModel.cpp`, `writeSBML.cpp`)
+
+The setters mutate the document the `getModel()` pointer owns and return that pointer invisibly (`// [[Rcpp::export(invisible = true)]]`), so they chain; the edit is visible through every R variable holding the pointer, and `copyModel()` clones the document under a new pointer with the same `finalizeModel` finalizer. `NA` unsets an attribute; NaN and the infinities are set as values. A setter warns when an initial assignment or assignment rule with math overrides the value. `writeSBML()` is the third call site of the shared severity rule: it clears the error log, runs the full `checkConsistency()` (all categories; 9 of the 10 examples pass clean), refuses on error+fatal, and warns on the rest. That check is stricter than the reader's, so it can refuse a model `getModel()` accepted — e.g. a rule naming an undefined id.
 
 ### libsbml is built from source, not linked system-wide
 

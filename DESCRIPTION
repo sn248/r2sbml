@@ -59,7 +59,8 @@ Description: Reads models in the Systems Biology Markup Language ('SBML')
     parameters, compartments, reactions, rules, events and function
     definitions, and converts the model into ready-to-run simulation code
     for 'deSolve', 'mrgsolve', 'rxode2', 'MATLAB', 'Julia' or 'ubiquity'.
-    Models are read, not modified.
+    Parameter values, compartment sizes and species initial values can be
+    edited, and the model written back to an 'SBML' file.
 URL: https://sn248.github.io/r2sbml/, https://github.com/sn248/r2sbml
 BugReports: https://github.com/sn248/r2sbml/issues
 Encoding: UTF-8

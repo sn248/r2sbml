@@ -9,7 +9,7 @@ A lightweight R interface to the [libSBML](https://sbml.org/software/libsbml/) l
 
 `r2sbml` reads an [SBML](https://sbml.org) model, lets you query its components from R — species, parameters, compartments, reactions, rules, events, function definitions — and exports the mass balances as ready-to-simulate code for several ODE solvers.
 
-Modifying an imported model from R is not supported: `r2sbml` reads and exports, it does not edit.
+You can also change a model's parameter values, compartment sizes and species initial values from R (`setParameterValue()`, `setCompartmentSize()`, `setSpeciesIC()`) and write it back out with `writeSBML()`. Adding or removing components is not supported yet.
 
 ## Installation
 

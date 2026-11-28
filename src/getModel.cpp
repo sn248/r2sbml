@@ -87,3 +87,35 @@ SEXP getModel (SEXP filename) {
   return Rcpp::XPtr<Model, Rcpp::PreserveStorage, finalizeModel, true>(model, true);
 
 }
+
+//'Copy a model
+//'
+//'Edits made with `setParameterValue()`, `setCompartmentSize()` and
+//'`setSpeciesIC()` change a model in place, and every R variable that holds
+//'the same pointer sees them: `model2 <- model` copies the pointer, not the
+//'model. `copyModel()` makes an independent copy of the whole SBML document,
+//'so the two can be edited separately.
+//'@param input_model a model pointer from `getModel()`
+//'@return an external pointer to the copy
+//'@examples
+//'sbml_file <- system.file("examples", "sbmlmutlicompartment.xml", package = "r2sbml")
+//'model <- getModel(sbml_file)
+//'edited <- copyModel(model)
+//'setParameterValue(edited, "k1", 1000)
+//'getParameterTable(model)$Value[1]
+//'getParameterTable(edited)$Value[1]
+// [[Rcpp::export]]
+SEXP copyModel (SEXP input_model) {
+
+  Model* model = Rcpp::XPtr<Model>(input_model);
+  if (model == NULL || model->getSBMLDocument() == NULL)
+    Rcpp::stop("No model present.");
+
+  std::unique_ptr<SBMLDocument> document(model->getSBMLDocument()->clone());
+  Model* copy = document->getModel();
+  if (copy == NULL) Rcpp::stop("The copied document contains no model.");
+
+  document.release();
+  return Rcpp::XPtr<Model, Rcpp::PreserveStorage, finalizeModel, true>(copy, true);
+
+}

@@ -79,6 +79,54 @@ echoSBML <- function(filename) {
     .Call(`_r2sbml_echoSBML`, filename)
 }
 
+#'Edit a model's values
+#'
+#'Set the value of a parameter, the size of a compartment, or the initial
+#'value of a species, in place.
+#'
+#'The model is changed in place, unlike an ordinary R object: every variable
+#'that holds the same pointer sees the edit. Use `copyModel()` first to keep
+#'the original. The query functions show the edit straight away, and
+#'`convertReactions()` and `writeSBML()` use it.
+#'
+#'A species carries an initial amount or an initial concentration, never
+#'both, so `setSpeciesIC()` needs to be told which `value` is: it sets that
+#'attribute and unsets the other.
+#'
+#'An unknown `id` is an error. When an initial assignment or an assignment
+#'rule sets the component, the new value is stored but has no effect, and a
+#'warning says so; a rate rule starts from the new value, so it does have
+#'one.
+#'@param input_model a model pointer from `getModel()`
+#'@param id the id of the parameter, compartment or species
+#'@param value the new value, a single number; `NA` unsets it
+#'@param as for `setSpeciesIC()`, whether `value` is an `"amount"` or a
+#'  `"concentration"`
+#'@return the model pointer, invisibly, so calls can be chained
+#'@examples
+#'sbml_file <- system.file("examples", "sbmlmutlicompartment.xml", package = "r2sbml")
+#'model <- getModel(sbml_file)
+#'setParameterValue(model, "k1", 1000)
+#'setCompartmentSize(model, "nucleus", 2)
+#'setSpeciesIC(model, "X", 0.5, as = "concentration")
+#'getParameterTable(model)
+#'getSpeciesTable(model)
+#'@name editModel
+#'@rdname editModel
+setParameterValue <- function(input_model, id, value) {
+    invisible(.Call(`_r2sbml_setParameterValue`, input_model, id, value))
+}
+
+#'@rdname editModel
+setCompartmentSize <- function(input_model, id, value) {
+    invisible(.Call(`_r2sbml_setCompartmentSize`, input_model, id, value))
+}
+
+#'@rdname editModel
+setSpeciesIC <- function(input_model, id, value, as) {
+    invisible(.Call(`_r2sbml_setSpeciesIC`, input_model, id, value, as))
+}
+
 #'Print the rules of a model
 #'
 #'Prints each rule as infix math; an algebraic rule is printed as `f = 0`.
@@ -143,6 +191,26 @@ getEventMath <- function(input_model) {
 #'model <- getModel(sbml_file)
 getModel <- function(filename) {
     .Call(`_r2sbml_getModel`, filename)
+}
+
+#'Copy a model
+#'
+#'Edits made with `setParameterValue()`, `setCompartmentSize()` and
+#'`setSpeciesIC()` change a model in place, and every R variable that holds
+#'the same pointer sees them: `model2 <- model` copies the pointer, not the
+#'model. `copyModel()` makes an independent copy of the whole SBML document,
+#'so the two can be edited separately.
+#'@param input_model a model pointer from `getModel()`
+#'@return an external pointer to the copy
+#'@examples
+#'sbml_file <- system.file("examples", "sbmlmutlicompartment.xml", package = "r2sbml")
+#'model <- getModel(sbml_file)
+#'edited <- copyModel(model)
+#'setParameterValue(edited, "k1", 1000)
+#'getParameterTable(model)$Value[1]
+#'getParameterTable(edited)$Value[1]
+copyModel <- function(input_model) {
+    .Call(`_r2sbml_copyModel`, input_model)
 }
 
 #'Number of species in a model
@@ -257,5 +325,34 @@ getSpeciesIC <- function(input_model) {
 #'getSpeciesTable(model)
 getSpeciesTable <- function(input_model) {
     .Call(`_r2sbml_getSpeciesTable`, input_model)
+}
+
+#'Write a model to an SBML file
+#'
+#'Writes the model, with any edits made by `setParameterValue()`,
+#'`setCompartmentSize()` or `setSpeciesIC()`, to an SBML file.
+#'
+#'The model is first run through libSBML's consistency checks. A model with
+#'error- or fatal-severity diagnostics is not written, so an edit can never
+#'leave an invalid file behind; lesser diagnostics are raised as a warning and
+#'the file is written anyway, the rule `getModel()` applies when reading.
+#'Because these checks are more thorough than the ones made on reading, a
+#'model `getModel()` accepted can still be refused here.
+#'
+#'libSBML writes the whole document in its own layout, so a diff against the
+#'original file shows changes of indentation and attribute order besides the
+#'edits. The SBML level and version are kept.
+#'@param input_model a model pointer from `getModel()`
+#'@param filename output file name, conventionally ending in `.xml`
+#'@return NULL invisibly
+#'@examples
+#'sbml_file <- system.file("examples", "sbmlmutlicompartment.xml", package = "r2sbml")
+#'model <- getModel(sbml_file)
+#'setParameterValue(model, "k1", 1000)
+#'out_file <- tempfile(fileext = ".xml")
+#'writeSBML(model, out_file)
+#'getParameterTable(getModel(out_file))
+writeSBML <- function(input_model, filename) {
+    invisible(.Call(`_r2sbml_writeSBML`, input_model, filename))
 }
 
