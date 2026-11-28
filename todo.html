@@ -43,11 +43,11 @@
 <h2 id="editing-models-from-r">Editing models from R<a class="anchor" aria-label="anchor" href="#editing-models-from-r"></a></h2>
 <p>Scoped 2026-11-15 by prototyping against the bundled libSBML (setting a parameter, writing the file and reading it back). The prerequisite is done: the <code><a href="reference/getModel.html">getModel()</a></code> pointer now owns and frees its <code>SBMLDocument</code> (#15), which <code>writeModel()</code> needs. Plain <code>[[Rcpp::export]]</code> functions over the existing <code>XPtr&lt;Model&gt;</code>, not Rcpp modules: wrapping libSBML’s own classes in modules would let R’s garbage collector free objects the document owns, and a single facade class adds nothing over functions while being harder to document.</p>
 <p>Phase 1 is done: <code><a href="reference/editModel.html">setParameterValue()</a></code>, <code><a href="reference/editModel.html">setCompartmentSize()</a></code>, <code>setSpeciesIC(model, id, value, as)</code> (the caller names amount or concentration), <code><a href="reference/copyModel.html">copyModel()</a></code> and <code><a href="reference/writeSBML.html">writeSBML()</a></code>, with tests in <code>test-edit.R</code>. <code><a href="reference/convertReactions.html">convertReactions()</a></code> takes a model pointer and converts a clone (0a5172a). The design record is <code>dev/edit-model-scope.md</code>.</p>
-<p>Next, in order (phases 2 and 3 of the scope note):</p>
+<p>Phase 2 is done: <code>setRateLaw(model, id, formula)</code> parses with <code>SBML_parseL3FormulaWithModel()</code>, refuses a formula naming an id the reaction cannot see (leaving the model unchanged), creates a kinetic law when the reaction has none, and keeps the reaction’s local parameters.</p>
+<p>Next (phase 3 of the scope note):</p>
 <ul><li>
-<code>setRateLaw(model, id, formula)</code>: parse with <code>SBML_parseL3FormulaWithModel()</code> into the reaction’s <code>KineticLaw</code>.</li>
-<li>
 <code>removeReaction()</code>, or a lighter <code>setReactionActive(model, id, FALSE)</code>.</li>
+<li>Optionally, a <code><a href="reference/setRateLaw.html">setRateLaw()</a></code> option to drop local parameters the new formula no longer uses; for now they stay, which is valid SBML.</li>
 </ul><p>Later:</p>
 <ul><li>Adding and removing components (parameters, species, reactions, rules). Removal needs a check that no other math still references the id; adding rules or kinetic laws means parsing math from a string with <code>SBML_parseL3Formula()</code>.</li>
 <li>The <code>"No model present."</code> checks in the query functions are unreachable: <code><a href="reference/getModel.html">getModel()</a></code> now refuses a file with no model, and Rcpp rejects a NULL pointer before the checks run. Remove them or leave them as a guard.</li>

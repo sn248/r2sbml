@@ -204,26 +204,33 @@ ubiquity built with <code>build_system()</code> and run on both its C
 and R engines. None of them is run against the full suite.</p>
 </div>
 <div class="section level2">
-<h2 id="scope-editing-values-not-structure">Scope: editing values, not structure<a class="anchor" aria-label="anchor" href="#scope-editing-values-not-structure"></a>
+<h2 id="scope-editing-values-and-rate-laws-not-structure">Scope: editing values and rate laws, not structure<a class="anchor" aria-label="anchor" href="#scope-editing-values-and-rate-laws-not-structure"></a>
 </h2>
-<p>You can change values in a loaded model: a parameter’s value
+<p>You can change these in a loaded model: a parameter’s value
 (<code><a href="../reference/editModel.html">setParameterValue()</a></code>), a compartment’s size
-(<code><a href="../reference/editModel.html">setCompartmentSize()</a></code>) and a species’ initial amount or
-concentration (<code><a href="../reference/editModel.html">setSpeciesIC()</a></code>). <code><a href="../reference/writeSBML.html">writeSBML()</a></code>
-writes the result back to a file, and <code><a href="../reference/convertReactions.html">convertReactions()</a></code>
-accepts the edited model directly.</p>
+(<code><a href="../reference/editModel.html">setCompartmentSize()</a></code>), a species’ initial amount or
+concentration (<code><a href="../reference/editModel.html">setSpeciesIC()</a></code>) and a reaction’s rate law,
+from an infix formula (<code><a href="../reference/setRateLaw.html">setRateLaw()</a></code>).
+<code><a href="../reference/writeSBML.html">writeSBML()</a></code> writes the result back to a file, and
+<code><a href="../reference/convertReactions.html">convertReactions()</a></code> accepts the edited model directly.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">multi_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"examples"</span>, <span class="st">"sbmlmutlicompartment.xml"</span>,</span>
 <span>                          package <span class="op">=</span> <span class="st">"r2sbml"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/capture.output.html" class="external-link">capture.output</a></span><span class="op">(</span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/getModel.html">getModel</a></span><span class="op">(</span><span class="va">multi_file</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/editModel.html">setParameterValue</a></span><span class="op">(</span><span class="va">model</span>, <span class="st">"k1"</span>, <span class="fl">1000</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/setRateLaw.html">setRateLaw</a></span><span class="op">(</span><span class="va">model</span>, <span class="st">"degradation"</span>, <span class="st">"cytoplasm * k3 * Y2^2"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/getParameterTable.html">getParameterTable</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   Number ID Name Value                     Units</span></span>
 <span><span class="co">#&gt; 1      1 k1       1000 litre_per_mole_per_second</span></span>
 <span><span class="co">#&gt; 2      2 k2       2500 litre_per_mole_per_second</span></span>
 <span><span class="co">#&gt; 3      3 KT      25000                per_second</span></span>
-<span><span class="co">#&gt; 4      4 k3       2500                per_second</span></span></code></pre></div>
-<p>Three things behave differently from ordinary R objects, or from what
+<span><span class="co">#&gt; 4      4 k3       2500                per_second</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="fu"><a href="../reference/getReactionMath.html">getReactionMath</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Reaction 0, formula: nucleus * k1 * X * Y1n</span></span>
+<span><span class="co">#&gt; Reaction 1, formula: cytoplasm * KT * (Y1n - Y1c)</span></span>
+<span><span class="co">#&gt; Reaction 2, formula: cytoplasm * k2 * Y1c * Y2</span></span>
+<span><span class="co">#&gt; Reaction 3, formula: cytoplasm * k3 * Y2^2</span></span></code></pre></div>
+<p>Four things behave differently from ordinary R objects, or from what
 you might expect:</p>
 <ul>
 <li>
@@ -241,10 +248,17 @@ libSBML uses its own layout, so a diff against the original shows
 indentation and attribute-order changes besides the edit. It also runs
 libSBML’s full consistency checks and refuses to write a model with
 errors, which can include one <code><a href="../reference/getModel.html">getModel()</a></code> accepted.</li>
+<li>
+<strong>A rate law can only use what the reaction can see.</strong>
+Every name in the formula must be a compartment, species, parameter,
+reaction or species reference of the model, one of the reaction’s own
+local parameters, or a function definition; otherwise
+<code><a href="../reference/setRateLaw.html">setRateLaw()</a></code> stops and leaves the model unchanged. To use a
+new constant, write it as a number.</li>
 </ul>
 <p>You cannot yet add or remove components (species, parameters,
-reactions, rules) or change a rate law. For that, use libSBML’s own R
-bindings or edit the XML directly.</p>
+reactions, rules). For that, use libSBML’s own R bindings or edit the
+XML directly.</p>
 </div>
 <div class="section level2">
 <h2 id="per-target-capability-matrix">Per-target capability matrix<a class="anchor" aria-label="anchor" href="#per-target-capability-matrix"></a>

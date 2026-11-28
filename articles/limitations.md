@@ -73,14 +73,16 @@ under Octave, Julia with `DifferentialEquations.jl`, and ubiquity built
 with `build_system()` and run on both its C and R engines. None of them
 is run against the full suite.
 
-## Scope: editing values, not structure
+## Scope: editing values and rate laws, not structure
 
-You can change values in a loaded model: a parameter’s value
+You can change these in a loaded model: a parameter’s value
 ([`setParameterValue()`](https://sn248.github.io/r2sbml/reference/editModel.md)),
 a compartment’s size
-([`setCompartmentSize()`](https://sn248.github.io/r2sbml/reference/editModel.md))
-and a species’ initial amount or concentration
-([`setSpeciesIC()`](https://sn248.github.io/r2sbml/reference/editModel.md)).
+([`setCompartmentSize()`](https://sn248.github.io/r2sbml/reference/editModel.md)),
+a species’ initial amount or concentration
+([`setSpeciesIC()`](https://sn248.github.io/r2sbml/reference/editModel.md))
+and a reaction’s rate law, from an infix formula
+([`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md)).
 [`writeSBML()`](https://sn248.github.io/r2sbml/reference/writeSBML.md)
 writes the result back to a file, and
 [`convertReactions()`](https://sn248.github.io/r2sbml/reference/convertReactions.md)
@@ -92,16 +94,22 @@ multi_file <- system.file("examples", "sbmlmutlicompartment.xml",
                           package = "r2sbml")
 invisible(capture.output(model <- getModel(multi_file)))
 setParameterValue(model, "k1", 1000)
+setRateLaw(model, "degradation", "cytoplasm * k3 * Y2^2")
 getParameterTable(model)
 #>   Number ID Name Value                     Units
 #> 1      1 k1       1000 litre_per_mole_per_second
 #> 2      2 k2       2500 litre_per_mole_per_second
 #> 3      3 KT      25000                per_second
 #> 4      4 k3       2500                per_second
+invisible(getReactionMath(model))
+#> Reaction 0, formula: nucleus * k1 * X * Y1n
+#> Reaction 1, formula: cytoplasm * KT * (Y1n - Y1c)
+#> Reaction 2, formula: cytoplasm * k2 * Y1c * Y2
+#> Reaction 3, formula: cytoplasm * k3 * Y2^2
 ```
 
-Three things behave differently from ordinary R objects, or from what
-you might expect:
+Four things behave differently from ordinary R objects, or from what you
+might expect:
 
 - **Edits happen in place.**
   [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md)
@@ -119,10 +127,16 @@ you might expect:
   refuses to write a model with errors, which can include one
   [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md)
   accepted.
+- **A rate law can only use what the reaction can see.** Every name in
+  the formula must be a compartment, species, parameter, reaction or
+  species reference of the model, one of the reaction’s own local
+  parameters, or a function definition; otherwise
+  [`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md)
+  stops and leaves the model unchanged. To use a new constant, write it
+  as a number.
 
 You cannot yet add or remove components (species, parameters, reactions,
-rules) or change a rate law. For that, use libSBML’s own R bindings or
-edit the XML directly.
+rules). For that, use libSBML’s own R bindings or edit the XML directly.
 
 ## Per-target capability matrix
 

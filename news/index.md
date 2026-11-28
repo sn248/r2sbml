@@ -4,15 +4,19 @@
 
 - Models can now be edited and written back to SBML:
   [`setParameterValue()`](https://sn248.github.io/r2sbml/reference/editModel.md),
-  [`setCompartmentSize()`](https://sn248.github.io/r2sbml/reference/editModel.md)
-  and
+  [`setCompartmentSize()`](https://sn248.github.io/r2sbml/reference/editModel.md),
   [`setSpeciesIC()`](https://sn248.github.io/r2sbml/reference/editModel.md)
+  and
+  [`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md)
   change a loaded model in place,
   [`copyModel()`](https://sn248.github.io/r2sbml/reference/copyModel.md)
   makes an independent copy, and
   [`writeSBML()`](https://sn248.github.io/r2sbml/reference/writeSBML.md)
-  validates the model and writes it to a file. A setter warns when an
-  initial assignment or assignment rule overrides the value it sets.
+  validates the model and writes it to a file. A value setter warns when
+  an initial assignment or assignment rule overrides the value it sets.
+  [`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md)
+  parses an infix formula, refuses one naming an id the reaction cannot
+  see, and keeps the reaction’s local parameters.
 
 - Fixed a memory leak in
   [`getModel()`](https://sn248.github.io/r2sbml/reference/getModel.md).

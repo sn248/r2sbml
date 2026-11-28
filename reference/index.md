@@ -68,6 +68,8 @@ makes an independent copy first.
   [`setCompartmentSize()`](https://sn248.github.io/r2sbml/reference/editModel.md)
   [`setSpeciesIC()`](https://sn248.github.io/r2sbml/reference/editModel.md)
   : Edit a model's values
+- [`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md)
+  : Replace a reaction's rate law
 - [`copyModel()`](https://sn248.github.io/r2sbml/reference/copyModel.md)
   : Copy a model
 

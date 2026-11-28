@@ -8,11 +8,12 @@ components from R — species, parameters, compartments, reactions, rules,
 events, function definitions — and exports the mass balances as
 ready-to-simulate code for several ODE solvers.
 
-You can also change a model’s parameter values, compartment sizes and
-species initial values from R
+You can also change a model’s parameter values, compartment sizes,
+species initial values and rate laws from R
 ([`setParameterValue()`](https://sn248.github.io/r2sbml/reference/editModel.md),
 [`setCompartmentSize()`](https://sn248.github.io/r2sbml/reference/editModel.md),
-[`setSpeciesIC()`](https://sn248.github.io/r2sbml/reference/editModel.md))
+[`setSpeciesIC()`](https://sn248.github.io/r2sbml/reference/editModel.md),
+[`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md))
 and write it back out with
 [`writeSBML()`](https://sn248.github.io/r2sbml/reference/writeSBML.md).
 Adding or removing components is not supported yet.
@@ -318,6 +319,8 @@ makes an independent copy first.
   [`setCompartmentSize()`](https://sn248.github.io/r2sbml/reference/editModel.md)
   [`setSpeciesIC()`](https://sn248.github.io/r2sbml/reference/editModel.md)
   : Edit a model's values
+- [`setRateLaw()`](https://sn248.github.io/r2sbml/reference/setRateLaw.md)
+  : Replace a reaction's rate law
 - [`copyModel()`](https://sn248.github.io/r2sbml/reference/copyModel.md)
   : Copy a model
 
